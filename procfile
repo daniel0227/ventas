@@ -1,1 +1,1 @@
-web: gunicorn chance.wsgi
+web: python manage.py migrate && gunicorn chance.wsgi
