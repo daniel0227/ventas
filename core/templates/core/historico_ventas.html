@@ -1,0 +1,100 @@
+{% extends "core/base.html" %}
+{% block content %}
+<div class="py-4">
+    <div class="d-flex justify-content-between w-100 flex-wrap">
+        <h1 class="h4">Histórico de Ventas</h1>
+    </div>
+</div>
+
+<div class="card border-0 shadow mb-4">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-centered table-nowrap mb-0 rounded">
+                <thead class="thead-light">
+                    <tr>
+                        <th class="border-0 rounded-start">Fecha</th>
+                        <th class="border-0">Vendedor</th>
+                        <th class="border-0">Venta</th>
+                        <th class="border-0 rounded-end">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for venta in resumen_ventas %}
+                    <tr>
+                        <td>{{ venta.fecha_venta__date }}</td>
+                        <td>{{ venta.vendedor__username }}</td> <!-- Mostrar nombre del vendedor -->
+                        <td>${{ venta.total_venta|floatformat:2 }}</td>
+                        <td>
+                            <!-- Botón para ver el desglose en un popup -->
+                            <button 
+                                class="btn btn-sm btn-primary ver-detalle" 
+                                data-bs-toggle="modal" 
+                                data-bs-target="#detalleModal" 
+                                data-venta="{{ venta.total_venta }}" 
+                                data-fecha="{{ venta.fecha_venta__date }}" 
+                                data-vendedor="{{ venta.vendedor__username }}">
+                                Ver
+                            </button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="text-center">No hay datos disponibles.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para mostrar los detalles -->
+<div class="modal fade" id="detalleModal" tabindex="-1" aria-labelledby="detalleModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="detalleModalLabel">Detalle de la Venta</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p><strong>Fecha:</strong> <span id="detalle-fecha"></span></p>
+                <p><strong>Vendedor:</strong> <span id="detalle-vendedor"></span></p>
+                <p><strong>Venta:</strong> $<span id="detalle-venta"></span> COP</p>
+                <p><strong>Venta Total (90%):</strong> $<span id="detalle-venta-total"></span> COP</p>
+                <p><strong>Comisión (35%):</strong> $<span id="detalle-comision"></span> COP</p>
+                <p><strong>Entrega:</strong> $<span id="detalle-entrega"></span> COP</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const botonesVerDetalle = document.querySelectorAll(".ver-detalle");
+
+        botonesVerDetalle.forEach((boton) => {
+            boton.addEventListener("click", function () {
+                // Obtener datos del botón
+                const fecha = boton.getAttribute("data-fecha");
+                const vendedor = boton.getAttribute("data-vendedor");
+                const venta = parseFloat(boton.getAttribute("data-venta"));
+
+                // Calcular los valores
+                const ventaTotal = venta * 0.9; // 90% de la venta
+                const comision = ventaTotal * 0.35; // 35% de la venta total
+                const entrega = ventaTotal - comision; // Venta total - comisión
+
+                // Actualizar el modal con los datos
+                document.getElementById("detalle-fecha").innerText = fecha;
+                document.getElementById("detalle-vendedor").innerText = vendedor;
+                document.getElementById("detalle-venta").innerText = venta.toFixed(2);
+                document.getElementById("detalle-venta-total").innerText = ventaTotal.toFixed(2);
+                document.getElementById("detalle-comision").innerText = comision.toFixed(2);
+                document.getElementById("detalle-entrega").innerText = entrega.toFixed(2);
+            });
+        });
+    });
+</script>
+{% endblock %}

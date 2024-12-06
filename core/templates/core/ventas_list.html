@@ -1,0 +1,84 @@
+{% extends "core/base.html" %}
+{% load static %}
+{% block content %}
+<div class="py-4">
+    <div class="d-flex justify-content-between w-100 flex-wrap">
+        <h1 class="h4">Listado de Ventas</h1>
+    </div>
+</div>
+
+<!-- Filtro de búsqueda -->
+<form method="GET" class="mb-3">
+    <div class="row">
+        <div class="col-md-3">
+            <input type="text" class="form-control" name="search" value="{{ search }}" placeholder="Buscar por número">
+        </div>
+        <div class="col-md-3">
+            <input type="date" class="form-control" name="start_date" value="{{ start_date }}">
+        </div>
+        <!-- Filtro de vendedor solo para administradores -->
+        {% if user.is_staff %}
+        <div class="col-md-3">
+            <select name="vendedor" class="form-control">
+                <option value="">Selecciona un Vendedor</option>
+                {% for vendedor in vendedores %}
+                <option value="{{ vendedor.vendedor__id }}" {% if vendedor_id == vendedor.vendedor__id|stringformat:"s" %}selected{% endif %}>
+                    {{ vendedor.vendedor__username }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+        <div class="col-md-3">
+            <button type="submit" class="btn btn-primary">Filtrar</button>
+        </div>
+    </div>
+</form>
+
+<!-- Total de ventas -->
+<div class="card border-0 shadow mb-4">
+    <div class="card-body">
+        <h5 class="card-title">Total de Ventas</h5>
+        <p class="card-text">
+            <!-- Mostrar el total de ventas formateado como moneda -->
+            <strong>${{ total_ventas|floatformat:2 }}</strong> COP
+        </p>
+    </div>
+</div>
+
+<!-- Tabla de ventas -->
+<div class="card border-0 shadow mb-4">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-centered table-nowrap mb-0 rounded">
+                <thead class="thead-light">
+                    <tr>
+                        <th class="border-0 rounded-start">#</th>
+                        <th class="border-0">Vendedor</th>
+                        <th class="border-0">Lotería</th>
+                        <th class="border-0">Número</th>
+                        <th class="border-0">Monto</th>
+                        <th class="border-0">Fecha de Venta</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for venta in ventas %}
+                    <tr>
+                        <td>{{ venta.id }}</td>
+                        <td>{{ venta.vendedor.username }}</td>
+                        <td>{{ venta.loterias.all|join:", " }}</td>
+                        <td>{{ venta.numero }}</td>
+                        <td>${{ venta.monto }}</td>
+                        <td>{{ venta.fecha_venta }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center">No se encontraron ventas.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

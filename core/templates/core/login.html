@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+    <!-- login.html -->
+    {% load static %}
+<head>
+	<title>Login</title>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--===============================================================================================-->	
+<link rel="icon" href="{% static 'core/img/icons/favicon.ico' %}"> 
+<!--===============================================================================================-->
+<link rel="stylesheet" href="{% static 'core/vendor/bootstrap/css/bootstrap.min.css' %}">
+<!--===============================================================================================-->
+<link rel="stylesheet" href="{% static 'core/fonts/font-awesome-4.7.0/css/font-awesome.min.css' %}">
+<!--===============================================================================================-->
+<link rel="stylesheet" href="{% static 'core/fonts/iconic/css/material-design-iconic-font.min.css' %}">
+<!--===============================================================================================-->
+<link rel="stylesheet" href="{% static 'core/vendor/animate/animate.css' %}">
+<!--===============================================================================================-->	
+<link rel="stylesheet" href="{% static 'core/vendor/css-hamburgers/hamburgers.min.css' %}">
+<!--===============================================================================================-->
+<link rel="stylesheet" href="{% static 'core/vendor/animsition/css/animsition.min.css' %}">
+<!--===============================================================================================-->
+<link rel="stylesheet" href="{% static 'core/vendor/select2/select2.min.css' %}">
+<!--===============================================================================================-->	
+<link rel="stylesheet" href="{% static 'core/vendor/daterangepicker/daterangepicker.css' %}">
+<!--===============================================================================================-->
+<link rel="stylesheet" href="{% static 'core/css/util.css' %}">
+<link rel="stylesheet" href="{% static 'core/css/main.css' %}">
+<!--===============================================================================================-->
+</head>
+<body>
+	
+	<div class="limiter">
+		<div class="container-login100">
+			<div class="wrap-login100">
+					<span class="login100-form-title p-b-26">
+						Iniciar Sesión
+					</span>
+                    {% if form.errors %}
+        <p style="color: red;">Nombre de usuario o contraseña incorrectos.</p>
+    {% endif %}
+
+    <form method="post" action="{% url 'login' %}">
+        {% csrf_token %}
+        <span class="login100-form-title p-b-48">
+            <i class="zmdi zmdi-font"></i>
+        </span>
+    
+        <div class="wrap-input100 validate-input">
+            <input class="input100" type="text" name="username" required>
+            <span class="focus-input100" data-placeholder="Usuario"></span>
+        </div>
+    
+        <div class="wrap-input100 validate-input" data-validate="Enter password">
+            <span class="btn-show-pass">
+                <i class="zmdi zmdi-eye"></i>
+            </span>
+            <input class="input100" type="password" name="password" required>
+            <span class="focus-input100" data-placeholder="Contraseña"></span>
+        </div>
+    
+        <div class="container-login100-form-btn">
+            <div class="wrap-login100-form-btn">
+                <div class="login100-form-bgbtn"></div>
+                <button type="submit" class="login100-form-btn">
+                    Ingresar
+                </button>
+            </div>
+        </div>
+    </form>
+						</div>
+					</div>
+			</div>
+		</div>
+	</div>
+	
+
+	<div id="dropDownSelect1"></div>
+	
+<!--===============================================================================================-->
+	<script src="{% static 'core/vendor/jquery/jquery-3.2.1.min.js' %}"></script>
+<!--===============================================================================================-->
+	<script src="{% static 'core/vendor/animsition/js/animsition.min.js' %}"></script>
+<!--===============================================================================================-->
+	<script src="{% static 'core/vendor/bootstrap/js/popper.js' %}"></script>
+	<script src="{% static 'core/vendor/bootstrap/js/bootstrap.min.js' %}"></script>
+<!--===============================================================================================-->
+	<script src="{% static 'core/vendor/select2/select2.min.js' %}"></script>
+<!--===============================================================================================-->
+	<script src="{% static 'core/vendor/daterangepicker/moment.min.js' %}"></script>
+	<script src="{% static 'core/vendor/daterangepicker/daterangepicker.js' %}"></script>
+<!--===============================================================================================-->
+	<script src="{% static 'core/vendor/countdowntime/countdowntime.js' %}"></script>
+<!--===============================================================================================-->
+	<script src="{% static 'core/js/main.js' %}"></script>
+
+</body>
+</html>

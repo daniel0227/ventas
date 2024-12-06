@@ -1,0 +1,122 @@
+{% extends 'core/base.html' %}
+
+{% block content %} 
+
+<div class="container-fluid">
+    <!-- Título del Dashboard -->
+    <div class="row mb-4">
+      <div class="col-12">
+        <h3>Dashboard de Ventas</h3>
+      </div>
+    </div>
+  
+    <!-- Resumen de Ventas (KPIs) -->
+    <div class="row">
+      <div class="col-md-4">
+        <div class="card text-white bg-info">
+          <div class="card-body">
+            <h5 class="card-title">Ventas Totales</h5>
+            <p class="card-text">${{ total_ventas|floatformat:2 }}</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card text-white bg-success">
+          <div class="card-body">
+            <h5 class="card-title">Promedio Diario</h5>
+            <p class="card-text">${{ promedio_diario|floatformat:2 }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  
+    <!-- Gráficos -->
+    <div class="row mt-4">
+      <div class="col-md-6">
+        <canvas id="ventasPorVendedor"></canvas>
+      </div>
+      <div class="col-md-6">
+        <canvas id="ventasTendencia"></canvas>
+      </div>
+    </div>
+  
+    <!-- Ventas Recientes -->
+    <div class="row mt-4">
+      <div class="col-12">
+        <table class="table table-striped">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Vendedor</th>
+              <th>Venta</th>
+              <th>Monto</th>
+              <th>Fecha</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for venta in ventas_por_vendedor %}
+            <tr>
+              <td>{{ forloop.counter }}</td>
+              <td>{{ venta.vendedor }}</td>
+              <td>{{ venta.numero }}</td>
+              <td>${{ venta.total_ventas }}</td>
+              <td>{{ venta.fecha_venta }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  // Gráfico de Ventas por Vendedor
+  var ctx = document.getElementById('ventasPorVendedor').getContext('2d');
+  var ventasPorVendedorChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: [{% for venta in ventas_por_vendedor %}'{{ venta.vendedor }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
+      datasets: [{
+        label: 'Ventas por Vendedor',
+        data: [{% for venta in ventas_por_vendedor %}{{ venta.total_ventas }}{% if not forloop.last %}, {% endif %}{% endfor %}],
+        backgroundColor: 'rgba(54, 162, 235, 0.2)',
+        borderColor: 'rgba(54, 162, 235, 1)',
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        y: {
+          beginAtZero: true
+        }
+      }
+    }
+  });
+
+  // Gráfico de Tendencia de Ventas
+  var ctx2 = document.getElementById('ventasTendencia').getContext('2d');
+  var ventasTendenciaChart = new Chart(ctx2, {
+    type: 'line',
+    data: {
+      labels: [{% for venta in ventas_tendencia %}'{{ venta.fecha_venta }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
+      datasets: [{
+        label: 'Tendencia de Ventas',
+        data: [{% for venta in ventas_tendencia %}{{ venta.total_ventas }}{% if not forloop.last %}, {% endif %}{% endfor %}],
+        borderColor: 'rgba(75, 192, 192, 1)',
+        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+        fill: true
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        y: {
+          beginAtZero: true
+        }
+      }
+    }
+  });
+</script>
+{% endblock %}
