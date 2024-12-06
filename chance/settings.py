@@ -14,7 +14,7 @@ SECRET_KEY = 'django-insecure--1o9=di!miz87e=-6sn+hyus@lcxhvukjq)#a5*ao=k$pn&dj#
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['.railway.app']
 
 
 # Application definition
@@ -66,11 +66,11 @@ WSGI_APPLICATION = 'chance.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'db_chance',
-        'USER': 'postgres',
-        'PASSWORD': 'Antonia2409.',
-        'HOST': 'localhost',
-        'PORT': '5432',  # Puerto predeterminado de PostgreSQL
+        'NAME': os.getenv('railway'),  # Nombre de la base de datos
+        'USER': os.getenv('postgres'),      # Usuario
+        'PASSWORD': os.getenv('gqwmsJPkWFgDUaWftTzCEiqdUFCAvBXx'),  # Contraseña
+        'HOST': os.getenv('postgres.railway.internal'),      # Host
+        'PORT': os.getenv('5432'),      # Puerto
     }
 }
 
