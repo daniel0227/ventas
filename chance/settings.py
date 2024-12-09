@@ -63,14 +63,15 @@ WSGI_APPLICATION = 'chance.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': os.getenv('railway'),  # Nombre de la base de datos
         'USER': os.getenv('postgres'),      # Usuario
         'PASSWORD': os.getenv('gqwmsJPkWFgDUaWftTzCEiqdUFCAvBXx'),  # Contraseña
-        'HOST': os.getenv('postgres.railway.internal'),      # Host
-        'PORT': os.getenv('5432'),      # Puerto
+        'HOST': os.getenv('railway'),      # Host
+        'PORT': os.getenv('PGPORT', '5432'),  # Puerto (por defecto 5432)
     }
 }
 
