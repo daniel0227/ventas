@@ -1,4 +1,5 @@
 import os
+import dj_database_url
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -65,21 +66,10 @@ WSGI_APPLICATION = 'chance.wsgi.application'
 
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('PGDATABASE'),  # Nombre de la base de datos
-        'USER': os.getenv('PGUSER'),      # Usuario
-        'PASSWORD': os.getenv('PGPASSWORD'),  # Contraseña
-        'HOST': os.getenv('PGHOST'),      # Host
-        'PORT': os.getenv('PGPORT', '5432'),  # Puerto (por defecto 5432)
-    }
+    'default': dj_database_url.config(
+        default=os.getenv('DATABASE_URL')  # Railway genera esta variable automáticamente
+    )
 }
-
-print("PGHOST:", os.getenv('PGHOST'))
-print("PGDATABASE:", os.getenv('PGDATABASE'))
-print("PGUSER:", os.getenv('PGUSER'))
-print("PGPASSWORD:", os.getenv('PGPASSWORD'))
-print("PGPORT:", os.getenv('PGPORT'))
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
