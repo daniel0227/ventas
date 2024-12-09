@@ -75,6 +75,11 @@ DATABASES = {
     }
 }
 
+print("PGHOST:", os.getenv('PGHOST'))
+print("PGDATABASE:", os.getenv('PGDATABASE'))
+print("PGUSER:", os.getenv('PGUSER'))
+print("PGPASSWORD:", os.getenv('PGPASSWORD'))
+print("PGPORT:", os.getenv('PGPORT'))
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
