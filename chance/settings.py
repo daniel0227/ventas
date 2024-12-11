@@ -67,9 +67,14 @@ WSGI_APPLICATION = 'chance.wsgi.application'
 
 
 DATABASES = {
-    'default': dj_database_url.config(
-        default='postgresql://postgres:gqwmsJPkWFgDUaWftTzCEiqdUFCAvBXx@autorack.proxy.rlwy.net:41491/railway'
-    )
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'railway',
+        'USER': 'postgres',
+        'PASSWORD': 'gqwmsJPkWFgDUaWftTzCEiqdUFCAvBXx',
+        'HOST': 'autorack.proxy.rlwy.net',
+        'PORT': '41491',
+    }
 }
 
 # Password validation
