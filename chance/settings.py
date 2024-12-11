@@ -13,7 +13,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure--1o9=di!miz87e=-6sn+hyus@lcxhvukjq)#a5*ao=k$pn&dj#'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = ['.railway.app']
 
@@ -68,7 +68,7 @@ WSGI_APPLICATION = 'chance.wsgi.application'
 
 DATABASES = {
     'default': dj_database_url.config(
-        default=os.getenv('DATABASE_URL')  # Railway genera esta variable automáticamente
+        default=os.getenv('DATABASE_URL', 'postgresql://postgres:gqwmsJPkWFgDUaWftTzCEiqdUFCAvBXx@postgres.railway.internal:5432/railway')  # Valor por defecto en caso de que no se configure la variable
     )
 }
 
