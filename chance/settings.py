@@ -68,7 +68,7 @@ WSGI_APPLICATION = 'chance.wsgi.application'
 
 DATABASES = {
     'default': dj_database_url.config(
-        default=os.getenv('DATABASE_URL')  # Esto tomará la URL desde la variable de entorno
+        default='postgresql://postgres:gqwmsJPkWFgDUaWftTzCEiqdUFCAvBXx@autorack.proxy.rlwy.net:41491/railway'
     )
 }
 
