@@ -68,7 +68,7 @@ WSGI_APPLICATION = 'chance.wsgi.application'
 
 DATABASES = {
     'default': dj_database_url.config(
-        default=os.getenv('DATABASE_URL', 'postgresql://postgres:gqwmsJPkWFgDUaWftTzCEiqdUFCAvBXx@postgres.railway.internal:5432/railway')  # Valor por defecto en caso de que no se configure la variable
+        default=os.getenv('DATABASE_URL')  # Esto tomará la URL desde la variable de entorno
     )
 }
 
