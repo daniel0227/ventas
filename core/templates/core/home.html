@@ -2,121 +2,178 @@
 
 {% block content %} 
 
-<div class="container-fluid">
-    <!-- Título del Dashboard -->
-    <div class="row mb-4">
-      <div class="col-12">
-        <h3>Dashboard de Ventas</h3>
-      </div>
-    </div>
-  
-    <!-- Resumen de Ventas (KPIs) -->
-    <div class="row">
-      <div class="col-md-4">
-        <div class="card text-white bg-info">
-          <div class="card-body">
-            <h5 class="card-title">Ventas Totales</h5>
-            <p class="card-text">${{ total_ventas|floatformat:2 }}</p>
+  {% load static %}
+  <head>
+    <meta charset="UTF-8" />
+    <title>Buhowl</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+
+    <!-- Librerías CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.1/css/bootstrap.min.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet" />
+    <!-- Librerías JS de Bootstrap -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.1/js/bootstrap.bundle.min.js"></script>
+    <style>
+      body {
+        background-color: #f1f2f6; /* Fondo general gris claro */
+      }
+
+      .menu-card {
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        transition: transform 0.3s, box-shadow 0.3s;
+        color: #2d3436; /* Texto oscuro para contraste */
+        width: 100%;
+        padding: 10px;
+      }
+
+      .menu-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 6px 10px rgba(0, 0, 0, 0.15);
+      }
+
+      .menu-card .card-body {
+        font-family: 'Roboto', sans-serif;
+        text-align: left;
+      }
+
+      .menu-card svg {
+        width: 30px; /* Reducido tamaño de íconos */
+        height: 30px;
+        margin-right: 10px;
+      }
+
+      .menu-container {
+        padding: 20px;
+      }
+
+      /* Paleta de colores moderna */
+      .menu-card.bg-1 {
+        background-color: #74b9ff; /* Azul claro pastel */
+      }
+
+      .menu-card.bg-2 {
+        background-color: #55efc4; /* Verde menta suave */
+      }
+
+      .menu-card.bg-3 {
+        background-color: #ffeaa7; /* Amarillo cálido */
+      }
+
+      .menu-card.bg-4 {
+        background-color: #fab1a0; /* Coral suave */
+      }
+      .menu-card.bg-5 {
+        background-color:rgb(183, 154, 230); /* Coral suave */
+      }
+
+      /* Ajuste de tamaño del menú */
+      .menu-item {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        padding: 12px;
+        width: 100%; /* Mantener el ancho completo, pero reducimos la proporción en el layout */
+      }
+
+      /* Mejoras en el estilo del encabezado de bienvenida */
+      .welcome-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-bottom: 15px;
+        margin-bottom: 20px;
+      }
+
+      .welcome-container h4 {
+        margin: 0;
+      }
+
+      .welcome-container form {
+        display: flex;
+        gap: 10px;
+      }
+
+      .btn-custom {
+        background-color: #74b9ff;
+        color: white;
+        border: none;
+        padding: 8px 20px;
+        border-radius: 5px;
+        font-size: 16px;
+      }
+
+      .btn-custom:hover {
+        background-color: #3498db;
+        cursor: pointer;
+      }
+      
+    </style>
+  </head>
+    <!-- Menu Cards -->
+    <div class="row gy-4">
+      
+      <div class="col-md-3">
+        <a href="{% url 'ventas' %}" class="text-decoration-none">
+          <div class="card menu-card bg-3">
+            <div class="card-body menu-item">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-cash" viewBox="0 0 16 16">
+                <path d="M2 6a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1H2z"/>
+                <path d="M0 7h16v6H0V7zM4 8a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm8 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm2 3H2v1a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-1z"/>
+              </svg>
+              <h5>Venta Directa</h5>
+            </div>
           </div>
-        </div>
+        </a>
       </div>
-      <div class="col-md-4">
-        <div class="card text-white bg-success">
-          <div class="card-body">
-            <h5 class="card-title">Promedio Diario</h5>
-            <p class="card-text">${{ promedio_diario|floatformat:2 }}</p>
+      <div class="col-md-3">
+        <a href="{% url 'loterias' %}" class="text-decoration-none">
+          <div class="card menu-card bg-2">
+            <div class="card-body menu-item">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-calendar4" viewBox="0 0 16 16">
+                <path d="M3.5 0a.5.5 0 0 1 .5.5v1h8v-1a.5.5 0 0 1 1 0v1h1a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V2.5a2 2 0 0 1 2-2h1v-1a.5.5 0 0 1 .5-.5zM1 4v9a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4H1zm2-2a1 1 0 0 0-1 1v1h12V3a1 1 0 0 0-1-1H3.5v1a.5.5 0 0 1-1 0V2H3z"/>
+              </svg>
+              <h5>Loterías</h5>
+            </div>
           </div>
-        </div>
+        </a>
       </div>
-    </div>
-  
-    <!-- Gráficos -->
-    <div class="row mt-4">
-      <div class="col-md-6">
-        <canvas id="ventasPorVendedor"></canvas>
+      <div class="col-md-3">
+        <a href="{% url 'ventas_list' %}" class="text-decoration-none">
+          <div class="card menu-card bg-4">
+            <div class="card-body menu-item">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-bar-chart" viewBox="0 0 16 16">
+                <path d="M0 0h1v15h15v1H0V0zm6 14h2V9H6v5zm3-5h2V5H9v4zM3 14h2V4H3v10z"/>
+              </svg>
+              <h5>Reporte de ventas</h5>
+            </div>
+          </div>
+        </a>
       </div>
-      <div class="col-md-6">
-        <canvas id="ventasTendencia"></canvas>
+      <div class="col-md-3">
+        <a href="{% url 'premios' %}" class="text-decoration-none">
+          <div class="card menu-card bg-1">
+            <div class="card-body menu-item">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-bar-chart" viewBox="0 0 16 16">
+                <path d="M0 0h1v15h15v1H0V0zm6 14h2V9H6v5zm3-5h2V5H9v4zM3 14h2V4H3v10z"/>
+              </svg>
+              <h5>Premios</h5>
+            </div>
+          </div>
+        </a>
       </div>
-    </div>
-  
-    <!-- Ventas Recientes -->
-    <div class="row mt-4">
-      <div class="col-12">
-        <table class="table table-striped">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Vendedor</th>
-              <th>Venta</th>
-              <th>Monto</th>
-              <th>Fecha</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for venta in ventas_por_vendedor %}
-            <tr>
-              <td>{{ forloop.counter }}</td>
-              <td>{{ venta.vendedor }}</td>
-              <td>{{ venta.numero }}</td>
-              <td>${{ venta.total_ventas }}</td>
-              <td>{{ venta.fecha_venta }}</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+      <div class="col-md-3">
+        <a href="{% url 'resultados' %}" class="text-decoration-none">
+          <div class="card menu-card bg-5">
+            <div class="card-body menu-item">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-bar-chart" viewBox="0 0 16 16">
+                <path d="M0 0h1v15h15v1H0V0zm6 14h2V9H6v5zm3-5h2V5H9v4zM3 14h2V4H3v10z"/>
+              </svg>
+              <h5>Resultados</h5>
+            </div>
+          </div>
+        </a>
       </div>
     </div>
   </div>
-
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-  // Gráfico de Ventas por Vendedor
-  var ctx = document.getElementById('ventasPorVendedor').getContext('2d');
-  var ventasPorVendedorChart = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: [{% for venta in ventas_por_vendedor %}'{{ venta.vendedor }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
-      datasets: [{
-        label: 'Ventas por Vendedor',
-        data: [{% for venta in ventas_por_vendedor %}{{ venta.total_ventas }}{% if not forloop.last %}, {% endif %}{% endfor %}],
-        backgroundColor: 'rgba(54, 162, 235, 0.2)',
-        borderColor: 'rgba(54, 162, 235, 1)',
-        borderWidth: 1
-      }]
-    },
-    options: {
-      responsive: true,
-      scales: {
-        y: {
-          beginAtZero: true
-        }
-      }
-    }
-  });
-
-  // Gráfico de Tendencia de Ventas
-  var ctx2 = document.getElementById('ventasTendencia').getContext('2d');
-  var ventasTendenciaChart = new Chart(ctx2, {
-    type: 'line',
-    data: {
-      labels: [{% for venta in ventas_tendencia %}'{{ venta.fecha_venta }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
-      datasets: [{
-        label: 'Tendencia de Ventas',
-        data: [{% for venta in ventas_tendencia %}{{ venta.total_ventas }}{% if not forloop.last %}, {% endif %}{% endfor %}],
-        borderColor: 'rgba(75, 192, 192, 1)',
-        backgroundColor: 'rgba(75, 192, 192, 0.2)',
-        fill: true
-      }]
-    },
-    options: {
-      responsive: true,
-      scales: {
-        y: {
-          beginAtZero: true
-        }
-      }
-    }
-  });
-</script>
 {% endblock %}

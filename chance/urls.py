@@ -13,6 +13,8 @@ urlpatterns = [
     path('ventas', views.crear_venta, name="ventas"),
     path('ventas_list/', views.ventas_list, name='ventas_list'),  # Aquí agregas la URL para la lista de ventas
     path('historico-ventas/', views.historico_ventas, name='historico_ventas'),
+    path('premios/', views.premios, name='premios'),
+    path('resultados/', views.resultados, name='resultados'),
     path('admin/', admin.site.urls),
     path('login/', CustomLoginView.as_view(), name='login'),
     path('logout/', LogoutView.as_view(), name='logout'),

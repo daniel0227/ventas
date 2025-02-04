@@ -99,7 +99,6 @@ class CustomLoginView(LoginView):
 @login_required
 def crear_venta(request):
     ahora = timezone.localtime(timezone.now())
-    print("Entrando a la vista crear_venta...")  # Log inicial
 
     try:
         # Mapeo de días
@@ -123,17 +122,15 @@ def crear_venta(request):
 
         # Buscar el día en la base de datos
         dia_actual = Dia.objects.get(nombre=dia_actual_nombre_es)
-        print("Día actual en la base de datos:", dia_actual)
 
-        # Filtrar loterías
+        # Filtrar loterías solo disponibles
         loterias = Loteria.objects.filter(dias_juego=dia_actual).annotate(
             disponible=Case(
                 When(hora_inicio__lte=ahora.time(), hora_fin__gte=ahora.time(), then=True),
                 default=False,
                 output_field=BooleanField(),
             )
-        ).order_by('-disponible')
-        print("Loterías filtradas:", loterias)
+        ).filter(disponible=True).order_by('-disponible')
 
         if request.method == 'POST':
             print("Método POST detectado...")
@@ -142,7 +139,7 @@ def crear_venta(request):
             loterias_ids = request.POST.getlist('loterias')
             numeros = request.POST.getlist('numero')
             montos = request.POST.getlist('monto')
-            print("Datos recibidos: loterias_ids:", loterias_ids, "numeros:", numeros, "montos:", montos)
+            combi = request.POST.get('combi')  # Captura el campo combi
 
             # Validar números y montos
             if len(numeros) != len(montos):
@@ -153,17 +150,16 @@ def crear_venta(request):
             loterias_seleccionadas = Loteria.objects.filter(id__in=loterias_ids)
             print("Loterías seleccionadas:", loterias_seleccionadas)
             if not loterias_seleccionadas.exists():
-                print("Error: Loterías seleccionadas no válidas.")
                 return JsonResponse({'success': False, 'error': 'Loterías no válidas.'}, status=400)
 
             # Crear ventas
             for numero, monto in zip(numeros, montos):
-                print(f"Creando venta: número={numero}, monto={monto}")
                 venta = Venta.objects.create(
                     vendedor=request.user,
                     numero=numero,
                     monto=monto,
-                    fecha_venta=ahora
+                    fecha_venta=ahora,
+                    combi=int(combi) if combi else None  # Asignar null si no hay valor
                 )
                 venta.loterias.set(loterias_seleccionadas)
                 print("Venta creada con éxito:", venta)
@@ -250,6 +246,17 @@ def historico_ventas(request):
     return render(request, 'core/historico_ventas.html', {
         'resumen_ventas': resumen_ventas,
     })
+
+@login_required
+def premios(request):
+    return render(request, 'core/premios.html', {
+    })
+
+@login_required
+def resultados(request):
+    return render(request, 'core/resultados.html', {
+    })
+
 
 def login_required_view(request):
     return render(request, 'core/login_required.html')
