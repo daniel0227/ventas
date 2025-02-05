@@ -26,7 +26,7 @@ class Venta(models.Model):
     fecha_venta = models.DateTimeField(auto_now_add=True)
     numero = models.CharField(max_length=50)
     monto = models.IntegerField()  # Cambiado a IntegerField
-    #combi = models.IntegerField(null=True, blank=True)  # Cambiado a IntegerField
+    combi = models.IntegerField(null=True, blank=True)  # Cambiado a IntegerField
 
     def __str__(self):
         return f"{self.vendedor} - {self.numero} - {self.fecha_venta}"
