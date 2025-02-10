@@ -1,20 +1,17 @@
-from django.shortcuts import render, HttpResponse, redirect
-from django.contrib.auth.decorators import login_required
+from django.shortcuts import render, HttpResponse, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.utils import timezone
-from django.http import Http404
+from django.http import Http404, JsonResponse
 from django.contrib.auth.views import LoginView
-from .models import Loteria, Dia, Venta
-from django.http import JsonResponse
-from django.db.models import Case, When, BooleanField
+from .models import Loteria, Dia, Venta, Resultado
+from django.db.models import Case, When, BooleanField, Sum, Count, F
 from django.utils.timezone import localtime, now, make_aware
 from .forms import VentaForm
 from django.core.paginator import Paginator
-from django.db.models import Sum, Count, F
 from pytz import timezone as pytz_timezone
 from datetime import date, timedelta
 
-# Create your views here.
-
+# Vista Home
 @login_required
 def home(request):
     # Obtener la fecha actual y la hora local ajustada    
@@ -45,6 +42,7 @@ def home(request):
         'ventas_tendencia': ventas_tendencia,
     })
 
+# Vista para mostrar loterías disponibles del día
 @login_required
 def loteria(request):
     # Obtener la fecha y hora actuales ajustadas a la zona horaria local
@@ -70,7 +68,7 @@ def loteria(request):
     except Dia.DoesNotExist:
         raise Http404(f"No se ha encontrado un día con el nombre {dia_actual_nombre_es}")
 
-    # Filtra las loterías que se juegan en el día actual y anota si están disponibles
+    # Filtrar las loterías que se juegan en el día actual y anotar si están disponibles
     loterias = Loteria.objects.filter(dias_juego=dia_actual).annotate(
         disponible=Case(
             When(hora_inicio__lte=ahora.time(), hora_fin__gte=ahora.time(), then=True),
@@ -88,14 +86,17 @@ def loteria(request):
         'current_time': current_time,
     })
 
+# Vista simple para ventas (no se ha modificado)
 @login_required
 def ventas(request):
     return render(request, "core/ventas.html")
 
+# Vista de Login personalizada
 class CustomLoginView(LoginView):
     template_name = 'core/login.html'
     redirect_authenticated_user = True  # Redirige si el usuario ya está autenticado
-    
+
+# Vista para crear una venta
 @login_required
 def crear_venta(request):
     ahora = timezone.localtime(timezone.now())
@@ -183,41 +184,35 @@ def crear_venta(request):
         'current_time': ahora.time(),
     })
 
-@login_required(login_url='/login-required/')  # Usa el URL de la vista login-required
+# Vista para listar ventas con filtros y paginación
+@login_required(login_url='/login-required/')
 def ventas_list(request):
     search = request.GET.get('search', '')
-    start_date = request.GET.get('start_date', str(date.today()))  # Fecha inicio
-    end_date = request.GET.get('end_date', str(date.today()))  # Fecha fin
-    vendedor_id = request.GET.get('vendedor', '')  # Obtener el vendedor seleccionado
+    start_date = request.GET.get('start_date', str(date.today()))
+    end_date = request.GET.get('end_date', str(date.today()))
+    vendedor_id = request.GET.get('vendedor', '')
 
-    # Filtrar las ventas según las fechas y la búsqueda
     ventas = Venta.objects.filter(fecha_venta__date__gte=start_date, fecha_venta__date__lte=end_date)
 
-    # Si el usuario no es administrador, filtrar solo sus ventas
     if not request.user.is_staff:
         ventas = ventas.filter(vendedor=request.user)
 
-    # Si el usuario es administrador y se ha seleccionado un vendedor, filtrar por vendedor
     if request.user.is_staff and vendedor_id:
         ventas = ventas.filter(vendedor_id=vendedor_id)
 
-    # Filtro de búsqueda por número apostado
     if search:
         ventas = ventas.filter(numero__icontains=search)
 
-    # Paginación
-    paginator = Paginator(ventas, 10)  # 10 ventas por página
+    paginator = Paginator(ventas, 10)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
-    # Cálculo del total de ventas considerando el número de loterías asociadas
     total_ventas = ventas.annotate(
         total_por_loteria=F('monto') * Count('loterias')
     ).aggregate(
         total=Sum('total_por_loteria')
     )['total'] or 0
 
-    # Obtener los vendedores si el usuario es administrador
     vendedores = Venta.objects.values('vendedor__id', 'vendedor__username').distinct() if request.user.is_staff else []
 
     return render(request, 'core/ventas_list.html', {
@@ -226,37 +221,133 @@ def ventas_list(request):
         'search': search,
         'start_date': start_date,
         'end_date': end_date,
-        'vendedores': vendedores,  # Pasar los vendedores para el filtro
-        'vendedor_id': vendedor_id,  # Mantener el valor del filtro de vendedor
+        'vendedores': vendedores,
+        'vendedor_id': vendedor_id,
     })
 
+# Vista para mostrar el histórico de ventas
 @login_required
 def historico_ventas(request):
-    # Si es administrador, muestra todas las ventas, si no, filtra por el usuario logueado
     if request.user.is_staff:
         ventas = Venta.objects.all()
     else:
         ventas = Venta.objects.filter(vendedor=request.user)
 
-    # Agrupar las ventas por fecha y vendedor
     resumen_ventas = ventas.values('fecha_venta__date', 'vendedor__username').annotate(
-        total_venta=Sum('monto')  # Sumar el monto total por día
-    ).order_by('-fecha_venta__date')  # Ordenar por fecha descendente
+        total_venta=Sum('monto')
+    ).order_by('-fecha_venta__date')
 
     return render(request, 'core/historico_ventas.html', {
         'resumen_ventas': resumen_ventas,
     })
 
+# Vista para premios
 @login_required
 def premios(request):
     return render(request, 'core/premios.html', {
     })
 
+# Nueva vista para el superadmin: Registro de Resultados
+@user_passes_test(lambda u: u.is_superuser)
 @login_required
-def resultados(request):
-    return render(request, 'core/resultados.html', {
+def registro_resultados(request):
+    ahora = timezone.localtime(timezone.now())
+    dia_actual_nombre = ahora.strftime('%A')
+    dias_map = {
+        'Monday': 'Lunes',
+        'Tuesday': 'Martes',
+        'Wednesday': 'Miércoles',
+        'Thursday': 'Jueves',
+        'Friday': 'Viernes',
+        'Saturday': 'Sábado',
+        'Sunday': 'Domingo',
+    }
+    dia_actual_nombre_es = dias_map.get(dia_actual_nombre)
+    fecha_actual = ahora.date()
+
+    try:
+        dia_actual = Dia.objects.get(nombre=dia_actual_nombre_es)
+    except Dia.DoesNotExist:
+        raise Http404(f"No se ha encontrado un día con el nombre {dia_actual_nombre_es}")
+
+    # Filtrar las loterías que se juegan el día actual
+    loterias = Loteria.objects.filter(dias_juego=dia_actual).order_by('nombre')
+
+    # Preparar un diccionario con el resultado actual (si existe) para cada lotería
+    resultados_dict = {}
+    for lot in loterias:
+        resultado_obj = Resultado.objects.filter(loteria=lot, fecha=fecha_actual).first()
+        resultados_dict[lot.id] = resultado_obj.resultado if resultado_obj else None
+
+    if request.method == 'POST':
+        # Procesar el formulario: se espera un input "resultado_<loteria.id>" para cada lotería
+        for lot in loterias:
+            key = f"resultado_{lot.id}"
+            valor = request.POST.get(key)
+            if valor:
+                try:
+                    valor_int = int(valor)
+                except ValueError:
+                    continue
+                Resultado.objects.update_or_create(
+                    loteria=lot,
+                    fecha=fecha_actual,
+                    defaults={
+                        'resultado': valor_int,
+                        'registrado_por': request.user
+                    }
+                )
+            else:
+                Resultado.objects.filter(loteria=lot, fecha=fecha_actual).delete()
+        return redirect('resultados')
+
+    return render(request, 'core/registro_resultados.html', {
+        'loterias': loterias,
+        'resultados_dict': resultados_dict,
+        'fecha_actual': fecha_actual,
+        'dia_actual_nombre': dia_actual_nombre_es,
     })
 
+# Vista para usuarios normales: Mostrar Resultados
+@login_required
+def resultados(request):
+    ahora = timezone.localtime(timezone.now())
+    dia_actual_nombre = ahora.strftime('%A')
+    dias_map = {
+        'Monday': 'Lunes',
+        'Tuesday': 'Martes',
+        'Wednesday': 'Miércoles',
+        'Thursday': 'Jueves',
+        'Friday': 'Viernes',
+        'Saturday': 'Sábado',
+        'Sunday': 'Domingo',
+    }
+    dia_actual_nombre_es = dias_map.get(dia_actual_nombre)
+    fecha_actual = ahora.date()
+
+    try:
+        dia_actual = Dia.objects.get(nombre=dia_actual_nombre_es)
+    except Dia.DoesNotExist:
+        raise Http404(f"No se ha encontrado un día con el nombre {dia_actual_nombre_es}")
+
+    # Filtrar las loterías que se juegan el día actual
+    loterias = Loteria.objects.filter(dias_juego=dia_actual).order_by('nombre')
+
+    # Crear una lista de diccionarios con cada lotería y su resultado (si existe) para el día actual
+    resultados_list = []
+    for lot in loterias:
+        resultado_obj = Resultado.objects.filter(loteria=lot, fecha=fecha_actual).first()
+        resultados_list.append({
+            'loteria': lot,
+            'resultado': resultado_obj.resultado if resultado_obj else None,
+        })
+
+    context = {
+         'loterias_resultados': resultados_list,
+         'fecha_actual': fecha_actual,
+         'dia_actual_nombre': dia_actual_nombre_es,
+    }
+    return render(request, 'core/resultados.html', context)
 
 def login_required_view(request):
     return render(request, 'core/login_required.html')

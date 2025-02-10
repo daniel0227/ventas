@@ -1,5 +1,38 @@
-{% extends 'core/base.html' %}
+<!-- core/templates/core/resultados.html -->
+{% extends "core/base.html" %}
+{% load static %}
 
-{% block content %} 
-resultados
+{% block content %}
+  <h4 class="text-center mb-4">Resultados de Loterías para {{ fecha_actual }}</h4>
+  <table class="table table-bordered">
+    <thead>
+      <tr>
+        <th></th>
+        <th>Lotería</th>
+        <th>Resultado</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in loterias_resultados %}
+        <tr>
+            <td>
+                {% if item.loteria.imagen %}
+                  <img src="{{ item.loteria.imagen.url }}" alt="{{ item.loteria.nombre }}" style="max-width: 65px;">
+                {% else %}
+                  <img src="{% static 'core/img/default-loteria.png' %}" alt="{{ item.loteria.nombre }}" style="max-width: 65px;">
+                {% endif %}
+              </td>
+          <td>{{ item.loteria.nombre }}</td>
+          
+          <td>
+            {% if item.resultado %}
+              {{ item.resultado }}
+            {% else %}
+              Sin resultado
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
 {% endblock %}

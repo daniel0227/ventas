@@ -1,0 +1,30 @@
+<!-- core/templates/core/registro_resultados.html -->
+{% extends "core/base.html" %}
+{% load static %}
+{% load dict_extras %}
+
+{% block content %}
+  <h1 class="text-center mb-4">Registrar Resultados para {{ fecha_actual }}</h1>
+  <form method="post">
+    {% csrf_token %}
+    <table class="table table-bordered">
+      <thead>
+        <tr>
+          <th>Lotería</th>
+          <th>Resultado</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for lot in loterias %}
+          <tr>
+            <td>{{ lot.nombre }}</td>
+            <td>
+              <input type="number" name="resultado_{{ lot.id }}" class="form-control" value="{{ resultados_dict|get_item:lot.id|default:'' }}">
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <button type="submit" class="btn btn-primary">Guardar Resultados</button>
+  </form>
+{% endblock %}

@@ -30,3 +30,18 @@ class Venta(models.Model):
 
     def __str__(self):
         return f"{self.vendedor} - {self.numero} - {self.fecha_venta}"
+    
+class Resultado(models.Model):
+    loteria = models.ForeignKey(Loteria, on_delete=models.CASCADE, related_name='resultados')
+    fecha = models.DateField()
+    resultado = models.PositiveIntegerField()
+    registrado_por = models.ForeignKey(User, on_delete=models.CASCADE)
+    registrado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('loteria', 'fecha')
+        verbose_name = "Resultado de Lotería"
+        verbose_name_plural = "Resultados de Loterías"
+
+    def __str__(self):
+        return f"{self.loteria} - {self.fecha}: {self.resultado}"
