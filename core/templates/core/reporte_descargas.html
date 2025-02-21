@@ -1,0 +1,49 @@
+{% extends "core/base.html" %}
+{% load static %}
+{% load format_filters %}
+
+{% block content %}
+<div class="container my-5">
+  <h4 class="text-center mb-4">Reporte de Descargas para {{ fecha }}</h4>
+
+  <!-- Filtro de fecha -->
+  <form method="get" class="mb-4">
+    <div class="row align-items-end">
+      <div class="col-md-8">
+        <label for="fecha" class="form-label">Seleccionar fecha</label>
+        <input type="date" id="fecha" name="fecha" class="form-control" value="{{ fecha }}">
+      </div>
+      <div class="col-md-4 text-end">
+        <button type="submit" class="btn btn-secondary">Filtrar</button>
+      </div>
+    </div>
+  </form>
+
+  {% if report %}
+    <div class="table-responsive">
+      <table class="table table-striped">
+        <thead>
+          <tr>
+            <th>Lotería</th>
+            <th>Número</th>
+            <th>Valor</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in report %}
+          <tr>
+            <td>{{ row.loterias__nombre }}</td>
+            <td>{{ row.numero }}</td>
+            <td>${{ row.total|format_colombian }} COP</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="alert alert-info" role="alert">
+      No se encontraron ventas para la fecha {{ fecha }}.
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -47,24 +47,32 @@
         padding: 20px;
       }
 
-      /* Paleta de colores moderna */
       .menu-card.bg-1 {
-        background-color: #74b9ff; /* Azul claro pastel */
+        background-color: #FFD3B5; /* Peach pastel */
       }
-
+      
       .menu-card.bg-2 {
-        background-color: #55efc4; /* Verde menta suave */
+        background-color: #FEC8D8; /* Pink pastel */
       }
-
+      
       .menu-card.bg-3 {
-        background-color: #ffeaa7; /* Amarillo cálido */
+        background-color: #AFCBFF; /* Light baby blue */
       }
-
+      
       .menu-card.bg-4 {
-        background-color: #fab1a0; /* Coral suave */
+        background-color: #C7CEEA; /* Lavender pastel */
       }
+      
       .menu-card.bg-5 {
-        background-color:rgb(183, 154, 230); /* Coral suave */
+        background-color: #B5EAD7; /* Mint pastel */
+      }
+      
+      .menu-card.bg-6 {
+        background-color: #FBEAD3; /* Cream pastel */
+      }
+      
+      .menu-card.bg-7 {
+        background-color: #E2F0CB; /* Lime pastel */
       }
 
       /* Ajuste de tamaño del menú */
@@ -115,13 +123,10 @@
       
       <div class="col-md-3">
         <a href="{% url 'ventas' %}" class="text-decoration-none">
-          <div class="card menu-card bg-3">
+          <div class="card menu-card bg-1">
             <div class="card-body menu-item">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-cash" viewBox="0 0 16 16">
-                <path d="M2 6a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1H2z"/>
-                <path d="M0 7h16v6H0V7zM4 8a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm8 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm2 3H2v1a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-1z"/>
-              </svg>
-              <h5>Venta Directa</h5>
+              <img src="{% static 'core/img/sales.png' %}" alt="Venta Directa Icon" style="width: 30px; height: 30px; margin-right: 10px;">
+              <h5 style="margin: 0px 0 0px 15px;">Venta Directa</h5>
             </div>
           </div>
         </a>
@@ -130,34 +135,28 @@
         <a href="{% url 'loterias' %}" class="text-decoration-none">
           <div class="card menu-card bg-2">
             <div class="card-body menu-item">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-calendar4" viewBox="0 0 16 16">
-                <path d="M3.5 0a.5.5 0 0 1 .5.5v1h8v-1a.5.5 0 0 1 1 0v1h1a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V2.5a2 2 0 0 1 2-2h1v-1a.5.5 0 0 1 .5-.5zM1 4v9a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4H1zm2-2a1 1 0 0 0-1 1v1h12V3a1 1 0 0 0-1-1H3.5v1a.5.5 0 0 1-1 0V2H3z"/>
-              </svg>
-              <h5>Loterías</h5>
+              <img src="{% static 'core/img/lottery.png' %}" alt="Loteria Icon" style="width: 30px; height: 30px; margin-right: 10px;">
+              <h5 style="margin: 0px 0 0px 15px;">Loterías</h5>
             </div>
           </div>
         </a>
       </div>
       <div class="col-md-3">
         <a href="{% url 'ventas_list' %}" class="text-decoration-none">
-          <div class="card menu-card bg-4">
+          <div class="card menu-card bg-3">
             <div class="card-body menu-item">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-bar-chart" viewBox="0 0 16 16">
-                <path d="M0 0h1v15h15v1H0V0zm6 14h2V9H6v5zm3-5h2V5H9v4zM3 14h2V4H3v10z"/>
-              </svg>
-              <h5>Reporte de ventas</h5>
+              <img src="{% static 'core/img/report.png' %}" alt="report" style="width: 27px; margin-right: 10px;">
+              <h5 style="margin: 0px 0 0px 15px;">Reporte de ventas</h5>
             </div>
           </div>
         </a>
       </div>
       <div class="col-md-3">
         <a href="{% url 'premios' %}" class="text-decoration-none">
-          <div class="card menu-card bg-1">
+          <div class="card menu-card bg-4">
             <div class="card-body menu-item">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-bar-chart" viewBox="0 0 16 16">
-                <path d="M0 0h1v15h15v1H0V0zm6 14h2V9H6v5zm3-5h2V5H9v4zM3 14h2V4H3v10z"/>
-              </svg>
-              <h5>Premios</h5>
+              <img src="{% static 'core/img/dollar.png' %}" alt="report" style="width: 30px; margin-right: 10px;">
+              <h5 style="margin: 0px 0 0px 15px;">Premios</h5>
             </div>
           </div>
         </a>
@@ -166,14 +165,36 @@
         <a href="{% url 'resultados' %}" class="text-decoration-none">
           <div class="card menu-card bg-5">
             <div class="card-body menu-item">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="bi bi-bar-chart" viewBox="0 0 16 16">
-                <path d="M0 0h1v15h15v1H0V0zm6 14h2V9H6v5zm3-5h2V5H9v4zM3 14h2V4H3v10z"/>
-              </svg>
-              <h5>Resultados</h5>
+              <img src="{% static 'core/img/results.png' %}" alt="Loteria Icon" style="width: 30px; height: 30px; margin-right: 10px;">
+              <h5 style="margin: 0px 0 0px 15px;">Resultados</h5>
             </div>
           </div>
         </a>
       </div>
+      {% if user.is_staff %}
+      <div class="col-md-3">
+        <a href="{% url 'registro_resultados' %}" class="text-decoration-none">
+          <div class="card menu-card bg-6">
+            <div class="card-body menu-item">
+              <img src="{% static 'core/img/register.png' %}" alt="Loteria Icon" style="width: 30px; height: 30px; margin-right: 10px;">
+              <h5 style="margin: 0px 0 0px 15px;">Registrar Resultados</h5>
+            </div>
+          </div>
+        </a>
+      </div>
+      {% endif %}
+    {% if user.is_staff %}
+    <div class="col-md-3">
+      <a href="{% url 'reporte_descargas' %}" class="text-decoration-none">
+        <div class="card menu-card bg-7">
+          <div class="card-body menu-item">
+            <img src="{% static 'core/img/descargues.png' %}" alt="Loteria Icon" style="width: 30px; height: 30px; margin-right: 10px;">
+            <h5 style="margin: 0px 0 0px 15px;">Reporte Descargas</h5>
+          </div>
+        </div>
+      </a>
+    </div>
+    {% endif %}
     </div>
   </div>
 {% endblock %}

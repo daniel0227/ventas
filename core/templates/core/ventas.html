@@ -4,11 +4,23 @@
 
 {% block content %}
 
-  <h1 class="text-center mb-4">Registrar Ventas</h1>
+  <h3 class="text-center mb-4">Registrar Ventas</h3>
+  
+  <!-- Toast Container (Mensaje de éxito) -->
+  <div aria-live="polite" aria-atomic="true" class="position-fixed top-0 end-0 p-3" style="z-index: 1080;">
+    <div id="toastSuccess" class="toast align-items-center text-white bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="d-flex">
+        <div class="toast-body">
+          ¡La venta se guardó correctamente!
+        </div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
+    </div>
+  </div>
   
   <form id="ventas-form" method="post" class="needs-validation" novalidate>
     {% csrf_token %}
-
+  
     <!-- Selección de Loterías -->
     {% if loterias %}
       <div class="dropdown">
@@ -29,7 +41,7 @@
                   {{ loteria.nombre }}
                 </span>
                 {% if loteria.disponible %}
-                  <span style="width: 21%" class="badge bg-success">Disponible</span>
+                  <span style="width: 21%" class="badge bg-success"></span>
                 {% else %}
                   <span style="width: 21%" class="badge bg-secondary">No Disponible</span>
                 {% endif %}
@@ -44,37 +56,45 @@
     {% else %}
       <p class="text-danger">No hay loterías disponibles para el día y hora actuales.</p>
     {% endif %}
-
+  
     <!-- Detalles de la Venta -->
     <h4 class="mb-3">Detalles de la Venta:</h4>
     <div class="table-responsive">
       <table id="dynamic-table" class="table table-bordered table-striped">
         <thead class="table-dark">
           <tr>
-            <th>Número</th>
-            <th>Combi</th>
-            <th>Monto</th>
-            <th>X</th>
+            <th style="text-align: center;">Número</th>
+            <th style="text-align: center;">Combi</th>
+            <th style="text-align: center;">Monto</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
           {# Se generan 5 filas por defecto #}
           {% for i in "12345"|make_list %}
             <tr>
-              <td><input type="text" name="numero" class="form-control"></td>
+              <td><input type="number" name="numero" class="form-control"></td>
               <td><input type="number" name="combi" class="form-control combi"></td>
               <td><input type="number" name="monto" class="form-control monto"></td>
               <td>
                 <button type="button" class="btn btn-danger btn-sm remove-row">
-                  <i class="bi bi-trash"></i> Eliminar
+                  <i class="bi bi-trash"></i>
                 </button>
               </td>
             </tr>
           {% endfor %}
         </tbody>
       </table>
+      <div class="d-flex justify-content-between mt-4">
+        <button type="button" id="add-row" class="btn btn-success">
+          <i class="bi bi-plus-circle"></i> Agregar Fila
+        </button>
+        <button type="submit" class="btn btn-primary">
+          <i class="bi bi-save"></i> Guardar
+        </button>
+      </div>
     </div>
-
+  
     <!-- Total Dinámico -->
     <div class="mt-4">
       <h5 class="text-end">
@@ -82,70 +102,75 @@
         <input type="text" id="total-monto" class="form-control d-inline-block w-auto text-end" value="0" readonly>
       </h5>
     </div>
-
-    <!-- Botones de Agregar Fila y Enviar -->
-    <div class="d-flex justify-content-between mt-4">
-      <button type="button" id="add-row" class="btn btn-success">
-        <i class="bi bi-plus-circle"></i> Agregar Fila
-      </button>
-      <button type="submit" class="btn btn-primary">
-        <i class="bi bi-save"></i> Guardar
-      </button>
-    </div>
   </form>
-
+  
   <!-- Modal de Detalle de la Venta -->
   <div class="modal fade" id="saleDetailModal" tabindex="-1" aria-labelledby="saleDetailModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered modal-md">
       <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="saleDetailModalLabel">Detalle de la Venta</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <!-- Encabezado del modal -->
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title d-flex align-items-center" id="saleDetailModalLabel" style="gap: 8px;">
+            <i class="bi bi-receipt" style="font-size: 1.3rem;"></i>
+            Resumen de venta <span role="img" aria-label="celebration">🎉</span>
+          </h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
+  
+        <!-- Cuerpo del modal -->
         <div class="modal-body">
-          <h5>Loterías Seleccionadas:</h5>
-          <ul id="saleLoteriasList"></ul>
-
-          <h5>Detalles de la Venta:</h5>
-          <table class="table">
-            <thead>
-              <tr>
-                <th>Número</th>
-                <th>Monto</th>
-                <th>Combi</th>
-              </tr>
-            </thead>
-            <tbody id="saleDetailsList"></tbody>
-          </table>
-
-          <h5>Total: <span id="saleTotalAmount"></span></h5>
+          <p class="text-muted mb-3">
+            Por favor, asegúrese que los datos han sido ingresados correctamente.
+          </p>
+  
+          <!-- Información básica en tabla -->
+          <div class="table-responsive mb-3">
+            <table class="table table-sm table-bordered align-middle">
+              <tbody>
+                <tr>
+                  <th scope="row" style="width: 30%;">Día:</th>
+                  <td id="saleDay"></td>
+                </tr>
+                <tr>
+                  <th scope="row">Loterías:</th>
+                  <td><span id="saleLoteriasList"></span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+  
+          <!-- Tabla de detalles -->
+          <div class="table-responsive">
+            <table class="table table-sm table-bordered table-striped align-middle">
+              <thead class="table-light">
+                <tr style="text-align: center;">
+                  <th>Detalle</th>
+                  <th>Valor</th>
+                  <th>Comb</th>
+                </tr>
+              </thead>
+              <tbody id="saleDetailsList">
+                <!-- Filas generadas dinámicamente -->
+              </tbody>
+            </table>
+          </div>
+  
+          <!-- Total -->
+          <div class="text-end mt-3">
+            <strong>Total:</strong>
+            <span id="saleTotalAmount" class="fw-bold"></span>
+          </div>
         </div>
+  
+        <!-- Pie del modal -->
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-          <button type="button" class="btn btn-primary" id="confirmSaleButton">Confirmar Venta</button>
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Descartar</button>
+          <button type="button" class="btn btn-primary" id="confirmSaleButton">Apostar</button>
         </div>
       </div>
     </div>
   </div>
-
-  <!-- Modal de Éxito -->
-  <div class="modal fade" id="successModal" tabindex="-1" aria-labelledby="successModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="successModalLabel">¡Éxito!</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          Los datos han sido guardados exitosamente.
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Aceptar</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
+  
   <style>
     .dropdown-menu .form-check-input:disabled + label {
       cursor: not-allowed;
@@ -165,56 +190,84 @@
     .dropdown-toggle::after {
       vertical-align: middle;
     }
+  
+    .badge-lottery {
+      background-color: #B5EAD7;
+      color: #333;
+      border-radius: 13px;
+      padding: 6px 12px;
+      font-size: 0.9rem;
+      display: inline-flex;
+      align-items: center;
+    }
+    
+    .badge-lottery .remove-lottery-icon {
+      margin-left: 8px;
+      cursor: pointer;
+      color: #d90202;
+    }
   </style>
-
+  
   <script>
     (function() {
       'use strict';
-
-      // Función para actualizar el total de la venta
+  
+      // Función para actualizar el total del formulario: SÓLO se suman los montos (campo "monto")
       function updateTotal() {
-        const montoFields = document.querySelectorAll('.monto');
-        const selectedLotteries = document.querySelectorAll('input[name="loterias"]:checked');
+        const rows = document.querySelectorAll('#dynamic-table tbody tr');
+        const loteriasSeleccionadas = document.querySelectorAll('input[name="loterias"]:checked');
         let total = 0;
-        montoFields.forEach(function(input) {
-          total += parseFloat(input.value) || 0;
+        rows.forEach(function(row) {
+          const montoVal = parseFloat(row.querySelector('input[name="monto"]').value) || 0;
+          total += montoVal;
         });
-        total *= selectedLotteries.length;
+        total *= loteriasSeleccionadas.length;
         document.getElementById('total-monto').value = total.toLocaleString('es-CO', {
           style: 'currency',
           currency: 'COP',
           minimumFractionDigits: 0
         });
       }
-
-      // Función para actualizar la visualización de loterías seleccionadas y el botón
+  
+      // Función para actualizar la visualización de loterías seleccionadas
       function updateSelectedLotteries() {
         const selected = document.querySelectorAll('input[name="loterias"]:checked');
         const container = document.getElementById('selected-lotteries');
         const button = document.getElementById('lotteryDropdown');
-
+      
         button.textContent = `Seleccionar Loterías (${selected.length})`;
         container.innerHTML = selected.length > 0 ? '<h6 class="mb-2">Loterías seleccionadas:</h6>' : '';
+      
         selected.forEach(function(loteria) {
           const labelText = loteria.parentNode.querySelector('label').textContent.trim();
-          const badgeClass = loteria.disabled ? 'bg-secondary' : 'bg-success';
           container.innerHTML += `
-            <span class="badge ${badgeClass} me-1 mb-1">
+            <span class="badge-lottery me-1 mb-1">
               ${labelText}
-              <i class="bi bi-x-circle ms-1" style="cursor:pointer;" onclick="document.getElementById('${loteria.id}').click()"></i>
+              <i class="bi bi-x-circle remove-lottery-icon"></i>
             </span>
           `;
         });
+      
+        container.querySelectorAll('.remove-lottery-icon').forEach(function(icon) {
+          icon.addEventListener('click', function() {
+            const text = icon.parentNode.textContent.trim();
+            document.querySelectorAll('input[name="loterias"]').forEach(function(checkbox) {
+              if (checkbox.parentNode.textContent.trim() === text) {
+                checkbox.click();
+              }
+            });
+          });
+        });
       }
-
-      // Asignar eventos a los checkboxes de loterías para actualizar selección y total
+  
+      // Asignar eventos a los checkboxes de loterías
       document.querySelectorAll('input[name="loterias"]').forEach(function(checkbox) {
         checkbox.addEventListener('change', function() {
           updateSelectedLotteries();
           updateTotal();
         });
       });
-
+  
       // Delegación para eliminar filas de la tabla
       document.getElementById('dynamic-table').addEventListener('click', function(e) {
         if (e.target.closest('.remove-row')) {
@@ -222,35 +275,39 @@
           updateTotal();
         }
       });
-
-      // Asigna listeners a los campos "monto"
+  
+      // Asigna listeners a los campos "monto" y "combi" en cada fila
       function attachRowListeners(row) {
         const montoInput = row.querySelector('.monto');
         if (montoInput) {
           montoInput.addEventListener('input', updateTotal);
         }
+        const combiInput = row.querySelector('.combi');
+        if (combiInput) {
+          combiInput.addEventListener('input', function() {
+            // No se llama updateTotal ya que combi no afecta el total
+          });
+        }
       }
-
-      // Inicializar filas existentes y actualizar total y loterías seleccionadas
-      document.addEventListener('DOMContentLoaded', function() {
-        document.querySelectorAll('#dynamic-table tbody tr').forEach(function(row) {
-          attachRowListeners(row);
-        });
-        updateTotal();
-        updateSelectedLotteries();
+  
+      // Inicializa filas existentes y actualiza total y loterías seleccionadas
+      document.querySelectorAll('#dynamic-table tbody tr').forEach(function(row) {
+        attachRowListeners(row);
       });
-
-      // Agregar nueva fila a la tabla
+      updateTotal();
+      updateSelectedLotteries();
+  
+      // Agregar nueva fila
       document.getElementById('add-row').addEventListener('click', function() {
         const tbody = document.querySelector('#dynamic-table tbody');
         const newRow = document.createElement('tr');
         newRow.innerHTML = `
-          <td><input type="text" name="numero" class="form-control"></td>
+          <td><input type="number" name="numero" class="form-control"></td>
           <td><input type="number" name="combi" class="form-control combi"></td>
           <td><input type="number" name="monto" class="form-control monto"></td>
           <td>
             <button type="button" class="btn btn-danger btn-sm remove-row">
-              <i class="bi bi-trash"></i> Eliminar
+              <i class="bi bi-trash"></i>
             </button>
           </td>
         `;
@@ -258,72 +315,76 @@
         attachRowListeners(newRow);
         updateTotal();
       });
-
-      // Manejo del envío del formulario con validación personalizada y vista previa en modal
+  
+      // Manejo del submit del formulario
       document.getElementById('ventas-form').addEventListener('submit', function(e) {
         e.preventDefault();
         const form = e.target;
         const selectedLotteries = document.querySelectorAll('input[name="loterias"]:checked');
-
-        // Validar que se haya seleccionado al menos una lotería
+  
         if (selectedLotteries.length === 0) {
           alert("Debe seleccionar al menos una lotería.");
           return;
         }
-
-        // Validar filas de la tabla
-        const rows = document.querySelectorAll('#dynamic-table tbody tr');
+  
+        // Validar filas: si una fila está parcialmente llena (numero o monto vacíos) se notifica y se evita el submit.
+        let rows = Array.from(document.querySelectorAll('#dynamic-table tbody tr'));
+        let incompleteFound = false;
         let validRowExists = false;
-        for (let row of rows) {
+        rows.forEach(function(row) {
           const numero = row.querySelector('input[name="numero"]').value.trim();
-          const monto = row.querySelector('.monto').value.trim();
-          // Si la fila está completamente en blanco se ignora
+          const monto = row.querySelector('input[name="monto"]').value.trim();
+          // Si la fila está completamente vacía, la eliminamos.
           if (numero === "" && monto === "") {
-            continue;
+            row.remove();
+          } else {
+            // Si la fila está parcialmente llena, se marca como incompleta.
+            if (numero === "" || monto === "") {
+              incompleteFound = true;
+            } else {
+              validRowExists = true;
+            }
           }
-          // Si la fila está parcialmente llena, se muestra error
-          if (numero === "" || monto === "") {
-            alert("Existen filas incompletas. Por favor, complete o deje en blanco cada fila.");
-            return;
-          }
-          // Si la fila tiene ambos campos llenos, se considera válida
-          validRowExists = true;
+        });
+        if (incompleteFound) {
+          alert("Existen filas incompletas. Por favor, complete todos los campos requeridos (Número y Monto).");
+          return;
         }
         if (!validRowExists) {
           alert("Debe completar al menos una fila con datos válidos.");
           return;
         }
-
-        // Preparar detalles de la venta en el modal
+  
+        // Llenar el modal con los datos
         const saleLoteriasList = document.getElementById('saleLoteriasList');
         saleLoteriasList.innerHTML = '';
         selectedLotteries.forEach(function(loteria) {
           const li = document.createElement('li');
-          li.textContent = loteria.parentNode.textContent.trim();
+          li.textContent = loteria.parentNode.querySelector('label').textContent.trim();
           saleLoteriasList.appendChild(li);
         });
-
+  
         const saleDetailsList = document.getElementById('saleDetailsList');
         saleDetailsList.innerHTML = '';
         document.querySelectorAll('#dynamic-table tbody tr').forEach(function(row) {
           const numero = row.querySelector('input[name="numero"]').value.trim();
-          const monto = row.querySelector('.monto').value.trim();
-          const combi = row.querySelector('.combi').value.trim() || 'N/A';
-          // Solo se muestran las filas que estén completamente llenas
-          if (numero !== "" && monto !== "") {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `<td>${numero}</td><td>${monto}</td><td>${combi}</td>`;
-            saleDetailsList.appendChild(tr);
-          }
+          const monto = row.querySelector('input[name="monto"]').value.trim();
+          const combi = row.querySelector('input[name="combi"]').value.trim() || 'N/A';
+          const parsedMonto = parseFloat(monto) || 0;
+          const formattedMonto = parsedMonto.toLocaleString('es-CO', {
+            style: 'currency',
+            currency: 'COP',
+            minimumFractionDigits: 0
+          });
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td>${numero}</td><td>${formattedMonto}</td><td>${combi}</td>`;
+          saleDetailsList.appendChild(tr);
         });
-
-        // Calcular total para el modal
+  
+        // Calcular total para el modal (solo se suman los montos)
         let total = 0;
         document.querySelectorAll('.monto').forEach(function(input) {
-          const val = input.value.trim();
-          if (val !== "") {
-            total += parseFloat(val) || 0;
-          }
+          total += parseFloat(input.value) || 0;
         });
         total *= selectedLotteries.length;
         document.getElementById('saleTotalAmount').textContent = total.toLocaleString('es-CO', {
@@ -331,25 +392,31 @@
           currency: 'COP',
           minimumFractionDigits: 0
         });
-
-        // Mostrar modal de detalle de la venta
+  
+        // Actualizar fecha/hora dinámica en el modal
+        const saleDayElement = document.getElementById('saleDay');
+        const now = new Date();
+        const options = {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false
+        };
+        saleDayElement.textContent = now.toLocaleString('es-CO', options);
+  
+        // Mostrar modal de detalle
         const saleDetailModal = new bootstrap.Modal(document.getElementById('saleDetailModal'));
         saleDetailModal.show();
-
+  
         // Asignar evento de confirmación (una sola vez)
         const confirmButton = document.getElementById('confirmSaleButton');
         const newConfirmButton = confirmButton.cloneNode(true);
         confirmButton.parentNode.replaceChild(newConfirmButton, confirmButton);
         newConfirmButton.addEventListener('click', function() {
-          // Antes de enviar, eliminar las filas completamente en blanco para no incluirlas en el envío
-          document.querySelectorAll('#dynamic-table tbody tr').forEach(function(row) {
-            const numero = row.querySelector('input[name="numero"]').value.trim();
-            const monto = row.querySelector('.monto').value.trim();
-            if (numero === "" && monto === "") {
-              row.remove();
-            }
-          });
-
           const formData = new FormData(form);
           fetch(form.action || window.location.href, {
             method: 'POST',
@@ -361,11 +428,16 @@
           .then(response => response.json())
           .then(data => {
             if (data.success) {
-              const successModal = new bootstrap.Modal(document.getElementById('successModal'));
-              successModal.show();
-              document.getElementById('successModal').addEventListener('hidden.bs.modal', function() {
+              // Cerrar el modal de detalle
+              saleDetailModal.hide();
+              // Mostrar Toast de éxito
+              var toastEl = document.getElementById('toastSuccess');
+              var toast = new bootstrap.Toast(toastEl, { delay: 2000 });
+              toast.show();
+              // Recargar la página después de 2 segundos
+              setTimeout(function() {
                 window.location.reload();
-              });
+              }, 2000);
             }
           })
           .catch(error => {
@@ -376,5 +448,5 @@
       });
     })();
   </script>
-
+  
 {% endblock %}

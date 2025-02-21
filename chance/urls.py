@@ -16,6 +16,7 @@ urlpatterns = [
     path('premios/', views.premios, name='premios'),
     path('registro-resultados/', views.registro_resultados, name='registro_resultados'),
     path('resultados/', views.resultados, name='resultados'),
+    path('reporte-descargas/', views.reporte_descargas, name='reporte_descargas'),
     path('admin/', admin.site.urls),
     path('login/', CustomLoginView.as_view(), name='login'),
     path('logout/', LogoutView.as_view(), name='logout'),

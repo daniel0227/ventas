@@ -1,5 +1,7 @@
 {% extends "core/base.html" %}
 {% load static %}
+{% load format_filters %}
+
 {% block content %}
 <div class="py-4">
     <div class="d-flex justify-content-between w-100 flex-wrap">
@@ -41,7 +43,7 @@
         <h5 class="card-title">Total de Ventas</h5>
         <p class="card-text">
             <!-- Mostrar el total de ventas formateado como moneda -->
-            <strong>${{ total_ventas|floatformat:2 }}</strong> COP
+            <strong>${{ total_ventas|format_colombian }}</strong> COP
         </p>
     </div>
 </div>
@@ -68,7 +70,7 @@
                         <td>{{ venta.vendedor.username }}</td>
                         <td>{{ venta.loterias.all|join:", " }}</td>
                         <td>{{ venta.numero }}</td>
-                        <td>${{ venta.monto }}</td>
+                        <td>${{ venta.monto|format_colombian }}</td>
                         <td>{{ venta.fecha_venta }}</td>
                     </tr>
                     {% empty %}

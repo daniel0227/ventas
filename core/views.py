@@ -9,7 +9,7 @@ from django.utils.timezone import localtime, now, make_aware
 from .forms import VentaForm
 from django.core.paginator import Paginator
 from pytz import timezone as pytz_timezone
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 
 # Vista Home
 @login_required
@@ -244,15 +244,29 @@ def historico_ventas(request):
 # Vista para premios
 @login_required
 def premios(request):
-    return render(request, 'core/premios.html', {
-    })
-
-# Nueva vista para el superadmin: Registro de Resultados
-@user_passes_test(lambda u: u.is_superuser)
-@login_required
-def registro_resultados(request):
+    """
+    Vista que calcula y muestra los premios para una fecha dada.
+    Se consideran las ventas del día para cada lotería y se verifica si el
+    número apostado coincide (por sus últimos dígitos) con el resultado registrado.
+    Multiplicador:
+      - Si la venta tiene 2 cifras y coincide con los dos últimos dígitos: * 60
+      - Si la venta tiene 3 cifras y coincide con los tres últimos dígitos: * 550
+      - Si la venta tiene 4 cifras y coincide exactamente: * 4500
+    """
+    from datetime import datetime
+    # Obtener la fecha del filtro (GET), si no se indica se usa la fecha actual
+    fecha_param = request.GET.get('fecha')
     ahora = timezone.localtime(timezone.now())
-    dia_actual_nombre = ahora.strftime('%A')
+    if fecha_param:
+        try:
+            fecha = datetime.strptime(fecha_param, '%Y-%m-%d').date()
+        except ValueError:
+            fecha = ahora.date()
+    else:
+        fecha = ahora.date()
+
+    # Convertir la fecha a nombre del día en inglés y luego a español
+    dia_actual_nombre_en = fecha.strftime('%A')
     dias_map = {
         'Monday': 'Lunes',
         'Tuesday': 'Martes',
@@ -262,25 +276,105 @@ def registro_resultados(request):
         'Saturday': 'Sábado',
         'Sunday': 'Domingo',
     }
-    dia_actual_nombre_es = dias_map.get(dia_actual_nombre)
-    fecha_actual = ahora.date()
+    dia_nombre_es = dias_map.get(dia_actual_nombre_en)
+    try:
+        dia_obj = Dia.objects.get(nombre=dia_nombre_es)
+    except Dia.DoesNotExist:
+        raise Http404(f"No se ha encontrado el día {dia_nombre_es}")
+
+    # Filtrar las loterías que se juegan ese día
+    loterias = Loteria.objects.filter(dias_juego=dia_obj)
+
+    premios_list = []
+    for lot in loterias:
+        # Se obtiene el resultado registrado para la lotería en la fecha indicada
+        resultado_obj = Resultado.objects.filter(loteria=lot, fecha=fecha).first()
+        if resultado_obj:
+            # El número ganador siempre es de 4 cifras
+            winning_number = str(resultado_obj.resultado).zfill(4).strip()
+            # Consultar todas las ventas para la lotería en la fecha indicada
+            ventas = Venta.objects.filter(fecha_venta__date=fecha, loterias=lot)
+            for venta in ventas:
+                sale_number = venta.numero.strip()
+                # Solo se consideran ventas con 2, 3 o 4 dígitos
+                if len(sale_number) not in (2, 3, 4):
+                    continue
+                # Se extrae la porción final del número ganador según la cantidad de dígitos de la venta
+                if sale_number == winning_number[-len(sale_number):]:
+                    if len(sale_number) == 2:
+                        multiplier = 60
+                    elif len(sale_number) == 3:
+                        multiplier = 550
+                    elif len(sale_number) == 4:
+                        multiplier = 4500
+                    else:
+                        multiplier = 0
+                    premio_valor = venta.monto * multiplier
+                    premios_list.append({
+                        'loteria': lot,
+                        'imagen': lot.imagen,
+                        'nombre': lot.nombre,
+                        'numero_ganador': sale_number,
+                        'valor': premio_valor,
+                    })
+    context = {
+        'premios_list': premios_list,
+        'fecha': fecha,  # En formato YYYY-MM-DD
+    }
+    return render(request, 'core/premios.html', context)
+
+@user_passes_test(lambda u: u.is_superuser)
+@login_required
+def registro_resultados(request):
+    # Importar datetime si no se hizo ya
+    from datetime import datetime
+
+    ahora = timezone.localtime(timezone.now())
+    # Si se pasa un parámetro GET 'fecha', se usa ese valor; de lo contrario, se usa la fecha actual
+    fecha_param = request.GET.get('fecha')
+    if fecha_param:
+        try:
+            fecha_actual = datetime.strptime(fecha_param, '%Y-%m-%d').date()
+        except ValueError:
+            fecha_actual = ahora.date()
+    else:
+        fecha_actual = ahora.date()
+
+    # Convertir la fecha seleccionada a nombre del día (en inglés) y luego a español
+    dia_actual_nombre_en = fecha_actual.strftime('%A')
+    dias_map = {
+        'Monday': 'Lunes',
+        'Tuesday': 'Martes',
+        'Wednesday': 'Miércoles',
+        'Thursday': 'Jueves',
+        'Friday': 'Viernes',
+        'Saturday': 'Sábado',
+        'Sunday': 'Domingo',
+    }
+    dia_actual_nombre_es = dias_map.get(dia_actual_nombre_en)
 
     try:
-        dia_actual = Dia.objects.get(nombre=dia_actual_nombre_es)
+        dia_obj = Dia.objects.get(nombre=dia_actual_nombre_es)
     except Dia.DoesNotExist:
         raise Http404(f"No se ha encontrado un día con el nombre {dia_actual_nombre_es}")
 
-    # Filtrar las loterías que se juegan el día actual
-    loterias = Loteria.objects.filter(dias_juego=dia_actual).order_by('nombre')
+    # Filtrar las loterías que se juegan el día de la semana correspondiente
+    loterias = Loteria.objects.filter(dias_juego=dia_obj).order_by('nombre')
 
-    # Preparar un diccionario con el resultado actual (si existe) para cada lotería
+    # Preparar un diccionario con el resultado actual (si existe) para cada lotería en la fecha seleccionada
     resultados_dict = {}
     for lot in loterias:
         resultado_obj = Resultado.objects.filter(loteria=lot, fecha=fecha_actual).first()
         resultados_dict[lot.id] = resultado_obj.resultado if resultado_obj else None
 
     if request.method == 'POST':
-        # Procesar el formulario: se espera un input "resultado_<loteria.id>" para cada lotería
+        # También se espera que el formulario incluya un campo oculto 'fecha'
+        fecha_post = request.POST.get('fecha')
+        if fecha_post:
+            try:
+                fecha_actual = datetime.strptime(fecha_post, '%Y-%m-%d').date()
+            except ValueError:
+                pass
         for lot in loterias:
             key = f"resultado_{lot.id}"
             valor = request.POST.get(key)
@@ -298,6 +392,7 @@ def registro_resultados(request):
                     }
                 )
             else:
+                # Si se deja vacío, se elimina el registro (opcional)
                 Resultado.objects.filter(loteria=lot, fecha=fecha_actual).delete()
         return redirect('resultados')
 
@@ -311,8 +406,20 @@ def registro_resultados(request):
 # Vista para usuarios normales: Mostrar Resultados
 @login_required
 def resultados(request):
+    from datetime import datetime
+    # Obtener la fecha actual (por defecto)
     ahora = timezone.localtime(timezone.now())
-    dia_actual_nombre = ahora.strftime('%A')
+    fecha_param = request.GET.get('fecha')
+    if fecha_param:
+        try:
+            fecha_actual = datetime.strptime(fecha_param, '%Y-%m-%d').date()
+        except ValueError:
+            fecha_actual = ahora.date()
+    else:
+        fecha_actual = ahora.date()
+
+    # Convertir la fecha a nombre del día en inglés y luego a español
+    dia_actual_nombre_en = fecha_actual.strftime('%A')
     dias_map = {
         'Monday': 'Lunes',
         'Tuesday': 'Martes',
@@ -322,18 +429,18 @@ def resultados(request):
         'Saturday': 'Sábado',
         'Sunday': 'Domingo',
     }
-    dia_actual_nombre_es = dias_map.get(dia_actual_nombre)
-    fecha_actual = ahora.date()
+    dia_actual_nombre_es = dias_map.get(dia_actual_nombre_en)
 
+    # Obtener el objeto Dia correspondiente
     try:
-        dia_actual = Dia.objects.get(nombre=dia_actual_nombre_es)
+        dia_obj = Dia.objects.get(nombre=dia_actual_nombre_es)
     except Dia.DoesNotExist:
         raise Http404(f"No se ha encontrado un día con el nombre {dia_actual_nombre_es}")
 
-    # Filtrar las loterías que se juegan el día actual
-    loterias = Loteria.objects.filter(dias_juego=dia_actual).order_by('nombre')
+    # Filtrar las loterías que se juegan el día seleccionado
+    loterias = Loteria.objects.filter(dias_juego=dia_obj).order_by('nombre')
 
-    # Crear una lista de diccionarios con cada lotería y su resultado (si existe) para el día actual
+    # Construir la lista de resultados: para cada lotería se consulta el resultado registrado para la fecha filtrada
     resultados_list = []
     for lot in loterias:
         resultado_obj = Resultado.objects.filter(loteria=lot, fecha=fecha_actual).first()
@@ -348,6 +455,35 @@ def resultados(request):
          'dia_actual_nombre': dia_actual_nombre_es,
     }
     return render(request, 'core/resultados.html', context)
+
+@user_passes_test(lambda u: u.is_staff)
+@login_required
+def reporte_descargas(request):
+    # Obtener la fecha del filtro (GET); si no se indica, se usa la fecha actual.
+    fecha_param = request.GET.get('fecha')
+    hoy = timezone.localtime(timezone.now()).date()
+    if fecha_param:
+        try:
+            fecha = datetime.strptime(fecha_param, '%Y-%m-%d').date()
+        except ValueError:
+            fecha = hoy
+    else:
+        fecha = hoy
+
+    # Agrupar ventas por lotería y número, sumando el monto apostado
+    report = (
+        Venta.objects
+        .filter(fecha_venta__date=fecha)
+        .values('loterias__id', 'loterias__nombre', 'numero')
+        .annotate(total=Sum('monto'))
+        .order_by('loterias__nombre', 'numero')
+    )
+
+    context = {
+        'fecha': fecha,
+        'report': report,
+    }
+    return render(request, 'core/reporte_descargas.html', context)
 
 def login_required_view(request):
     return render(request, 'core/login_required.html')

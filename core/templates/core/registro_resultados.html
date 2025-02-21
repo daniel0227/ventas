@@ -1,16 +1,31 @@
-<!-- core/templates/core/registro_resultados.html -->
 {% extends "core/base.html" %}
 {% load static %}
 {% load dict_extras %}
 
 {% block content %}
   <h1 class="text-center mb-4">Registrar Resultados para {{ fecha_actual }}</h1>
+  
+  <!-- Formulario para filtrar por fecha en una sola línea -->
+  <form method="get" class="mb-4">
+    <div class="mb-3">
+      <label for="fecha" class="form-label">Seleccionar fecha</label>
+      <div class="input-group">
+        <input type="date" id="fecha" name="fecha" class="form-control" value="{{ fecha_actual }}">
+        <button type="submit" class="btn btn-secondary">Filtrar</button>
+      </div>
+    </div>
+  </form>
+
+  <!-- Formulario para registrar resultados -->
   <form method="post">
     {% csrf_token %}
+    <!-- Campo oculto para conservar la fecha filtrada -->
+    <input type="hidden" name="fecha" value="{{ fecha_actual }}">
     <table class="table table-bordered">
       <thead>
         <tr>
           <th>Lotería</th>
+          <th>Imagen</th>
           <th>Resultado</th>
         </tr>
       </thead>
@@ -18,6 +33,13 @@
         {% for lot in loterias %}
           <tr>
             <td>{{ lot.nombre }}</td>
+            <td>
+              {% if lot.imagen %}
+                <img src="{{ lot.imagen.url }}" alt="{{ lot.nombre }}" style="max-width: 100px;">
+              {% else %}
+                <img src="{% static 'core/img/default-loteria.png' %}" alt="{{ lot.nombre }}" style="max-width: 100px;">
+              {% endif %}
+            </td>
             <td>
               <input type="number" name="resultado_{{ lot.id }}" class="form-control" value="{{ resultados_dict|get_item:lot.id|default:'' }}">
             </td>

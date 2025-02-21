@@ -1,5 +1,53 @@
-{% extends 'core/base.html' %}
+{% extends "core/base.html" %}
+{% load static %}
+{% load format_filters %}
 
-{% block content %} 
-premios
+{% block content %}
+<div class="container my-5">
+  <h1 class="text-center mb-4">Premios para {{ fecha }}</h1>
+
+  <!-- Filtro de fecha -->
+  <form method="get" class="mb-4">
+    <div class="mb-3">
+      <label for="fecha" class="form-label">Seleccionar fecha</label>
+      <div class="input-group">
+        <input type="date" id="fecha" name="fecha" class="form-control" value="{{ fecha_actual }}">
+        <button type="submit" class="btn btn-secondary">Filtrar</button>
+      </div>
+    </div>
+  </form>
+
+  {% if premios_list %}
+    <table class="table table-striped">
+      <thead>
+        <tr>
+          <th>Imagen</th>
+          <th>Lotería</th>
+          <th>Número</th>
+          <th>Valor</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for premio in premios_list %}
+          <tr>
+            <td>
+              {% if premio.imagen %}
+                <img src="{{ premio.imagen.url }}" alt="{{ premio.nombre }}" style="max-width:65px;">
+              {% else %}
+                <img src="{% static 'core/img/default-loteria.png' %}" alt="{{ premio.nombre }}" style="max-width:65px;">
+              {% endif %}
+            </td>
+            <td>{{ premio.nombre }}</td>
+            <td>{{ premio.numero_ganador }}</td>
+            <td>{{ premio.valor|format_colombian }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <div class="alert alert-info" role="alert">
+      No se han registrado premios para la fecha {{ fecha }}.
+    </div>
+  {% endif %}
+</div>
 {% endblock %}

@@ -4,7 +4,7 @@
   {% load static %}
   <head>
     <meta charset="UTF-8" />
-    <title>Buhowl</title>
+    <title>Lottia</title>
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1, shrink-to-fit=no"
@@ -62,25 +62,41 @@
     />
 
     <!-- NOTICE: You can use the _analytics.html partial to include production code specific code & trackers -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+
   </head>
   <body>
 
     <main class="content">
         <!-- Contenedor de bienvenida -->
-        <div class="welcome-container d-flex justify-content-between align-items-center" style="margin-top: 5%;">
-          <h4>Bienvenido, {{ user.username }}</h4>
-          <div class="btn-container d-flex gap-2">
-            <!-- Botón Ir al Inicio -->
-            <a href="{% url 'home' %}">
-              <button type="button" class="btn btn-success">Inicio</button>
-            </a>  
-            <!-- Botón Salir -->
-            <form method="post" action="{% url 'logout' %}" class="d-inline">
-              {% csrf_token %}
-              <button class="btn btn-danger" type="submit">Salir</button>
-            </form>
-          </div>
-        </div><br><br>
+        <!-- Se asume que ya tienes Bootstrap 5 y Bootstrap Icons incluidos en tu plantilla base -->
+<!-- Ejemplo de uso de Bootstrap 5 y Bootstrap Icons -->
+
+      <div class="welcome-container d-flex justify-content-between align-items-center p-3 shadow-sm" style="margin-top: 3%; background-color: #fff; border-radius: 8px;">
+        <!-- Texto de bienvenida con un emoji -->
+        <h5 class="m-0" style="font-weight: 600; color: #333; font-size: 16px;">
+          Bienvenido, {{ user.username }} 
+          <span role="img" aria-label="wave">👋</span>
+        </h5>
+
+        <!-- Contenedor de botones -->
+        <div class="btn-container d-flex gap-2">
+          <!-- Botón Inicio con ícono de Bootstrap Icons -->
+          <a href="{% url 'home' %}" class="btn btn-outline-primary d-flex align-items-center fw-semibold">
+            <i class="bi bi-house me-1"></i>
+            Inicio
+          </a>
+          <!-- Botón Salir con ícono de Bootstrap Icons -->
+          <form method="post" action="{% url 'logout' %}" class="d-inline">
+            {% csrf_token %}
+            <button class="btn btn-outline-danger d-flex align-items-center fw-semibold" type="submit">
+              <i class="bi bi-box-arrow-right me-1"></i>
+              Salir
+            </button>
+          </form>
+        </div>
+      </div>
+      <br>
 
       {% block content %}
       
@@ -89,6 +105,15 @@
     
 
   </body>
+  <style>
+
+    .btn {
+      line-height: 1;
+      padding: 0.5rem 0.8rem; 
+
+    }
+
+  </style>
   
     <!-- Core -->
     <script src="{% static 'core/vendor/@popperjs/core/dist/umd/popper.min.js' %}"></script>
