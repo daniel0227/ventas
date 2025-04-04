@@ -427,18 +427,20 @@
           })
           .then(response => response.json())
           .then(data => {
-            if (data.success) {
-              // Cerrar el modal de detalle
-              saleDetailModal.hide();
-              // Mostrar Toast de éxito
-              var toastEl = document.getElementById('toastSuccess');
-              var toast = new bootstrap.Toast(toastEl, { delay: 2000 });
-              toast.show();
-              // Recargar la página después de 2 segundos
-              setTimeout(function() {
-                window.location.reload();
-              }, 2000);
+            if (!data.success) {
+              alert(data.error);
+              return;
             }
+            // Cerrar el modal de detalle
+            saleDetailModal.hide();
+            // Mostrar Toast de éxito
+            var toastEl = document.getElementById('toastSuccess');
+            var toast = new bootstrap.Toast(toastEl, { delay: 2000 });
+            toast.show();
+            // Recargar la página después de 2 segundos
+            setTimeout(function() {
+              window.location.reload();
+            }, 2000);
           })
           .catch(error => {
             console.error('Error en el envío:', error);

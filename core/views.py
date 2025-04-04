@@ -124,7 +124,7 @@ def crear_venta(request):
         # Buscar el día en la base de datos
         dia_actual = Dia.objects.get(nombre=dia_actual_nombre_es)
 
-        # Filtrar loterías solo disponibles
+        # Filtrar loterías solo disponibles (según hora de juego en el momento de carga)
         loterias = Loteria.objects.filter(dias_juego=dia_actual).annotate(
             disponible=Case(
                 When(hora_inicio__lte=ahora.time(), hora_fin__gte=ahora.time(), then=True),
@@ -152,6 +152,12 @@ def crear_venta(request):
             print("Loterías seleccionadas:", loterias_seleccionadas)
             if not loterias_seleccionadas.exists():
                 return JsonResponse({'success': False, 'error': 'Loterías no válidas.'}, status=400)
+
+            # Validación extra: no permitir crear ventas después de la hora de juego.
+            for lot in loterias_seleccionadas:
+                if not (lot.hora_inicio <= ahora.time() <= lot.hora_fin):
+                    error_msg = f"La hora de juego para {lot.nombre} ha finalizado. No se pueden crear ventas fuera del horario permitido."
+                    return JsonResponse({'success': False, 'error': error_msg}, status=400)
 
             # Crear ventas
             for numero, monto in zip(numeros, montos):
