@@ -18,11 +18,13 @@ DEBUG = True
 ALLOWED_HOSTS = ALLOWED_HOSTS = [
     '.railway.app',  # Permite subdominios
     'ventas-production-b0a6.up.railway.app',  # Dominio específico
+    'lotia.app',  # Dominio específico con puerto
     '127.0.0.1', 'localhost',  # Dominio específico
 ]
 
 CSRF_TRUSTED_ORIGINS = [
     'https://ventas-production-b0a6.up.railway.app',
+    'https://lotia.app',
 ]
 
 # Application definition
@@ -73,27 +75,27 @@ WSGI_APPLICATION = 'chance.wsgi.application'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'railway',
-        'USER': 'postgres',
-        'PASSWORD': 'gqwmsJPkWFgDUaWftTzCEiqdUFCAvBXx',
-        'HOST': 'autorack.proxy.rlwy.net',
-        'PORT': '41491',
-    }
-}
-
 # DATABASES = {
 #     'default': {
-#         'ENGINE': 'django.db.backends.postgresql',  # Motor de base de datos
-#         'NAME': 'db_chance',                       # Nombre de la base de datos
-#         'USER': 'postgres',                        # Usuario de la base de datos
-#         'PASSWORD': 'Antonia2409.',                # Contraseña del usuario
-#         'HOST': 'localhost',                       # Host de la base de datos (local o remoto)
-#         'PORT': '5432',                            # Puerto estándar para PostgreSQL
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': 'railway',
+#         'USER': 'postgres',
+#         'PASSWORD': 'gqwmsJPkWFgDUaWftTzCEiqdUFCAvBXx',
+#         'HOST': 'autorack.proxy.rlwy.net',
+#         'PORT': '41491',
 #     }
 # }
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',  # Motor de base de datos
+        'NAME': 'db_chance',                       # Nombre de la base de datos
+        'USER': 'postgres',                        # Usuario de la base de datos
+        'PASSWORD': 'Antonia2409.',                # Contraseña del usuario
+        'HOST': 'localhost',                       # Host de la base de datos (local o remoto)
+        'PORT': '5432',                            # Puerto estándar para PostgreSQL
+    }
+}
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
