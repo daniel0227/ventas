@@ -247,7 +247,6 @@ def historico_ventas(request):
         'resumen_ventas': resumen_ventas,
     })
 
-# Vista para premios
 @login_required
 def premios(request):
     """
@@ -298,8 +297,8 @@ def premios(request):
         if resultado_obj:
             # El número ganador siempre es de 4 cifras
             winning_number = str(resultado_obj.resultado).zfill(4).strip()
-            # Consultar todas las ventas para la lotería en la fecha indicada
-            ventas = Venta.objects.filter(fecha_venta__date=fecha, loterias=lot)
+            # Consultar todas las ventas para la lotería en la fecha indicada, SOLO las del usuario logueado
+            ventas = Venta.objects.filter(fecha_venta__date=fecha, loterias=lot, vendedor=request.user)
             for venta in ventas:
                 sale_number = venta.numero.strip()
                 # Solo se consideran ventas con 2, 3 o 4 dígitos
