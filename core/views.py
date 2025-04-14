@@ -9,7 +9,7 @@ from django.utils.timezone import localtime, now, make_aware
 from .forms import VentaForm
 from django.core.paginator import Paginator
 from pytz import timezone as pytz_timezone
-from datetime import date, timedelta, datetime
+from datetime import date, timedelta, datetime, time
 
 # Vista Home
 @login_required
