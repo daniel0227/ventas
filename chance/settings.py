@@ -15,12 +15,13 @@ SECRET_KEY = 'django-insecure--1o9=di!miz87e=-6sn+hyus@lcxhvukjq)#a5*ao=k$pn&dj#
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ALLOWED_HOSTS = [
-    '.railway.app',  # Permite subdominios
-    'ventas-production-b0a6.up.railway.app',  # Dominio específico
-    'lotia.app',  # Dominio específico con puerto
-    'http://www.lottia.app',  # Dominio específico con puerto
-    '127.0.0.1', 'localhost',  # Dominio específico
+ALLOWED_HOSTS = [
+    '.railway.app',
+    'ventas-production-b0a6.up.railway.app',
+    'lottia.app',            # dominio sin 'www'
+    'www.lottia.app',        # dominio con 'www'
+    '127.0.0.1',
+    'localhost',
 ]
 
 CSRF_TRUSTED_ORIGINS = [

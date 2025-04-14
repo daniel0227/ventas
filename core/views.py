@@ -193,16 +193,33 @@ def crear_venta(request):
 @login_required(login_url='/login-required/')
 def ventas_list(request):
     search = request.GET.get('search', '')
+    # Si no se indican fechas, se toma la fecha actual para ambos
     start_date = request.GET.get('start_date', str(date.today()))
     end_date = request.GET.get('end_date', str(date.today()))
     vendedor_id = request.GET.get('vendedor', '')
 
-    # Si start_date y end_date son iguales, se filtra por ese día,
-    # de lo contrario se filtra por el rango
-    if start_date == end_date:
-        ventas = Venta.objects.filter(fecha_venta__date=start_date)
+    # Convertir los strings a objetos date y definir el rango temporal del día
+    try:
+        start_date_obj = datetime.strptime(start_date, '%Y-%m-%d').date()
+    except ValueError:
+        start_date_obj = date.today()
+
+    try:
+        end_date_obj = datetime.strptime(end_date, '%Y-%m-%d').date()
+    except ValueError:
+        end_date_obj = date.today()
+
+    # Si se filtra un solo día, definimos el rango desde la medianoche hasta el final del día.
+    if start_date_obj == end_date_obj:
+        ventas = Venta.objects.filter(
+            fecha_venta__gte=datetime.combine(start_date_obj, time.min),
+            fecha_venta__lte=datetime.combine(start_date_obj, time.max)
+        )
     else:
-        ventas = Venta.objects.filter(fecha_venta__date__gte=start_date, fecha_venta__date__lte=end_date)
+        ventas = Venta.objects.filter(
+            fecha_venta__gte=datetime.combine(start_date_obj, time.min),
+            fecha_venta__lte=datetime.combine(end_date_obj, time.max)
+        )
 
     if not request.user.is_staff:
         ventas = ventas.filter(vendedor=request.user)
@@ -213,7 +230,7 @@ def ventas_list(request):
     if search:
         ventas = ventas.filter(numero__icontains=search)
 
-    paginator = Paginator(ventas, 50)
+    paginator = Paginator(ventas, 50)  # 50 ventas por página
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
