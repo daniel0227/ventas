@@ -26,7 +26,8 @@ ALLOWED_HOSTS = [
 
 CSRF_TRUSTED_ORIGINS = [
     'https://ventas-production-b0a6.up.railway.app',
-    'https://lotia.app',
+    'https://www.lottia.app',
+    'https://lottia.app',
 ]
 
 # Application definition
