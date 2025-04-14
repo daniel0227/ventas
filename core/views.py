@@ -198,7 +198,6 @@ def ventas_list(request):
     end_date = request.GET.get('end_date', str(date.today()))
     vendedor_id = request.GET.get('vendedor', '')
 
-    # Convertir los strings a objetos date y definir el rango temporal del día
     try:
         start_date_obj = datetime.strptime(start_date, '%Y-%m-%d').date()
     except ValueError:
@@ -209,16 +208,16 @@ def ventas_list(request):
     except ValueError:
         end_date_obj = date.today()
 
-    # Si se filtra un solo día, definimos el rango desde la medianoche hasta el final del día.
+    # Para filtrar un solo día, definimos el rango desde la medianoche de ese día hasta la medianoche del siguiente.
     if start_date_obj == end_date_obj:
         ventas = Venta.objects.filter(
             fecha_venta__gte=datetime.combine(start_date_obj, time.min),
-            fecha_venta__lte=datetime.combine(start_date_obj, time.max)
+            fecha_venta__lt=datetime.combine(start_date_obj + timedelta(days=1), time.min)
         )
     else:
         ventas = Venta.objects.filter(
             fecha_venta__gte=datetime.combine(start_date_obj, time.min),
-            fecha_venta__lte=datetime.combine(end_date_obj, time.max)
+            fecha_venta__lt=datetime.combine(end_date_obj + timedelta(days=1), time.min)
         )
 
     if not request.user.is_staff:
