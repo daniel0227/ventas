@@ -19,6 +19,7 @@ ALLOWED_HOSTS = ALLOWED_HOSTS = [
     '.railway.app',  # Permite subdominios
     'ventas-production-b0a6.up.railway.app',  # Dominio específico
     'lotia.app',  # Dominio específico con puerto
+    'www.lotia.app',  # Dominio específico con puerto
     '127.0.0.1', 'localhost',  # Dominio específico
 ]
 
