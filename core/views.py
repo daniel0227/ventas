@@ -190,7 +190,6 @@ def crear_venta(request):
         'current_time': ahora.time(),
     })
 
-# Vista para listar ventas con filtros y paginación
 @login_required(login_url='/login-required/')
 def ventas_list(request):
     search = request.GET.get('search', '')
@@ -198,7 +197,12 @@ def ventas_list(request):
     end_date = request.GET.get('end_date', str(date.today()))
     vendedor_id = request.GET.get('vendedor', '')
 
-    ventas = Venta.objects.filter(fecha_venta__date__gte=start_date, fecha_venta__date__lte=end_date)
+    # Si start_date y end_date son iguales, se filtra por ese día,
+    # de lo contrario se filtra por el rango
+    if start_date == end_date:
+        ventas = Venta.objects.filter(fecha_venta__date=start_date)
+    else:
+        ventas = Venta.objects.filter(fecha_venta__date__gte=start_date, fecha_venta__date__lte=end_date)
 
     if not request.user.is_staff:
         ventas = ventas.filter(vendedor=request.user)
