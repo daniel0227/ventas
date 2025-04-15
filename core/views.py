@@ -194,45 +194,43 @@ def crear_venta(request):
 @login_required(login_url='/login-required/')
 def ventas_list(request):
     search = request.GET.get('search', '')
-    # Usaremos el campo "start_date" como la fecha exacta a filtrar
-    filter_date = request.GET.get('start_date', str(date.today()))
+    default_date = str(timezone.now().date())  # Se toma la fecha actual según la zona horaria de Django
+    start_date = request.GET.get('start_date', default_date)
+    end_date = request.GET.get('end_date', default_date)
     vendedor_id = request.GET.get('vendedor', '')
 
-    # Se filtra exactamente por la fecha de venta
-    ventas = Venta.objects.filter(fecha_venta__date=filter_date)
+    ventas = Venta.objects.filter(
+        fecha_venta__date__gte=start_date,
+        fecha_venta__date__lte=end_date
+    )
 
-    # Si no es staff, limitamos a las ventas del usuario actual
     if not request.user.is_staff:
         ventas = ventas.filter(vendedor=request.user)
 
-    # Si es staff y se selecciona un vendedor en particular, filtramos por ese vendedor
     if request.user.is_staff and vendedor_id:
         ventas = ventas.filter(vendedor_id=vendedor_id)
 
-    # Filtro adicional por búsqueda (p.ej. número de venta)
     if search:
         ventas = ventas.filter(numero__icontains=search)
 
-    # Paginación de los resultados
     paginator = Paginator(ventas, 50)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
-    # Agregación para calcular el total de ventas
     total_ventas = ventas.annotate(
         total_por_loteria=F('monto') * Count('loterias')
     ).aggregate(
         total=Sum('total_por_loteria')
     )['total'] or 0
 
-    # Obtener vendedores (solo para staff)
     vendedores = Venta.objects.values('vendedor__id', 'vendedor__username').distinct() if request.user.is_staff else []
 
     return render(request, 'core/ventas_list.html', {
         'ventas': page_obj,
         'total_ventas': total_ventas,
         'search': search,
-        'filter_date': filter_date,  # Usamos un solo valor para la fecha
+        'start_date': start_date,
+        'end_date': end_date,
         'vendedores': vendedores,
         'vendedor_id': vendedor_id,
     })
