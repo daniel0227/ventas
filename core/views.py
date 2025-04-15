@@ -9,7 +9,7 @@ from django.utils.timezone import localtime, now, make_aware
 from .forms import VentaForm
 from django.core.paginator import Paginator
 from pytz import timezone as pytz_timezone
-from datetime import date, timedelta, datetime, time
+from datetime import date, timedelta, datetime
 
 # Vista Home
 @login_required
@@ -190,56 +190,49 @@ def crear_venta(request):
         'current_time': ahora.time(),
     })
 
+# Vista para listar ventas con filtros y paginación
 @login_required(login_url='/login-required/')
 def ventas_list(request):
     search = request.GET.get('search', '')
-    # Si no se indican fechas, se toma la fecha actual para ambos
-    start_date = request.GET.get('start_date', str(date.today()))
-    end_date = request.GET.get('end_date', str(date.today()))
+    # Usaremos el campo "start_date" como la fecha exacta a filtrar
+    filter_date = request.GET.get('start_date', str(date.today()))
     vendedor_id = request.GET.get('vendedor', '')
 
-    try:
-        start_date_obj = datetime.strptime(start_date, '%Y-%m-%d').date()
-    except ValueError:
-        start_date_obj = date.today()
+    # Se filtra exactamente por la fecha de venta
+    ventas = Venta.objects.filter(fecha_venta__date=filter_date)
 
-    try:
-        end_date_obj = datetime.strptime(end_date, '%Y-%m-%d').date()
-    except ValueError:
-        end_date_obj = date.today()
-
-    if start_date_obj == end_date_obj:
-        ventas = Venta.objects.filter(fecha_venta__date=start_date_obj)
-    else:
-        ventas = Venta.objects.filter(fecha_venta__date__gte=start_date_obj, fecha_venta__date__lte=end_date_obj)
-
+    # Si no es staff, limitamos a las ventas del usuario actual
     if not request.user.is_staff:
         ventas = ventas.filter(vendedor=request.user)
 
+    # Si es staff y se selecciona un vendedor en particular, filtramos por ese vendedor
     if request.user.is_staff and vendedor_id:
         ventas = ventas.filter(vendedor_id=vendedor_id)
 
+    # Filtro adicional por búsqueda (p.ej. número de venta)
     if search:
         ventas = ventas.filter(numero__icontains=search)
 
-    paginator = Paginator(ventas, 50)  # 50 ventas por página
+    # Paginación de los resultados
+    paginator = Paginator(ventas, 50)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
+    # Agregación para calcular el total de ventas
     total_ventas = ventas.annotate(
         total_por_loteria=F('monto') * Count('loterias')
     ).aggregate(
         total=Sum('total_por_loteria')
     )['total'] or 0
 
+    # Obtener vendedores (solo para staff)
     vendedores = Venta.objects.values('vendedor__id', 'vendedor__username').distinct() if request.user.is_staff else []
 
     return render(request, 'core/ventas_list.html', {
         'ventas': page_obj,
         'total_ventas': total_ventas,
         'search': search,
-        'start_date': start_date,
-        'end_date': end_date,
+        'filter_date': filter_date,  # Usamos un solo valor para la fecha
         'vendedores': vendedores,
         'vendedor_id': vendedor_id,
     })
