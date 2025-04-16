@@ -194,22 +194,22 @@ def crear_venta(request):
 @login_required(login_url='/login-required/')
 def ventas_list(request):
     search = request.GET.get('search', '')
-    default_date = str(timezone.now().date())  # Se toma la fecha actual según la zona horaria de Django
-    start_date = request.GET.get('start_date', default_date)
-    end_date = request.GET.get('end_date', default_date)
+    default_date = str(timezone.now().date())  # Se toma la fecha actual según la zona horaria definida en Django
+    filter_date = request.GET.get('start_date', default_date)  # Utilizamos el input start_date como filter_date
     vendedor_id = request.GET.get('vendedor', '')
 
-    ventas = Venta.objects.filter(
-        fecha_venta__date__gte=start_date,
-        fecha_venta__date__lte=end_date
-    )
+    # Se filtran las ventas que tengan fecha_venta igual a filter_date
+    ventas = Venta.objects.filter(fecha_venta__date=filter_date)
 
+    # Si el usuario no es staff, limitamos las ventas a las del usuario
     if not request.user.is_staff:
         ventas = ventas.filter(vendedor=request.user)
 
+    # Si es staff y se ha seleccionado un vendedor en particular, filtramos también por vendedor_id
     if request.user.is_staff and vendedor_id:
         ventas = ventas.filter(vendedor_id=vendedor_id)
 
+    # Filtro adicional si se ingresó algún término de búsqueda en número
     if search:
         ventas = ventas.filter(numero__icontains=search)
 
@@ -229,8 +229,7 @@ def ventas_list(request):
         'ventas': page_obj,
         'total_ventas': total_ventas,
         'search': search,
-        'start_date': start_date,
-        'end_date': end_date,
+        'filter_date': filter_date,  # Usamos filter_date para que coincida con el valor del input
         'vendedores': vendedores,
         'vendedor_id': vendedor_id,
     })
