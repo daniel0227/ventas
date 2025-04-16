@@ -260,6 +260,9 @@ def premios(request):
       - Si la venta tiene 4 cifras y coincide exactamente: * 4500
     """
     from datetime import datetime
+    from django.http import Http404
+    from django.utils import timezone
+
     # Obtener la fecha del filtro (GET), si no se indica se usa la fecha actual
     fecha_param = request.GET.get('fecha')
     ahora = timezone.localtime(timezone.now())
@@ -298,8 +301,13 @@ def premios(request):
         if resultado_obj:
             # El número ganador siempre es de 4 cifras
             winning_number = str(resultado_obj.resultado).zfill(4).strip()
-            # Consultar todas las ventas para la lotería en la fecha indicada, SOLO las del usuario logueado
-            ventas = Venta.objects.filter(fecha_venta__date=fecha, loterias=lot, vendedor=request.user)
+
+            # Filtrar las ventas: si es administrador (staff) se ven todas; sino, solo las del usuario logueado
+            if request.user.is_staff:
+                ventas = Venta.objects.filter(fecha_venta__date=fecha, loterias=lot)
+            else:
+                ventas = Venta.objects.filter(fecha_venta__date=fecha, loterias=lot, vendedor=request.user)
+            
             for venta in ventas:
                 sale_number = venta.numero.strip()
                 # Solo se consideran ventas con 2, 3 o 4 dígitos
