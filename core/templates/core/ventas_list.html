@@ -56,7 +56,9 @@
                 <thead class="thead-light">
                     <tr>
                         {% comment %} <th class="border-0 rounded-start">#</th> {% endcomment %}
+                        {% if user.is_staff %}
                         <th class="border-0">Vendedor</th>
+                        {% endif %}
                         <th class="border-0">Lotería</th>
                         <th class="border-0">Número</th>
                         <th class="border-0">Monto</th>
