@@ -69,7 +69,7 @@
                     {% for venta in ventas %}
                     <tr>
                         {% if user.is_staff %}
-                        {% comment %} <td>{{ venta.id }}</td> {% endcomment %}
+                        <td>{{ venta.id }}</td>
                         {% endif %}
                         <td>{{ venta.vendedor.username }}</td>
                         <td>{{ venta.loterias.all|join:", " }}</td>
