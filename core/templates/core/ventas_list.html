@@ -55,7 +55,9 @@
             <table class="table table-centered table-nowrap mb-0 rounded">
                 <thead class="thead-light">
                     <tr>
-                        {% comment %} <th class="border-0 rounded-start">#</th> {% endcomment %}
+                        {% if user.is_staff %}
+                        <th class="border-0 rounded-start">#</th>
+                        {% endif %}
                         <th class="border-0">Vendedor</th>
                         <th class="border-0">Lotería</th>
                         <th class="border-0">Número</th>
@@ -66,7 +68,9 @@
                 <tbody>
                     {% for venta in ventas %}
                     <tr>
+                        {% if user.is_staff %}
                         {% comment %} <td>{{ venta.id }}</td> {% endcomment %}
+                        {% endif %}
                         <td>{{ venta.vendedor.username }}</td>
                         <td>{{ venta.loterias.all|join:", " }}</td>
                         <td>{{ venta.numero }}</td>
