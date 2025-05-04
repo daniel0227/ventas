@@ -211,7 +211,7 @@ def ventas_list(request):
     if search:
         ventas = ventas.filter(numero__icontains=search)
 
-    paginator = Paginator(ventas, 750)
+    paginator = Paginator(ventas, 1750)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
