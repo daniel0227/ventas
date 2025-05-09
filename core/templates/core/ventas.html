@@ -1,7 +1,7 @@
 <!-- core/templates/core/crear_venta.html -->
 {% extends "core/base.html" %}
-<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 {% load static %}
+
 {% block content %}
 
   <h3 class="text-center mb-4">Registrar Ventas</h3>
@@ -180,25 +180,6 @@
       </div>
     </div>
   </div>
-
-<!-- Modal Compartir captura -->
-<div class="modal fade" id="shareModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header bg-success text-white">
-        <h5 class="modal-title"><i class="bi bi-camera-fill"></i> Compartir imagen</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body text-center">
-        <p>Pulsa el botón para capturar la venta y compartirla.</p>
-        <button id="captureShareBtn" class="btn btn-light">
-          <i class="bi bi-share-fill"></i> Capturar y compartir
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
-
   
   <style>
     .dropdown-menu .form-check-input:disabled + label {
@@ -259,7 +240,7 @@
     <script>
       (function() {
         'use strict';
-    
+      
         /* ───────── TOTAL: solo monto ───────── */
         function updateTotal() {
           const rows = document.querySelectorAll('#dynamic-table tbody tr');
@@ -276,16 +257,16 @@
             minimumFractionDigits: 0
           });
         }
-    
+      
         /* ───────── Loterías seleccionadas ───────── */
         function updateSelectedLotteries() {
           const selected = document.querySelectorAll('input[name="loterias"]:checked');
           const container = document.getElementById('selected-lotteries');
           const button = document.getElementById('lotteryDropdown');
-    
+      
           button.textContent = `Seleccionar Loterías (${selected.length})`;
           container.innerHTML = selected.length > 0 ? '<h6 class="mb-2">Loterías seleccionadas:</h6>' : '';
-    
+      
           selected.forEach(function(loteria) {
             const labelText = loteria.parentNode.querySelector('label').textContent.trim();
             container.innerHTML += `
@@ -295,7 +276,7 @@
               </span>
             `;
           });
-    
+      
           container.querySelectorAll('.remove-lottery-icon').forEach(function(icon) {
             icon.addEventListener('click', function() {
               const text = icon.parentNode.textContent.trim();
@@ -307,7 +288,7 @@
             });
           });
         }
-    
+      
         /* ───────── listeners de loterías ───────── */
         document.querySelectorAll('input[name="loterias"]').forEach(function(checkbox) {
           checkbox.addEventListener('change', function() {
@@ -315,7 +296,7 @@
             updateTotal();
           });
         });
-    
+      
         /* ───────── eliminar fila ───────── */
         document.getElementById('dynamic-table').addEventListener('click', function(e) {
           if (e.target.closest('.remove-row')) {
@@ -323,7 +304,7 @@
             updateTotal();
           }
         });
-    
+      
         /* ───────── listeners por fila ───────── */
         function attachRowListeners(row) {
           const montoInput = row.querySelector('.monto');
@@ -337,13 +318,13 @@
             });
           }
         }
-    
+      
         document.querySelectorAll('#dynamic-table tbody tr').forEach(function(row) {
           attachRowListeners(row);
         });
         updateTotal();
         updateSelectedLotteries();
-    
+      
         /* ───────── agregar fila ───────── */
         document.getElementById('add-row').addEventListener('click', function() {
           const tbody = document.querySelector('#dynamic-table tbody');
@@ -362,28 +343,28 @@
           attachRowListeners(newRow);
           updateTotal();
         });
-    
+      
         /* ───────── submit ───────── */
         document.getElementById('ventas-form').addEventListener('submit', function(e) {
           e.preventDefault();
           const form = e.target;
           const selectedLotteries = document.querySelectorAll('input[name="loterias"]:checked');
-    
+      
           if (selectedLotteries.length === 0) {
             alert("Debe seleccionar al menos una lotería.");
             return;
           }
-    
+      
           /* ===== VALIDACIÓN DE FILAS ===== */
           let rows = Array.from(document.querySelectorAll('#dynamic-table tbody tr'));
           let incompleteFound = false;
           let validRowExists = false;
-    
+      
           rows.forEach(function(row) {
             const numero = row.querySelector('input[name="numero"]').value.trim();
-            const combi  = row.querySelector('input[name="combi"]').value.trim();
+            const combi  = row.querySelector('input[name="combi"]').value.trim();   /* nuevo */
             const monto  = row.querySelector('input[name="monto"]').value.trim();
-    
+      
             /* fila completamente vacía -> se elimina */
             if (numero === "" && combi === "" && monto === "") {
               row.remove();
@@ -391,7 +372,7 @@
               /* debe haber Monto Y (Número O Combi) */
               const identificadorOK = (numero !== "" || combi !== "");
               const montoOK = (monto !== "");
-    
+      
               if (montoOK && identificadorOK) {
                 validRowExists = true;
               } else {
@@ -399,7 +380,7 @@
               }
             }
           });
-    
+      
           if (incompleteFound) {
             alert("Existen filas incompletas. Cada fila debe tener Monto y Número o Combi.");
             return;
@@ -408,7 +389,7 @@
             alert("Debe completar al menos una fila con datos válidos.");
             return;
           }
-    
+      
           /* ───────── llenar modal ───────── */
           const saleLoteriasList = document.getElementById('saleLoteriasList');
           saleLoteriasList.innerHTML = '';
@@ -417,7 +398,7 @@
             li.textContent = loteria.parentNode.querySelector('label').textContent.trim();
             saleLoteriasList.appendChild(li);
           });
-    
+      
           const saleDetailsList = document.getElementById('saleDetailsList');
           saleDetailsList.innerHTML = '';
           document.querySelectorAll('#dynamic-table tbody tr').forEach(function(row) {
@@ -434,7 +415,7 @@
             tr.innerHTML = `<td>${numero}</td><td>${formattedMonto}</td><td>${combi}</td>`;
             saleDetailsList.appendChild(tr);
           });
-    
+      
           /* ───────── total para el modal ───────── */
           let total = 0;
           document.querySelectorAll('.monto').forEach(function(input) {
@@ -446,7 +427,7 @@
             currency: 'COP',
             minimumFractionDigits: 0
           });
-    
+      
           /* fecha/hora */
           const saleDayElement = document.getElementById('saleDay');
           const now = new Date();
@@ -461,11 +442,11 @@
             hour12: false
           };
           saleDayElement.textContent = now.toLocaleString('es-CO', options);
-    
+      
           /* ───────── mostrar modal ───────── */
           const saleDetailModal = new bootstrap.Modal(document.getElementById('saleDetailModal'));
           saleDetailModal.show();
-    
+      
           /* ───────── confirmar envío ───────── */
           const confirmButton = document.getElementById('confirmSaleButton');
           const newConfirmButton = confirmButton.cloneNode(true);
@@ -474,7 +455,9 @@
             const formData = new FormData(form);
             fetch(form.action || window.location.href, {
               method: 'POST',
-              headers: { 'X-CSRFToken': formData.get('csrfmiddlewaretoken') },
+              headers: {
+                'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+              },
               body: formData
             })
             .then(response => response.json())
@@ -483,77 +466,9 @@
                 alert(data.error);
                 return;
               }
-              // 1) Ocultamos el modal de detalle
               saleDetailModal.hide();
-    
-              // —— aquí empieza la NUEVA LÓGICA de captura+share ——
-              // Construir mensaje de texto
-              const day = document.getElementById('saleDay').textContent;
-              const lotes = Array.from(document.querySelectorAll('#saleLoteriasList li'))
-                                 .map(li => li.textContent).join(', ');
-              const detalles = Array.from(document.querySelectorAll('#saleDetailsList tr'))
-                .map(tr => {
-                  const num = tr.children[0].textContent;
-                  const val = tr.children[1].textContent;
-                  const cmb = tr.children[2].textContent;
-                  return `• ${num} – ${val} (Comb: ${cmb})`;
-                }).join('\n');
-              const totalText = document.getElementById('saleTotalAmount').textContent;
-              const mensaje = 
-                `🎉 *Confirmación de Venta* 🎉\n` +
-                `Día: ${day}\n` +
-                `Loterías: ${lotes}\n\n` +
-                `Detalles:\n${detalles}\n\n` +
-                `Total: ${totalText}`;
-    
-              // 2) Mostrar modal de “Capturar y compartir”
-              const shareModalEl = document.getElementById('shareModal');
-              const shareModal = new bootstrap.Modal(shareModalEl);
-              shareModal.show();
-    
-              // 3) Al pulsar “Capturar y compartir”
-              document.getElementById('captureShareBtn').onclick = () => {
-                const target = document.querySelector('#saleDetailModal .modal-content');
-                html2canvas(target).then(canvas => {
-                  canvas.toBlob(blob => {
-                    const file = new File([blob], 'venta.png', { type: 'image/png' });
-    
-                    const canShareFiles = navigator.canShare && navigator.canShare({ files: [file] });
-                    console.log('📊 canShare files?', canShareFiles);
-    
-                    if (canShareFiles) {
-                      // share de archivo
-                      navigator.share({ files: [file], title: 'Venta realizada' })
-                        .catch(err => console.error('Error share files:', err))
-                        .finally(finalShare);
-                    } else if (navigator.share) {
-                      // fallback: share de texto
-                      console.log('🔄 Fallback: compartiendo texto');
-                      navigator.share({ text: mensaje })
-                        .catch(err => console.error('Error share text:', err))
-                        .finally(finalShare);
-                    } else {
-                      // descarga automática de la imagen
-                      console.log('⬇️ Descarga imagen');
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement('a');
-                      a.href = url;
-                      a.download = 'venta.png';
-                      document.body.appendChild(a);
-                      a.click();
-                      document.body.removeChild(a);
-                      finalShare();
-                    }
-                  });
-                });
-              };
-    
-              function finalShare() {
-                shareModal.hide();
-                new bootstrap.Toast(document.getElementById('toastSuccess'), { delay: 2000 }).show();
-                setTimeout(() => window.location.reload(), 2000);
-              }
-              // —— fin NUEVA LÓGICA ——
+              new bootstrap.Toast(document.getElementById('toastSuccess'), { delay: 2000 }).show();
+              setTimeout(function() { window.location.reload(); }, 2000);
             })
             .catch(error => {
               console.error('Error en el envío:', error);
@@ -562,8 +477,6 @@
           });
         });
       })();
-    </script>
-    
-    
+      </script>
   
 {% endblock %}
