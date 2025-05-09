@@ -381,7 +381,7 @@
     
           rows.forEach(function(row) {
             const numero = row.querySelector('input[name="numero"]').value.trim();
-            const combi  = row.querySelector('input[name="combi"]').value.trim();   /* nuevo */
+            const combi  = row.querySelector('input[name="combi"]').value.trim();
             const monto  = row.querySelector('input[name="monto"]').value.trim();
     
             /* fila completamente vacía -> se elimina */
@@ -487,6 +487,25 @@
               saleDetailModal.hide();
     
               // —— aquí empieza la NUEVA LÓGICA de captura+share ——
+              // Construir mensaje de texto
+              const day = document.getElementById('saleDay').textContent;
+              const lotes = Array.from(document.querySelectorAll('#saleLoteriasList li'))
+                                 .map(li => li.textContent).join(', ');
+              const detalles = Array.from(document.querySelectorAll('#saleDetailsList tr'))
+                .map(tr => {
+                  const num = tr.children[0].textContent;
+                  const val = tr.children[1].textContent;
+                  const cmb = tr.children[2].textContent;
+                  return `• ${num} – ${val} (Comb: ${cmb})`;
+                }).join('\n');
+              const totalText = document.getElementById('saleTotalAmount').textContent;
+              const mensaje = 
+                `🎉 *Confirmación de Venta* 🎉\n` +
+                `Día: ${day}\n` +
+                `Loterías: ${lotes}\n\n` +
+                `Detalles:\n${detalles}\n\n` +
+                `Total: ${totalText}`;
+    
               // 2) Mostrar modal de “Capturar y compartir”
               const shareModalEl = document.getElementById('shareModal');
               const shareModal = new bootstrap.Modal(shareModalEl);
@@ -494,28 +513,28 @@
     
               // 3) Al pulsar “Capturar y compartir”
               document.getElementById('captureShareBtn').onclick = () => {
-                // capturamos el mismo contenido del modal de detalle
                 const target = document.querySelector('#saleDetailModal .modal-content');
                 html2canvas(target).then(canvas => {
                   canvas.toBlob(blob => {
                     const file = new File([blob], 'venta.png', { type: 'image/png' });
     
-                    // si soporta Web Share API con archivos
-                    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                      navigator.share({
-                        files: [file],
-                        title: 'Venta realizada',
-                        text: 'Adjunto captura de la venta recién registrada.'
-                      })
-                      .catch(console.error)
-                      .finally(() => {
-                        shareModal.hide();
-                        new bootstrap.Toast(document.getElementById('toastSuccess'), { delay: 2000 }).show();
-                        setTimeout(() => window.location.reload(), 2000);
-                      });
+                    const canShareFiles = navigator.canShare && navigator.canShare({ files: [file] });
+                    console.log('📊 canShare files?', canShareFiles);
     
+                    if (canShareFiles) {
+                      // share de archivo
+                      navigator.share({ files: [file], title: 'Venta realizada' })
+                        .catch(err => console.error('Error share files:', err))
+                        .finally(finalShare);
+                    } else if (navigator.share) {
+                      // fallback: share de texto
+                      console.log('🔄 Fallback: compartiendo texto');
+                      navigator.share({ text: mensaje })
+                        .catch(err => console.error('Error share text:', err))
+                        .finally(finalShare);
                     } else {
-                      // fallback: descarga automática de la imagen
+                      // descarga automática de la imagen
+                      console.log('⬇️ Descarga imagen');
                       const url = URL.createObjectURL(blob);
                       const a = document.createElement('a');
                       a.href = url;
@@ -523,13 +542,17 @@
                       document.body.appendChild(a);
                       a.click();
                       document.body.removeChild(a);
-                      shareModal.hide();
-                      new bootstrap.Toast(document.getElementById('toastSuccess'), { delay: 2000 }).show();
-                      setTimeout(() => window.location.reload(), 2000);
+                      finalShare();
                     }
                   });
                 });
               };
+    
+              function finalShare() {
+                shareModal.hide();
+                new bootstrap.Toast(document.getElementById('toastSuccess'), { delay: 2000 }).show();
+                setTimeout(() => window.location.reload(), 2000);
+              }
               // —— fin NUEVA LÓGICA ——
             })
             .catch(error => {
@@ -540,6 +563,7 @@
         });
       })();
     </script>
+    
     
   
 {% endblock %}
