@@ -101,89 +101,88 @@ class CustomLoginView(LoginView):
 def crear_venta(request):
     ahora = timezone.localtime(timezone.now())
 
-    # Mapeo EN ➜ ES
-    dias_map = {
-        'Monday': 'Lunes',
-        'Tuesday': 'Martes',
-        'Wednesday': 'Miércoles',
-        'Thursday': 'Jueves',
-        'Friday': 'Viernes',
-        'Saturday': 'Sábado',
-        'Sunday': 'Domingo',
-    }
-
-    dia_actual_nombre_en = ahora.strftime('%A')
-    dia_actual_nombre_es = dias_map.get(dia_actual_nombre_en)
-
-    if not dia_actual_nombre_es:
-        return JsonResponse({'success': False, 'error': 'Día actual no válido.'}, status=400)
-
     try:
+        # Mapeo de días
+        dias_map = {
+            'Monday': 'Lunes',
+            'Tuesday': 'Martes',
+            'Wednesday': 'Miércoles',
+            'Thursday': 'Jueves',
+            'Friday': 'Viernes',
+            'Saturday': 'Sábado',
+            'Sunday': 'Domingo',
+        }
+
+        # Obtener el nombre del día actual
+        dia_actual_nombre_en = ahora.strftime('%A')
+        dia_actual_nombre_es = dias_map.get(dia_actual_nombre_en)
+        print("Día actual (es):", dia_actual_nombre_es)
+
+        if not dia_actual_nombre_es:
+            return JsonResponse({'success': False, 'error': 'Día actual no válido.'}, status=400)
+
+        # Buscar el día en la base de datos
         dia_actual = Dia.objects.get(nombre=dia_actual_nombre_es)
-    except Dia.DoesNotExist:
-        return JsonResponse({'success': False,
-                             'error': f'Día no encontrado: {dia_actual_nombre_es}'},
-                            status=404)
 
-    # Loterías disponibles en la hora actual
-    loterias = (
-        Loteria.objects.filter(dias_juego=dia_actual)
-        .annotate(
+        # Filtrar loterías solo disponibles (según hora de juego en el momento de carga)
+        loterias = Loteria.objects.filter(dias_juego=dia_actual).annotate(
             disponible=Case(
-                When(hora_inicio__lte=ahora.time(),
-                     hora_fin__gte=ahora.time(),
-                     then=True),
+                When(hora_inicio__lte=ahora.time(), hora_fin__gte=ahora.time(), then=True),
                 default=False,
-                output_field=BooleanField()
+                output_field=BooleanField(),
             )
-        )
-        .filter(disponible=True)
-        .order_by('-disponible')
-    )
+        ).filter(disponible=True).order_by('-disponible')
 
-    # ---------- POST ----------
-    if request.method == 'POST':
-        loterias_ids = request.POST.getlist('loterias')
-        numeros      = request.POST.getlist('numero')
-        montos       = request.POST.getlist('monto')
-        combis       = request.POST.getlist('combi')          # ⬅️  lista de combis
+        if request.method == 'POST':
+            print("Método POST detectado...")
 
-        # Validar longitudes
-        if not (len(numeros) == len(montos) == len(combis)):
-            return JsonResponse(
-                {'success': False,
-                 'error': 'Los números, montos y combis no coinciden.'},
-                status=400
-            )
+            # Capturar los datos del POST
+            loterias_ids = request.POST.getlist('loterias')
+            numeros = request.POST.getlist('numero')
+            montos = request.POST.getlist('monto')
+            combi = request.POST.get('combi')  # Captura el campo combi
 
-        loterias_seleccionadas = Loteria.objects.filter(id__in=loterias_ids)
-        if not loterias_seleccionadas.exists():
-            return JsonResponse({'success': False, 'error': 'Loterías no válidas.'},
-                                status=400)
+            # Validar números y montos
+            if len(numeros) != len(montos):
+                print("Error: Longitud de números y montos no coincide.")
+                return JsonResponse({'success': False, 'error': 'Los números y montos no coinciden.'}, status=400)
 
-        # Validar horario
-        for lot in loterias_seleccionadas:
-            if not (lot.hora_inicio <= ahora.time() <= lot.hora_fin):
-                return JsonResponse(
-                    {'success': False,
-                     'error': f'La hora de juego para {lot.nombre} ha finalizado.'},
-                    status=400
+            # Validar loterías
+            loterias_seleccionadas = Loteria.objects.filter(id__in=loterias_ids)
+            print("Loterías seleccionadas:", loterias_seleccionadas)
+            if not loterias_seleccionadas.exists():
+                return JsonResponse({'success': False, 'error': 'Loterías no válidas.'}, status=400)
+
+            # Validación extra: no permitir crear ventas después de la hora de juego.
+            for lot in loterias_seleccionadas:
+                if not (lot.hora_inicio <= ahora.time() <= lot.hora_fin):
+                    error_msg = f"La hora de juego para {lot.nombre} ha finalizado. No se pueden crear ventas fuera del horario permitido."
+                    return JsonResponse({'success': False, 'error': error_msg}, status=400)
+
+            # Crear ventas
+            for numero, monto in zip(numeros, montos):
+                venta = Venta.objects.create(
+                    vendedor=request.user,
+                    numero=numero,
+                    monto=monto,
+                    fecha_venta=ahora,
+                    combi=int(combi) if combi else None  # Asignar null si no hay valor
                 )
+                venta.loterias.set(loterias_seleccionadas)
+                print("Venta creada con éxito:", venta)
 
-        # Crear ventas
-        for numero, monto, combi in zip(numeros, montos, combis):
-            venta = Venta.objects.create(
-                vendedor=request.user,
-                numero=numero,
-                monto=monto,
-                fecha_venta=ahora,
-                combi=int(combi) if combi else None
-            )
-            venta.loterias.set(loterias_seleccionadas)
+            print("Todas las ventas se crearon correctamente.")
+            return JsonResponse({'success': True})
 
-        return JsonResponse({'success': True})
+    except Dia.DoesNotExist:
+        print(f"Error: Día no encontrado ({dia_actual_nombre_es}).")
+        return JsonResponse({'success': False, 'error': f'Día no encontrado: {dia_actual_nombre_es}'}, status=404)
 
-    # ---------- GET ----------
+    except Exception as e:
+        print(f"Error general en la vista crear_venta: {e}")
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+    # Renderizar la página
     return render(request, 'core/ventas.html', {
         'loterias': loterias,
         'dia_actual_nombre': dia_actual_nombre_es,
