@@ -237,246 +237,247 @@
     });
     </script>
 
-    <script>
-      (function() {
-        'use strict';
-      
-        /* ───────── TOTAL: solo monto ───────── */
-        function updateTotal() {
-          const rows = document.querySelectorAll('#dynamic-table tbody tr');
-          const loteriasSeleccionadas = document.querySelectorAll('input[name="loterias"]:checked');
-          let total = 0;
-          rows.forEach(function(row) {
-            const montoVal = parseFloat(row.querySelector('input[name="monto"]').value) || 0;
-            total += montoVal;                  // solo monto
-          });
-          total *= loteriasSeleccionadas.length;
-          document.getElementById('total-monto').value = total.toLocaleString('es-CO', {
-            style: 'currency',
-            currency: 'COP',
-            minimumFractionDigits: 0
-          });
-        }
-      
-        /* ───────── Loterías seleccionadas ───────── */
-        function updateSelectedLotteries() {
-          const selected = document.querySelectorAll('input[name="loterias"]:checked');
-          const container = document.getElementById('selected-lotteries');
-          const button = document.getElementById('lotteryDropdown');
-      
-          button.textContent = `Seleccionar Loterías (${selected.length})`;
-          container.innerHTML = selected.length > 0 ? '<h6 class="mb-2">Loterías seleccionadas:</h6>' : '';
-      
-          selected.forEach(function(loteria) {
-            const labelText = loteria.parentNode.querySelector('label').textContent.trim();
-            container.innerHTML += `
-              <span class="badge-lottery me-1 mb-1">
-                ${labelText}
-                <i class="bi bi-x-circle remove-lottery-icon"></i>
-              </span>
-            `;
-          });
-      
-          container.querySelectorAll('.remove-lottery-icon').forEach(function(icon) {
-            icon.addEventListener('click', function() {
-              const text = icon.parentNode.textContent.trim();
-              document.querySelectorAll('input[name="loterias"]').forEach(function(checkbox) {
-                if (checkbox.parentNode.textContent.trim() === text) {
-                  checkbox.click();
-                }
-              });
-            });
-          });
-        }
-      
-        /* ───────── listeners de loterías ───────── */
-        document.querySelectorAll('input[name="loterias"]').forEach(function(checkbox) {
-          checkbox.addEventListener('change', function() {
-            updateSelectedLotteries();
-            updateTotal();
-          });
+  <script>
+    (function() {
+      'use strict';
+  
+      // Función para actualizar el total del formulario: SÓLO se suman los montos (campo "monto")
+      function updateTotal() {
+        const rows = document.querySelectorAll('#dynamic-table tbody tr');
+        const loteriasSeleccionadas = document.querySelectorAll('input[name="loterias"]:checked');
+        let total = 0;
+        rows.forEach(function(row) {
+          const montoVal = parseFloat(row.querySelector('input[name="monto"]').value) || 0;
+          total += montoVal;
         });
-      
-        /* ───────── eliminar fila ───────── */
-        document.getElementById('dynamic-table').addEventListener('click', function(e) {
-          if (e.target.closest('.remove-row')) {
-            e.target.closest('tr').remove();
-            updateTotal();
-          }
+        total *= loteriasSeleccionadas.length;
+        document.getElementById('total-monto').value = total.toLocaleString('es-CO', {
+          style: 'currency',
+          currency: 'COP',
+          minimumFractionDigits: 0
         });
+      }
+  
+      // Función para actualizar la visualización de loterías seleccionadas
+      function updateSelectedLotteries() {
+        const selected = document.querySelectorAll('input[name="loterias"]:checked');
+        const container = document.getElementById('selected-lotteries');
+        const button = document.getElementById('lotteryDropdown');
       
-        /* ───────── listeners por fila ───────── */
-        function attachRowListeners(row) {
-          const montoInput = row.querySelector('.monto');
-          if (montoInput) {
-            montoInput.addEventListener('input', updateTotal);
-          }
-          const combiInput = row.querySelector('.combi');
-          if (combiInput) {
-            combiInput.addEventListener('input', function() {
-              /* combi no afecta al total */
-            });
-          }
-        }
+        button.textContent = `Seleccionar Loterías (${selected.length})`;
+        container.innerHTML = selected.length > 0 ? '<h6 class="mb-2">Loterías seleccionadas:</h6>' : '';
       
-        document.querySelectorAll('#dynamic-table tbody tr').forEach(function(row) {
-          attachRowListeners(row);
-        });
-        updateTotal();
-        updateSelectedLotteries();
-      
-        /* ───────── agregar fila ───────── */
-        document.getElementById('add-row').addEventListener('click', function() {
-          const tbody = document.querySelector('#dynamic-table tbody');
-          const newRow = document.createElement('tr');
-          newRow.innerHTML = `
-            <td><input type="number" name="numero" class="form-control"></td>
-            <td><input type="number" name="combi" class="form-control combi"></td>
-            <td><input type="number" name="monto" class="form-control monto"></td>
-            <td>
-              <button type="button" class="btn btn-danger btn-sm remove-row">
-                <i class="bi bi-trash"></i>
-              </button>
-            </td>
+        selected.forEach(function(loteria) {
+          const labelText = loteria.parentNode.querySelector('label').textContent.trim();
+          container.innerHTML += `
+            <span class="badge-lottery me-1 mb-1">
+              ${labelText}
+              <i class="bi bi-x-circle remove-lottery-icon"></i>
+            </span>
           `;
-          tbody.appendChild(newRow);
-          attachRowListeners(newRow);
+        });
+      
+        container.querySelectorAll('.remove-lottery-icon').forEach(function(icon) {
+          icon.addEventListener('click', function() {
+            const text = icon.parentNode.textContent.trim();
+            document.querySelectorAll('input[name="loterias"]').forEach(function(checkbox) {
+              if (checkbox.parentNode.textContent.trim() === text) {
+                checkbox.click();
+              }
+            });
+          });
+        });
+      }
+  
+      // Asignar eventos a los checkboxes de loterías
+      document.querySelectorAll('input[name="loterias"]').forEach(function(checkbox) {
+        checkbox.addEventListener('change', function() {
+          updateSelectedLotteries();
           updateTotal();
         });
-      
-        /* ───────── submit ───────── */
-        document.getElementById('ventas-form').addEventListener('submit', function(e) {
-          e.preventDefault();
-          const form = e.target;
-          const selectedLotteries = document.querySelectorAll('input[name="loterias"]:checked');
-      
-          if (selectedLotteries.length === 0) {
-            alert("Debe seleccionar al menos una lotería.");
-            return;
-          }
-      
-          /* ===== VALIDACIÓN DE FILAS ===== */
-          let rows = Array.from(document.querySelectorAll('#dynamic-table tbody tr'));
-          let incompleteFound = false;
-          let validRowExists = false;
-      
-          rows.forEach(function(row) {
-            const numero = row.querySelector('input[name="numero"]').value.trim();
-            const combi  = row.querySelector('input[name="combi"]').value.trim();   /* nuevo */
-            const monto  = row.querySelector('input[name="monto"]').value.trim();
-      
-            /* fila completamente vacía -> se elimina */
-            if (numero === "" && combi === "" && monto === "") {
-              row.remove();
+      });
+  
+      // Delegación para eliminar filas de la tabla
+      document.getElementById('dynamic-table').addEventListener('click', function(e) {
+        if (e.target.closest('.remove-row')) {
+          e.target.closest('tr').remove();
+          updateTotal();
+        }
+      });
+  
+      // Asigna listeners a los campos "monto" y "combi" en cada fila
+      function attachRowListeners(row) {
+        const montoInput = row.querySelector('.monto');
+        if (montoInput) {
+          montoInput.addEventListener('input', updateTotal);
+        }
+        const combiInput = row.querySelector('.combi');
+        if (combiInput) {
+          combiInput.addEventListener('input', function() {
+            // No se llama updateTotal ya que combi no afecta el total
+          });
+        }
+      }
+  
+      // Inicializa filas existentes y actualiza total y loterías seleccionadas
+      document.querySelectorAll('#dynamic-table tbody tr').forEach(function(row) {
+        attachRowListeners(row);
+      });
+      updateTotal();
+      updateSelectedLotteries();
+  
+      // Agregar nueva fila
+      document.getElementById('add-row').addEventListener('click', function() {
+        const tbody = document.querySelector('#dynamic-table tbody');
+        const newRow = document.createElement('tr');
+        newRow.innerHTML = `
+          <td><input type="number" name="numero" class="form-control"></td>
+          <td><input type="number" name="combi" class="form-control combi"></td>
+          <td><input type="number" name="monto" class="form-control monto"></td>
+          <td>
+            <button type="button" class="btn btn-danger btn-sm remove-row">
+              <i class="bi bi-trash"></i>
+            </button>
+          </td>
+        `;
+        tbody.appendChild(newRow);
+        attachRowListeners(newRow);
+        updateTotal();
+      });
+  
+      // Manejo del submit del formulario
+      document.getElementById('ventas-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const form = e.target;
+        const selectedLotteries = document.querySelectorAll('input[name="loterias"]:checked');
+  
+        if (selectedLotteries.length === 0) {
+          alert("Debe seleccionar al menos una lotería.");
+          return;
+        }
+  
+        // Validar filas: si una fila está parcialmente llena (numero o monto vacíos) se notifica y se evita el submit.
+        let rows = Array.from(document.querySelectorAll('#dynamic-table tbody tr'));
+        let incompleteFound = false;
+        let validRowExists = false;
+        rows.forEach(function(row) {
+          const numero = row.querySelector('input[name="numero"]').value.trim();
+          const monto = row.querySelector('input[name="monto"]').value.trim();
+          // Si la fila está completamente vacía, la eliminamos.
+          if (numero === "" && monto === "") {
+            row.remove();
+          } else {
+            // Si la fila está parcialmente llena, se marca como incompleta.
+            if (numero === "" || monto === "") {
+              incompleteFound = true;
             } else {
-              /* debe haber Monto Y (Número O Combi) */
-              const identificadorOK = (numero !== "" || combi !== "");
-              const montoOK = (monto !== "");
-      
-              if (montoOK && identificadorOK) {
-                validRowExists = true;
-              } else {
-                incompleteFound = true;
-              }
+              validRowExists = true;
             }
-          });
-      
-          if (incompleteFound) {
-            alert("Existen filas incompletas. Cada fila debe tener Monto y Número o Combi.");
-            return;
           }
-          if (!validRowExists) {
-            alert("Debe completar al menos una fila con datos válidos.");
-            return;
-          }
-      
-          /* ───────── llenar modal ───────── */
-          const saleLoteriasList = document.getElementById('saleLoteriasList');
-          saleLoteriasList.innerHTML = '';
-          selectedLotteries.forEach(function(loteria) {
-            const li = document.createElement('li');
-            li.textContent = loteria.parentNode.querySelector('label').textContent.trim();
-            saleLoteriasList.appendChild(li);
-          });
-      
-          const saleDetailsList = document.getElementById('saleDetailsList');
-          saleDetailsList.innerHTML = '';
-          document.querySelectorAll('#dynamic-table tbody tr').forEach(function(row) {
-            const numero = row.querySelector('input[name="numero"]').value.trim() || '—';
-            const monto  = row.querySelector('input[name="monto"]').value.trim();
-            const combi  = row.querySelector('input[name="combi"]').value.trim() || '—';
-            const parsedMonto = parseFloat(monto) || 0;
-            const formattedMonto = parsedMonto.toLocaleString('es-CO', {
-              style: 'currency',
-              currency: 'COP',
-              minimumFractionDigits: 0
-            });
-            const tr = document.createElement('tr');
-            tr.innerHTML = `<td>${numero}</td><td>${formattedMonto}</td><td>${combi}</td>`;
-            saleDetailsList.appendChild(tr);
-          });
-      
-          /* ───────── total para el modal ───────── */
-          let total = 0;
-          document.querySelectorAll('.monto').forEach(function(input) {
-            total += parseFloat(input.value) || 0;
-          });
-          total *= selectedLotteries.length;
-          document.getElementById('saleTotalAmount').textContent = total.toLocaleString('es-CO', {
+        });
+        if (incompleteFound) {
+          alert("Existen filas incompletas. Por favor, complete todos los campos requeridos (Número y Monto).");
+          return;
+        }
+        if (!validRowExists) {
+          alert("Debe completar al menos una fila con datos válidos.");
+          return;
+        }
+  
+        // Llenar el modal con los datos
+        const saleLoteriasList = document.getElementById('saleLoteriasList');
+        saleLoteriasList.innerHTML = '';
+        selectedLotteries.forEach(function(loteria) {
+          const li = document.createElement('li');
+          li.textContent = loteria.parentNode.querySelector('label').textContent.trim();
+          saleLoteriasList.appendChild(li);
+        });
+  
+        const saleDetailsList = document.getElementById('saleDetailsList');
+        saleDetailsList.innerHTML = '';
+        document.querySelectorAll('#dynamic-table tbody tr').forEach(function(row) {
+          const numero = row.querySelector('input[name="numero"]').value.trim();
+          const monto = row.querySelector('input[name="monto"]').value.trim();
+          const combi = row.querySelector('input[name="combi"]').value.trim() || 'N/A';
+          const parsedMonto = parseFloat(monto) || 0;
+          const formattedMonto = parsedMonto.toLocaleString('es-CO', {
             style: 'currency',
             currency: 'COP',
             minimumFractionDigits: 0
           });
-      
-          /* fecha/hora */
-          const saleDayElement = document.getElementById('saleDay');
-          const now = new Date();
-          const options = {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            hour12: false
-          };
-          saleDayElement.textContent = now.toLocaleString('es-CO', options);
-      
-          /* ───────── mostrar modal ───────── */
-          const saleDetailModal = new bootstrap.Modal(document.getElementById('saleDetailModal'));
-          saleDetailModal.show();
-      
-          /* ───────── confirmar envío ───────── */
-          const confirmButton = document.getElementById('confirmSaleButton');
-          const newConfirmButton = confirmButton.cloneNode(true);
-          confirmButton.parentNode.replaceChild(newConfirmButton, confirmButton);
-          newConfirmButton.addEventListener('click', function() {
-            const formData = new FormData(form);
-            fetch(form.action || window.location.href, {
-              method: 'POST',
-              headers: {
-                'X-CSRFToken': formData.get('csrfmiddlewaretoken')
-              },
-              body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-              if (!data.success) {
-                alert(data.error);
-                return;
-              }
-              saleDetailModal.hide();
-              new bootstrap.Toast(document.getElementById('toastSuccess'), { delay: 2000 }).show();
-              setTimeout(function() { window.location.reload(); }, 2000);
-            })
-            .catch(error => {
-              console.error('Error en el envío:', error);
-              alert('Ocurrió un error al enviar la venta.');
-            });
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td>${numero}</td><td>${formattedMonto}</td><td>${combi}</td>`;
+          saleDetailsList.appendChild(tr);
+        });
+  
+        // Calcular total para el modal (solo se suman los montos)
+        let total = 0;
+        document.querySelectorAll('.monto').forEach(function(input) {
+          total += parseFloat(input.value) || 0;
+        });
+        total *= selectedLotteries.length;
+        document.getElementById('saleTotalAmount').textContent = total.toLocaleString('es-CO', {
+          style: 'currency',
+          currency: 'COP',
+          minimumFractionDigits: 0
+        });
+  
+        // Actualizar fecha/hora dinámica en el modal
+        const saleDayElement = document.getElementById('saleDay');
+        const now = new Date();
+        const options = {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false
+        };
+        saleDayElement.textContent = now.toLocaleString('es-CO', options);
+  
+        // Mostrar modal de detalle
+        const saleDetailModal = new bootstrap.Modal(document.getElementById('saleDetailModal'));
+        saleDetailModal.show();
+  
+        // Asignar evento de confirmación (una sola vez)
+        const confirmButton = document.getElementById('confirmSaleButton');
+        const newConfirmButton = confirmButton.cloneNode(true);
+        confirmButton.parentNode.replaceChild(newConfirmButton, confirmButton);
+        newConfirmButton.addEventListener('click', function() {
+          const formData = new FormData(form);
+          fetch(form.action || window.location.href, {
+            method: 'POST',
+            headers: {
+              'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+            },
+            body: formData
+          })
+          .then(response => response.json())
+          .then(data => {
+            if (!data.success) {
+              alert(data.error);
+              return;
+            }
+            // Cerrar el modal de detalle
+            saleDetailModal.hide();
+            // Mostrar Toast de éxito
+            var toastEl = document.getElementById('toastSuccess');
+            var toast = new bootstrap.Toast(toastEl, { delay: 2000 });
+            toast.show();
+            // Recargar la página después de 2 segundos
+            setTimeout(function() {
+              window.location.reload();
+            }, 2000);
+          })
+          .catch(error => {
+            console.error('Error en el envío:', error);
+            alert('Ocurrió un error al enviar la venta.');
           });
         });
-      })();
-      </script>
+      });
+    })();
+  </script>
   
 {% endblock %}
