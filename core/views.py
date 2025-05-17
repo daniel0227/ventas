@@ -194,43 +194,53 @@ def crear_venta(request):
 # Vista para listar ventas con filtros y paginación
 @login_required(login_url='/login-required/')
 def ventas_list(request):
-    search = request.GET.get('search', '')
-    # Usamos la hora local para obtener la fecha actual según la zona horaria de Django
+    search       = request.GET.get('search', '')
     default_date = str(timezone.localtime(timezone.now()).date())
-    filter_date = request.GET.get('start_date', default_date)  # Un único filtro de fecha
-    vendedor_id = request.GET.get('vendedor', '')
+    filter_date  = request.GET.get('start_date', default_date)
+    vendedor_id  = request.GET.get('vendedor', '')
 
-    # Se filtran las ventas que tengan fecha_venta igual a filter_date
-    ventas = Venta.objects.filter(fecha_venta__date=filter_date)
+    # 1. Base queryset
+    ventas_qs = Venta.objects.filter(fecha_venta__date=filter_date)
 
     if not request.user.is_staff:
-        ventas = ventas.filter(vendedor=request.user)
-
+        ventas_qs = ventas_qs.filter(vendedor=request.user)
     if request.user.is_staff and vendedor_id:
-        ventas = ventas.filter(vendedor_id=vendedor_id)
-
+        ventas_qs = ventas_qs.filter(vendedor_id=vendedor_id)
     if search:
-        ventas = ventas.filter(numero__icontains=search)
+        ventas_qs = ventas_qs.filter(numero__icontains=search)
 
-    paginator = Paginator(ventas, 1750)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
+    # 2. Evitar N+1
+    ventas_qs = (
+        ventas_qs
+          .select_related('vendedor')
+          .prefetch_related('loterias')
+          .annotate(count_loterias=Count('loterias'))
+    )
 
-    total_ventas = ventas.annotate(
-        total_por_loteria=F('monto') * Count('loterias')
-    ).aggregate(
-        total=Sum('total_por_loteria')
+    # 3. Total general en DB
+    total_ventas = ventas_qs.aggregate(
+        total=Sum(F('monto') * F('count_loterias'))
     )['total'] or 0
 
-    vendedores = Venta.objects.values('vendedor__id', 'vendedor__username').distinct() if request.user.is_staff else []
+    # 4. Paginación más razonable
+    paginator   = Paginator(ventas_qs, 100)
+    page_obj    = paginator.get_page(request.GET.get('page'))
+
+    # 5. Lista de vendedores (sólo admins)
+    vendedores = (
+        Venta.objects
+             .values('vendedor__id','vendedor__username')
+             .distinct()
+        if request.user.is_staff else []
+    )
 
     return render(request, 'core/ventas_list.html', {
-        'ventas': page_obj,
+        'ventas':       page_obj,
         'total_ventas': total_ventas,
-        'search': search,
-        'filter_date': filter_date,  # Esta variable se usará en el input del template
-        'vendedores': vendedores,
-        'vendedor_id': vendedor_id,
+        'search':       search,
+        'filter_date':  filter_date,
+        'vendedores':   vendedores,
+        'vendedor_id':  vendedor_id,
     })
 
 # Vista para mostrar el histórico de ventas

@@ -23,8 +23,8 @@ class Loteria(models.Model):
 class Venta(models.Model):
     vendedor = models.ForeignKey(User, on_delete=models.CASCADE)
     loterias = models.ManyToManyField(Loteria)
-    fecha_venta = models.DateTimeField(auto_now_add=True)
-    numero = models.CharField(max_length=50)
+    fecha_venta = models.DateTimeField(auto_now_add=True, db_index=True)  # Agregado db_index=True para optimizar consultas
+    numero = models.CharField(max_length=50, db_index=True)
     monto = models.IntegerField()  # Cambiado a IntegerField
     combi = models.IntegerField(null=True, blank=True)  # Cambiado a IntegerField
 
