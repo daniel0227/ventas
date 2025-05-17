@@ -13,18 +13,32 @@
 <form method="GET" class="mb-3">
     <div class="row">
         <div class="col-md-3">
-            <input type="text" class="form-control" name="search" value="{{ search }}" placeholder="Buscar por número">
+            <input
+                type="text"
+                class="form-control"
+                name="search"
+                value="{{ search }}"
+                placeholder="Buscar por número"
+            >
         </div>
         <div class="col-md-3">
-            <input type="date" class="form-control" name="start_date" id="start_date" value="{{ filter_date }}">
+            <input
+                type="date"
+                class="form-control"
+                name="start_date"
+                id="start_date"
+                value="{{ filter_date }}"
+            >
         </div>
-        <!-- Filtro de vendedor solo para administradores -->
         {% if user.is_staff %}
         <div class="col-md-3">
             <select name="vendedor" class="form-control">
                 <option value="">Selecciona un Vendedor</option>
                 {% for vendedor in vendedores %}
-                <option value="{{ vendedor.vendedor__id }}" {% if vendedor_id == vendedor.vendedor__id|stringformat:"s" %}selected{% endif %}>
+                <option
+                    value="{{ vendedor.vendedor__id }}"
+                    {% if vendedor_id == vendedor.vendedor__id|stringformat:"s" %}selected{% endif %}
+                >
                     {{ vendedor.vendedor__username }}
                 </option>
                 {% endfor %}
@@ -42,7 +56,6 @@
     <div class="card-body">
         <h5 class="card-title">Total de Ventas</h5>
         <p class="card-text">
-            <!-- Mostrar el total de ventas formateado como moneda -->
             <strong>${{ total_ventas|format_colombian }}</strong> COP
         </p>
     </div>
@@ -87,47 +100,50 @@
         </div>
 
         <!-- Paginación -->
-  <nav aria-label="Page navigation" class="mt-3">
-    <ul class="pagination">
-      {% comment %}Anterior{% endcomment %}
-      {% if ventas.has_previous %}
-        <li class="page-item">
-          <a class="page-link"
-             href="?page={{ ventas.previous_page_number }}
-               &start_date={{ filter_date }}
-               &search={{ search }}
-               &vendedor={{ vendedor_id|urlencode }}"
-          >« Anterior</a>
-        </li>
-      {% else %}
-        <li class="page-item disabled"><span class="page-link">«</span></li>
-      {% endif %}
+        <nav aria-label="Page navigation" class="mt-3">
+            <ul class="pagination">
+                {% if ventas.has_previous %}
+                <li class="page-item">
+                    <a
+                        class="page-link"
+                        href="?page={{ ventas.previous_page_number }}&start_date={{ filter_date }}&search={{ search|urlencode }}&vendedor={{ vendedor_id }}"
+                    >
+                        « Anterior
+                    </a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">«</span>
+                </li>
+                {% endif %}
 
-      {% for num in ventas.paginator.page_range %}
-        <li class="page-item {% if ventas.number == num %}active{% endif %}">
-          <a class="page-link"
-             href="?page={{ num }}
-               &start_date={{ filter_date }}
-               &search={{ search }}
-               &vendedor={{ vendedor_id|urlencode }}"
-          >{{ num }}</a>
-        </li>
-      {% endfor %}
+                {% for num in ventas.paginator.page_range %}
+                <li class="page-item {% if ventas.number == num %}active{% endif %}">
+                    <a
+                        class="page-link"
+                        href="?page={{ num }}&start_date={{ filter_date }}&search={{ search|urlencode }}&vendedor={{ vendedor_id }}"
+                    >
+                        {{ num }}
+                    </a>
+                </li>
+                {% endfor %}
 
-      {% if ventas.has_next %}
-        <li class="page-item">
-          <a class="page-link"
-             href="?page={{ ventas.next_page_number }}
-               &start_date={{ filter_date }}
-               &search={{ search }}
-               &vendedor={{ vendedor_id|urlencode }}"
-          >Siguiente »</a>
-        </li>
-      {% else %}
-        <li class="page-item disabled"><span class="page-link">»</span></li>
-      {% endif %}
-    </ul>
-  </nav>
+                {% if ventas.has_next %}
+                <li class="page-item">
+                    <a
+                        class="page-link"
+                        href="?page={{ ventas.next_page_number }}&start_date={{ filter_date }}&search={{ search|urlencode }}&vendedor={{ vendedor_id }}"
+                    >
+                        Siguiente »
+                    </a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">»</span>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
     </div>
 </div>
 {% endblock %}
