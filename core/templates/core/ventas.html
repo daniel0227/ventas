@@ -112,6 +112,22 @@
         <input type="text" id="total-monto" class="form-control d-inline-block w-auto text-end" value="0" readonly>
       </h5>
     </div>
+      <!-- Overlay de “procesando” -->
+  <div id="processingOverlay" style="
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(255,255,255,0.8);
+  z-index: 2000;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+">
+<img src="{% static 'core/img/loader.gif' %}" alt="Cargando..." style="width: 80px; height: 80px;">
+<div style="margin-top: 1rem; font-size: 1.2rem; font-weight: bold;">
+  Realizando apuesta…
+</div>
+</div>
   </form>
   
   <!-- Modal de Detalle de la Venta -->
@@ -441,41 +457,50 @@
         const saleDetailModal = new bootstrap.Modal(document.getElementById('saleDetailModal'));
         saleDetailModal.show();
   
-        // Asignar evento de confirmación (una sola vez)
-        const confirmButton = document.getElementById('confirmSaleButton');
-        const newConfirmButton = confirmButton.cloneNode(true);
-        confirmButton.parentNode.replaceChild(newConfirmButton, confirmButton);
-        newConfirmButton.addEventListener('click', function() {
-          const formData = new FormData(form);
-          fetch(form.action || window.location.href, {
-            method: 'POST',
-            headers: {
-              'X-CSRFToken': formData.get('csrfmiddlewaretoken')
-            },
-            body: formData
-          })
-          .then(response => response.json())
-          .then(data => {
-            if (!data.success) {
-              alert(data.error);
-              return;
-            }
-            // Cerrar el modal de detalle
-            saleDetailModal.hide();
-            // Mostrar Toast de éxito
-            var toastEl = document.getElementById('toastSuccess');
-            var toast = new bootstrap.Toast(toastEl, { delay: 2000 });
-            toast.show();
-            // Recargar la página después de 2 segundos
-            setTimeout(function() {
-              window.location.reload();
-            }, 2000);
-          })
-          .catch(error => {
-            console.error('Error en el envío:', error);
-            alert('Ocurrió un error al enviar la venta.');
-          });
-        });
+// Asignar evento de confirmación (una sola vez)
+const confirmButton = document.getElementById('confirmSaleButton');
+const newConfirmButton = confirmButton.cloneNode(true);
+confirmButton.parentNode.replaceChild(newConfirmButton, confirmButton);
+
+newConfirmButton.addEventListener('click', function() {
+  // 1) Mostrar overlay y deshabilitar botón
+  const overlay = document.getElementById('processingOverlay');
+  overlay.style.display = 'flex';
+  newConfirmButton.disabled = true;
+  newConfirmButton.textContent = 'Enviando…';
+
+  // 2) Realizar el envío
+  const formData = new FormData(form);
+  fetch(form.action || window.location.href, {
+    method: 'POST',
+    headers: { 'X-CSRFToken': formData.get('csrfmiddlewaretoken') },
+    body: formData
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (!data.success) {
+      alert(data.error);
+      // reactiva botón y oculta overlay
+      newConfirmButton.disabled = false;
+      newConfirmButton.textContent = 'Apostar';
+      overlay.style.display = 'none';
+      return;
+    }
+    // éxito: cerrar modal, mostrar toast y recargar
+    saleDetailModal.hide();
+    new bootstrap.Toast(document.getElementById('toastSuccess'), { delay:2000 }).show();
+    setTimeout(() => window.location.reload(), 2000);
+  })
+  .catch(error => {
+    console.error('Error en el envío:', error);
+    alert('Ocurrió un error al enviar la venta.');
+    // reactiva botón y oculta overlay
+    newConfirmButton.disabled = false;
+    newConfirmButton.textContent = 'Apostar';
+    overlay.style.display = 'none';
+  });
+});
+
       });
     })();
   </script>
