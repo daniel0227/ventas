@@ -484,7 +484,7 @@ def resultados(request):
 @user_passes_test(lambda u: u.is_staff)
 @login_required
 def reporte_descargas(request):
-    # Obtener la fecha del filtro (GET); si no se indica, se usa la fecha actual.
+    # Obtener fecha de filtro
     fecha_param = request.GET.get('fecha')
     hoy = timezone.localtime(timezone.now()).date()
     if fecha_param:
@@ -495,20 +495,22 @@ def reporte_descargas(request):
     else:
         fecha = hoy
 
-    # Agrupar ventas por lotería y número, sumando el monto apostado
+    # Query: agrupar por número y lotería
     report = (
         Venta.objects
         .filter(fecha_venta__date=fecha)
-        .values('loterias__id', 'loterias__nombre', 'numero')
-        .annotate(total=Sum('monto'))
-        .order_by('loterias__nombre', 'numero')
+        .values('loterias__nombre', 'numero')
+        .annotate(
+            veces_apostado=Count('id'),
+            total_ventas=Sum('monto'),
+        )
+        .order_by('-total_ventas')
     )
 
-    context = {
+    return render(request, 'core/reporte_descargas.html', {
         'fecha': fecha,
         'report': report,
-    }
-    return render(request, 'core/reporte_descargas.html', context)
+    })
 
 def login_required_view(request):
     return render(request, 'core/login_required.html')

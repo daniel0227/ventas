@@ -112,21 +112,37 @@
         <input type="text" id="total-monto" class="form-control d-inline-block w-auto text-end" value="0" readonly>
       </h5>
     </div>
-      <!-- Overlay de “procesando” -->
-  <div id="processingOverlay" style="
-  display: none;
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(255,255,255,0.8);
-  z-index: 2000;
-  justify-content: center;
-  align-items: center;
-  flex-direction: column;
+<!-- Overlay de procesamiento (solo DISPLAY: none al cargar) -->
+<div id="processingOverlay" style="
+    display: none;               /* oculto al inicio */
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(255,255,255,0.9);
+    z-index: 2000;
+    /* las siguientes no declaran DISPLAY */
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    gap: 1rem;
 ">
-<img src="{% static 'core/img/loader.gif' %}" alt="Cargando..." style="width: 80px; height: 80px;">
-<div style="margin-top: 1rem; font-size: 1.2rem; font-weight: bold;">
-  Realizando apuesta…
-</div>
+  <!-- Loader -->
+  <div id="loaderContainer" style="display: flex; flex-direction: column; align-items: center; z-index: 2001;">
+    <img src="{% static 'core/img/loader.gif' %}" alt="Cargando…" style="width: 80px; height: 80px;">
+    <div style="font-size: 1.1rem;">Realizando apuesta…</div>
+  </div>
+  <!-- Mensaje de éxito -->
+  <div id="successContainer" style="
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      color: #28a745;
+      z-index: 2001;               /* por si acaso */
+  ">
+    <i class="bi bi-check-circle-fill" style="font-size: 3rem;"></i>
+    <div style="font-size: 1.2rem; font-weight: bold;">
+      ¡Apuesta realizada con éxito!
+    </div>
+  </div>
 </div>
   </form>
   
@@ -457,7 +473,7 @@
         const saleDetailModal = new bootstrap.Modal(document.getElementById('saleDetailModal'));
         saleDetailModal.show();
   
-// Asignar evento de confirmación (una sola vez)
+        // Asignar evento de confirmación (una sola vez)
 const confirmButton = document.getElementById('confirmSaleButton');
 const newConfirmButton = confirmButton.cloneNode(true);
 confirmButton.parentNode.replaceChild(newConfirmButton, confirmButton);

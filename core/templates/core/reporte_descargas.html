@@ -1,3 +1,4 @@
+{# core/templates/core/reporte_descargas.html #}
 {% extends "core/base.html" %}
 {% load static %}
 {% load format_filters %}
@@ -26,7 +27,8 @@
           <tr>
             <th>Lotería</th>
             <th>Número</th>
-            <th>Valor</th>
+            <th>Veces Apostado</th>
+            <th>Valor Total</th>
           </tr>
         </thead>
         <tbody>
@@ -34,7 +36,8 @@
           <tr>
             <td>{{ row.loterias__nombre }}</td>
             <td>{{ row.numero }}</td>
-            <td>${{ row.total|format_colombian }} COP</td>
+            <td>{{ row.veces_apostado }}</td>
+            <td>${{ row.total_ventas|format_colombian }} COP</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -47,3 +50,4 @@
   {% endif %}
 </div>
 {% endblock %}
+
