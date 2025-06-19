@@ -25,6 +25,9 @@
           <th>Lotería</th>
           <th>Número</th>
           <th>Valor</th>
+          {% if es_admin %}                      {# <<< agregado #}
+            <th>Vendedor</th>                   {# <<< agregado #}
+          {% endif %}
         </tr>
       </thead>
       <tbody>
@@ -40,6 +43,9 @@
             <td>{{ premio.nombre }}</td>
             <td>{{ premio.numero_ganador }}</td>
             <td>{{ premio.valor|format_colombian }}</td>
+            {% if es_admin %}                    {# <<< agregado #}
+              <td>{{ premio.vendedor.get_full_name|default:premio.vendedor.username }}</td>
+            {% endif %}
           </tr>
         {% endfor %}
       </tbody>

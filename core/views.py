@@ -341,10 +341,12 @@ def premios(request):
                         'nombre': lot.nombre,
                         'numero_ganador': sale_number,
                         'valor': premio_valor,
+                        'vendedor': venta.vendedor, # Vendedor de la venta
                     })
     context = {
         'premios_list': premios_list,
         'fecha': fecha,  # En formato YYYY-MM-DD
+        'es_admin': request.user.is_staff,
     }
     return render(request, 'core/premios.html', context)
 
