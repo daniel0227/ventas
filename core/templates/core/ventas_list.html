@@ -86,7 +86,14 @@
                         {% endif %}
                         <td>{{ venta.vendedor.username }}</td>
                         <td>{{ venta.loterias.all|join:", " }}</td>
-                        <td>{{ venta.numero }}</td>
+                        {# ← si 'numero' está vacío, muestra 'combi' #}
+                        <td>
+                            {% if venta.numero %}
+                                {{ venta.numero }}
+                            {% else %}
+                                ({{ venta.combi }})
+                            {% endif %}
+                        </td>
                         <td>${{ venta.monto|format_colombian }}</td>
                         <td>{{ venta.fecha_venta }}</td>
                     </tr>

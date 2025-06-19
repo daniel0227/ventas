@@ -99,22 +99,27 @@ class CustomLoginView(LoginView):
 # Vista para crear una venta
 @login_required
 def crear_venta(request):
+    """
+    Crea ventas en bloque.
+    Reglas por fila:
+      • monto (valor)  → obligatorio y > 0
+      • Se debe ingresar al menos uno de los dos: numero o combi
+    Además, la venta solo es válida si las loterías seleccionadas
+    están abiertas en la hora actual.
+    """
     ahora = timezone.localtime(timezone.now())
 
-    # Mapeo EN ➜ ES
+    # -------- Obtener día de la semana (ES) --------
     dias_map = {
-        'Monday': 'Lunes',
-        'Tuesday': 'Martes',
+        'Monday':    'Lunes',
+        'Tuesday':   'Martes',
         'Wednesday': 'Miércoles',
-        'Thursday': 'Jueves',
-        'Friday': 'Viernes',
-        'Saturday': 'Sábado',
-        'Sunday': 'Domingo',
+        'Thursday':  'Jueves',
+        'Friday':    'Viernes',
+        'Saturday':  'Sábado',
+        'Sunday':    'Domingo',
     }
-
-    dia_actual_nombre_en = ahora.strftime('%A')
-    dia_actual_nombre_es = dias_map.get(dia_actual_nombre_en)
-
+    dia_actual_nombre_es = dias_map.get(ahora.strftime('%A'))
     if not dia_actual_nombre_es:
         return JsonResponse({'success': False, 'error': 'Día actual no válido.'}, status=400)
 
@@ -125,14 +130,12 @@ def crear_venta(request):
                              'error': f'Día no encontrado: {dia_actual_nombre_es}'},
                             status=404)
 
-    # Loterías disponibles en la hora actual
+    # -------- Loterías disponibles en la hora actual --------
     loterias = (
         Loteria.objects.filter(dias_juego=dia_actual)
         .annotate(
             disponible=Case(
-                When(hora_inicio__lte=ahora.time(),
-                     hora_fin__gte=ahora.time(),
-                     then=True),
+                When(hora_inicio__lte=ahora.time(), hora_fin__gte=ahora.time(), then=True),
                 default=False,
                 output_field=BooleanField()
             )
@@ -141,107 +144,142 @@ def crear_venta(request):
         .order_by('-disponible')
     )
 
-    # ---------- POST ----------
+    # ======================= POST ==========================
     if request.method == 'POST':
         loterias_ids = request.POST.getlist('loterias')
         numeros      = request.POST.getlist('numero')
         montos       = request.POST.getlist('monto')
-        combis       = request.POST.getlist('combi')          # ⬅️  lista de combis
+        combis       = request.POST.getlist('combi')
 
-        # Validar longitudes
+        # --- Validaciones de longitud ---
         if not (len(numeros) == len(montos) == len(combis)):
-            return JsonResponse(
-                {'success': False,
-                 'error': 'Los números, montos y combis no coinciden.'},
-                status=400
-            )
-
-        loterias_seleccionadas = Loteria.objects.filter(id__in=loterias_ids)
-        if not loterias_seleccionadas.exists():
-            return JsonResponse({'success': False, 'error': 'Loterías no válidas.'},
+            return JsonResponse({'success': False,
+                                 'error': 'Los números, montos y combis no coinciden.'},
                                 status=400)
 
-        # Validar horario
+        # --- Loterías seleccionadas ---
+        loterias_seleccionadas = Loteria.objects.filter(id__in=loterias_ids)
+        if not loterias_seleccionadas.exists():
+            return JsonResponse({'success': False, 'error': 'Loterías no válidas.'}, status=400)
+
+        # --- Horario de cada lotería ---
         for lot in loterias_seleccionadas:
             if not (lot.hora_inicio <= ahora.time() <= lot.hora_fin):
-                return JsonResponse(
-                    {'success': False,
-                     'error': f'La hora de juego para {lot.nombre} ha finalizado.'},
-                    status=400
-                )
+                return JsonResponse({'success': False,
+                                     'error': f'La hora de juego para {lot.nombre} ha finalizado.'},
+                                    status=400)
 
-        # Crear ventas
+        # --- Validación fila a fila ---
+        for idx, (numero, monto, combi) in enumerate(zip(numeros, montos, combis), start=1):
+            numero = numero.strip()
+            combi  = combi.strip()
+            monto  = monto.strip()
+
+            # Monto obligatorio y > 0
+            if monto == '' or float(monto) <= 0:
+                return JsonResponse({'success': False,
+                                     'error': f'Fila {idx}: el monto es obligatorio y debe ser mayor que 0.'},
+                                    status=400)
+
+            # Debe existir numero o combi
+            if numero == '' and combi == '':
+                return JsonResponse({'success': False,
+                                     'error': f'Fila {idx}: ingrese Número o Combi.'},
+                                    status=400)
+
+        # --- Crear ventas (dentro de una transacción opcional) ---
         for numero, monto, combi in zip(numeros, montos, combis):
             venta = Venta.objects.create(
-                vendedor=request.user,
-                numero=numero,
-                monto=monto,
-                fecha_venta=ahora,
-                combi=int(combi) if combi else None
+                vendedor = request.user,
+                numero   = numero.strip(),
+                monto    = int(monto),                   # Se usan enteros en COP
+                fecha_venta = ahora,
+                combi    = int(combi) if combi.strip() else None
             )
             venta.loterias.set(loterias_seleccionadas)
 
         return JsonResponse({'success': True})
 
-    # ---------- GET ----------
-    return render(request, 'core/ventas.html', {
-        'loterias': loterias,
-        'dia_actual_nombre': dia_actual_nombre_es,
-        'fecha_actual': ahora.date(),
-        'current_time': ahora.time(),
-    })
+    # ======================= GET ==========================
+    return render(
+        request,
+        'core/ventas.html',
+        {
+            'loterias': loterias,
+            'dia_actual_nombre': dia_actual_nombre_es,
+            'fecha_actual': ahora.date(),
+            'current_time': ahora.time(),
+        }
+    )
 
 # Vista para listar ventas con filtros y paginación
 @login_required(login_url='/login-required/')
 def ventas_list(request):
+    """
+    Listado paginado de ventas para un día dado.
+    - Los usuarios no-admin sólo ven sus ventas.
+    - Admins pueden filtrar por vendedor.
+    - Search ahora aplica tanto a 'numero' como a 'combi'.
+    - Se calcula el total multiplicando monto × cantidad de loterías.
+    """
     search       = request.GET.get('search', '')
     default_date = str(timezone.localtime(timezone.now()).date())
     filter_date  = request.GET.get('start_date', default_date)
     vendedor_id  = request.GET.get('vendedor', '')
 
-    # 1. Base queryset
+    # 1. Base queryset (sólo ventas del día filtrado)
     ventas_qs = Venta.objects.filter(fecha_venta__date=filter_date)
 
+    # 2. Filtros de usuario
     if not request.user.is_staff:
         ventas_qs = ventas_qs.filter(vendedor=request.user)
     if request.user.is_staff and vendedor_id:
         ventas_qs = ventas_qs.filter(vendedor_id=vendedor_id)
-    if search:
-        ventas_qs = ventas_qs.filter(numero__icontains=search)
 
-    # 2. Evitar N+1
+    # 3. Búsqueda: número **o** combi
+    if search:
+        ventas_qs = ventas_qs.filter(
+            Q(numero__icontains=search) | Q(combi__icontains=search)
+        )
+
+    # 4. Optimización N+1
     ventas_qs = (
         ventas_qs
           .select_related('vendedor')
           .prefetch_related('loterias')
           .annotate(count_loterias=Count('loterias'))
+          .order_by('-fecha_venta')          # opcional, las más recientes primero
     )
 
-    # 3. Total general en DB
+    # 5. Total general (en BD)
     total_ventas = ventas_qs.aggregate(
         total=Sum(F('monto') * F('count_loterias'))
     )['total'] or 0
 
-    # 4. Paginación más razonable
-    paginator   = Paginator(ventas_qs, 100)
-    page_obj    = paginator.get_page(request.GET.get('page'))
+    # 6. Paginación
+    paginator = Paginator(ventas_qs, 100)
+    page_obj  = paginator.get_page(request.GET.get('page'))
 
-    # 5. Lista de vendedores (sólo admins)
+    # 7. Vendedores (sólo para admins)
     vendedores = (
         Venta.objects
-             .values('vendedor__id','vendedor__username')
+             .values('vendedor__id', 'vendedor__username')
              .distinct()
         if request.user.is_staff else []
     )
 
-    return render(request, 'core/ventas_list.html', {
-        'ventas':       page_obj,
-        'total_ventas': total_ventas,
-        'search':       search,
-        'filter_date':  filter_date,
-        'vendedores':   vendedores,
-        'vendedor_id':  vendedor_id,
-    })
+    return render(
+        request,
+        'core/ventas_list.html',
+        {
+            'ventas':       page_obj,
+            'total_ventas': total_ventas,
+            'search':       search,
+            'filter_date':  filter_date,
+            'vendedores':   vendedores,
+            'vendedor_id':  vendedor_id,
+        }
+    )
 
 # Vista para mostrar el histórico de ventas
 @login_required

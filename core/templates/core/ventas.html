@@ -388,33 +388,38 @@
           return;
         }
   
-        // Validar filas: si una fila está parcialmente llena (numero o monto vacíos) se notifica y se evita el submit.
-        let rows = Array.from(document.querySelectorAll('#dynamic-table tbody tr'));
-        let incompleteFound = false;
-        let validRowExists = false;
-        rows.forEach(function(row) {
-          const numero = row.querySelector('input[name="numero"]').value.trim();
-          const monto = row.querySelector('input[name="monto"]').value.trim();
-          // Si la fila está completamente vacía, la eliminamos.
-          if (numero === "" && monto === "") {
-            row.remove();
-          } else {
-            // Si la fila está parcialmente llena, se marca como incompleta.
-            if (numero === "" || monto === "") {
-              incompleteFound = true;
-            } else {
-              validRowExists = true;
-            }
-          }
-        });
-        if (incompleteFound) {
-          alert("Existen filas incompletas. Por favor, complete todos los campos requeridos (Número y Monto).");
-          return;
-        }
-        if (!validRowExists) {
-          alert("Debe completar al menos una fila con datos válidos.");
-          return;
-        }
+        // Validar filas
+let rows = Array.from(document.querySelectorAll('#dynamic-table tbody tr'));
+let incompleteFound = false;
+let validRowExists  = false;
+
+rows.forEach(function(row) {
+  const numero = row.querySelector('input[name="numero"]').value.trim();
+  const combi  = row.querySelector('input[name="combi"]').value.trim();
+  const monto  = row.querySelector('input[name="monto"]').value.trim();
+
+  // Fila completamente vacía → se descarta
+  if (numero === '' && combi === '' && monto === '') {
+    row.remove();
+    return;
+  }
+
+  // Reglas: monto obligatorio Y (numero || combi)
+  if (monto === '' || (numero === '' && combi === '')) {
+    incompleteFound = true;
+  } else {
+    validRowExists = true;
+  }
+});
+
+if (incompleteFound) {
+  alert("Cada fila debe tener Monto y al menos Número o Combi.");
+  return;
+}
+if (!validRowExists) {
+  alert("Debe completar al menos una fila con datos válidos.");
+  return;
+}
   
         // Llenar el modal con los datos
         const saleLoteriasList = document.getElementById('saleLoteriasList');
