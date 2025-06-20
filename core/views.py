@@ -4,7 +4,7 @@ from django.utils import timezone
 from django.http import Http404, JsonResponse
 from django.contrib.auth.views import LoginView
 from .models import Loteria, Dia, Venta, Resultado
-from django.db.models import Case, When, BooleanField, Sum, Count, F
+from django.db.models import Case, When, BooleanField, Sum, Count, F, Q
 from django.utils.timezone import localtime, now, make_aware
 from .forms import VentaForm
 from django.core.paginator import Paginator
