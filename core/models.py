@@ -11,6 +11,7 @@ class Dia(models.Model):
 
 class Loteria(models.Model):
     nombre = models.CharField(max_length=100)
+    slug     = models.SlugField(unique=True, null=True, blank=True, help_text="Coincide con el slug de la API")
     hora_inicio = models.TimeField()
     hora_fin = models.TimeField()
     dias_juego = models.ManyToManyField(Dia)  # Relación ManyToMany con el modelo Dia

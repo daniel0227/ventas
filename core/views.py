@@ -4,11 +4,15 @@ from django.utils import timezone
 from django.http import Http404, JsonResponse
 from django.contrib.auth.views import LoginView
 from .models import Loteria, Dia, Venta, Resultado
+from django.db              import transaction, IntegrityError
+from .utils import importar_resultados   # ← añade esta línea
+from django.contrib import messages
 from django.db.models import Case, When, BooleanField, Sum, Count, F, Q
 from django.utils.timezone import localtime, now, make_aware
 from .forms import VentaForm
 from django.core.paginator import Paginator
 from pytz import timezone as pytz_timezone
+from django.views.decorators.http import require_http_methods
 from datetime import date, timedelta, datetime
 
 # Vista Home
@@ -98,9 +102,11 @@ class CustomLoginView(LoginView):
 
 # Vista para crear una venta
 @login_required
+@require_http_methods(["GET", "POST"])
 def crear_venta(request):
     """
     Crea ventas en bloque.
+
     Reglas por fila:
       • monto (valor)  → obligatorio y > 0
       • Se debe ingresar al menos uno de los dos: numero o combi
@@ -111,31 +117,33 @@ def crear_venta(request):
 
     # -------- Obtener día de la semana (ES) --------
     dias_map = {
-        'Monday':    'Lunes',
-        'Tuesday':   'Martes',
-        'Wednesday': 'Miércoles',
-        'Thursday':  'Jueves',
-        'Friday':    'Viernes',
-        'Saturday':  'Sábado',
+        'Monday':    'Lunes', 'Tuesday':   'Martes', 'Wednesday': 'Miércoles',
+        'Thursday':  'Jueves', 'Friday':  'Viernes', 'Saturday':  'Sábado',
         'Sunday':    'Domingo',
     }
     dia_actual_nombre_es = dias_map.get(ahora.strftime('%A'))
     if not dia_actual_nombre_es:
-        return JsonResponse({'success': False, 'error': 'Día actual no válido.'}, status=400)
+        return JsonResponse(
+            {'success': False, 'error': 'Día actual no válido.'}, status=400
+        )
 
     try:
         dia_actual = Dia.objects.get(nombre=dia_actual_nombre_es)
     except Dia.DoesNotExist:
-        return JsonResponse({'success': False,
-                             'error': f'Día no encontrado: {dia_actual_nombre_es}'},
-                            status=404)
+        return JsonResponse(
+            {'success': False,
+             'error': f'Día no encontrado: {dia_actual_nombre_es}'},
+            status=404
+        )
 
     # -------- Loterías disponibles en la hora actual --------
     loterias = (
         Loteria.objects.filter(dias_juego=dia_actual)
         .annotate(
             disponible=Case(
-                When(hora_inicio__lte=ahora.time(), hora_fin__gte=ahora.time(), then=True),
+                When(hora_inicio__lte=ahora.time(),
+                     hora_fin__gte=ahora.time(),
+                     then=True),
                 default=False,
                 output_field=BooleanField()
             )
@@ -153,62 +161,82 @@ def crear_venta(request):
 
         # --- Validaciones de longitud ---
         if not (len(numeros) == len(montos) == len(combis)):
-            return JsonResponse({'success': False,
-                                 'error': 'Los números, montos y combis no coinciden.'},
-                                status=400)
+            return JsonResponse(
+                {'success': False,
+                 'error': 'Los números, montos y combis no coinciden.'},
+                status=400
+            )
 
         # --- Loterías seleccionadas ---
         loterias_seleccionadas = Loteria.objects.filter(id__in=loterias_ids)
         if not loterias_seleccionadas.exists():
-            return JsonResponse({'success': False, 'error': 'Loterías no válidas.'}, status=400)
+            return JsonResponse(
+                {'success': False, 'error': 'Loterías no válidas.'},
+                status=400
+            )
 
         # --- Horario de cada lotería ---
         for lot in loterias_seleccionadas:
             if not (lot.hora_inicio <= ahora.time() <= lot.hora_fin):
-                return JsonResponse({'success': False,
-                                     'error': f'La hora de juego para {lot.nombre} ha finalizado.'},
-                                    status=400)
+                return JsonResponse(
+                    {'success': False,
+                     'error': f'La hora de juego para {lot.nombre} ha finalizado.'},
+                    status=400
+                )
 
         # --- Validación fila a fila ---
-        for idx, (numero, monto, combi) in enumerate(zip(numeros, montos, combis), start=1):
+        for idx, (numero, monto, combi) in enumerate(
+                zip(numeros, montos, combis), start=1):
             numero = numero.strip()
             combi  = combi.strip()
             monto  = monto.strip()
 
             # Monto obligatorio y > 0
             if monto == '' or float(monto) <= 0:
-                return JsonResponse({'success': False,
-                                     'error': f'Fila {idx}: el monto es obligatorio y debe ser mayor que 0.'},
-                                    status=400)
+                return JsonResponse(
+                    {'success': False,
+                     'error': f'Fila {idx}: el monto es obligatorio y debe ser mayor que 0.'},
+                    status=400
+                )
 
             # Debe existir numero o combi
             if numero == '' and combi == '':
-                return JsonResponse({'success': False,
-                                     'error': f'Fila {idx}: ingrese Número o Combi.'},
-                                    status=400)
+                return JsonResponse(
+                    {'success': False,
+                     'error': f'Fila {idx}: ingrese Número o Combi.'},
+                    status=400
+                )
 
-        # --- Crear ventas (dentro de una transacción opcional) ---
-        for numero, monto, combi in zip(numeros, montos, combis):
-            venta = Venta.objects.create(
-                vendedor = request.user,
-                numero   = numero.strip(),
-                monto    = int(monto),                   # Se usan enteros en COP
-                fecha_venta = ahora,
-                combi    = int(combi) if combi.strip() else None
+        # --- Crear ventas dentro de una transacción ---
+        try:
+            with transaction.atomic():
+                for numero, monto, combi in zip(numeros, montos, combis):
+                    venta = Venta.objects.create(
+                        vendedor=request.user,
+                        numero=numero.strip(),
+                        monto=int(monto),              # pesos colombianos ⇒ entero
+                        fecha_venta=ahora,
+                        combi=int(combi) if combi.strip() else None
+                    )
+                    venta.loterias.set(loterias_seleccionadas)
+
+        except IntegrityError as exc:   # Ej. unique constraint si la añades
+            return JsonResponse(
+                {'success': False, 'error': f'Error BD: {exc}'}, status=400
             )
-            venta.loterias.set(loterias_seleccionadas)
 
-        return JsonResponse({'success': True})
+        # Todo OK
+        return JsonResponse({'success': True}, status=201)
 
     # ======================= GET ==========================
     return render(
         request,
         'core/ventas.html',
         {
-            'loterias': loterias,
-            'dia_actual_nombre': dia_actual_nombre_es,
-            'fecha_actual': ahora.date(),
-            'current_time': ahora.time(),
+            'loterias':            loterias,
+            'dia_actual_nombre':   dia_actual_nombre_es,
+            'fecha_actual':        ahora.date(),
+            'current_time':        ahora.time(),
         }
     )
 
@@ -391,11 +419,14 @@ def premios(request):
 @user_passes_test(lambda u: u.is_superuser)
 @login_required
 def registro_resultados(request):
-    # Importar datetime si no se hizo ya
-    from datetime import datetime
-
+    """
+    Vista para:
+      • Registrar/editar resultados manualmente (POST).
+      • Importar resultados desde la API pública (?importar=1).
+    """
     ahora = timezone.localtime(timezone.now())
-    # Si se pasa un parámetro GET 'fecha', se usa ese valor; de lo contrario, se usa la fecha actual
+
+    # ---------- 1. Fecha seleccionada ----------
     fecha_param = request.GET.get('fecha')
     if fecha_param:
         try:
@@ -405,43 +436,53 @@ def registro_resultados(request):
     else:
         fecha_actual = ahora.date()
 
-    # Convertir la fecha seleccionada a nombre del día (en inglés) y luego a español
-    dia_actual_nombre_en = fecha_actual.strftime('%A')
+    # ---------- 2. Importar desde API ----------
+    if request.GET.get("importar"):                               # <<< NUEVO >>>
+        resumen = importar_resultados(fecha_actual, user=request.user)
+        if "error" in resumen:
+            messages.error(request, f"Error al importar: {resumen['error']}")
+        else:
+            messages.success(
+                request,
+                f"Importados: {resumen['importados']} "
+                f"(omitidos: {resumen['omitidos']}, errores: {resumen['errores']})"
+            )
+        # Redirige para refrescar la página y evitar reenvío del parámetro
+        return redirect(f"{request.path}?fecha={fecha_actual.isoformat()}")
+
+    # ---------- 3. Día de la semana ----------
     dias_map = {
-        'Monday': 'Lunes',
-        'Tuesday': 'Martes',
-        'Wednesday': 'Miércoles',
-        'Thursday': 'Jueves',
-        'Friday': 'Viernes',
-        'Saturday': 'Sábado',
+        'Monday': 'Lunes', 'Tuesday': 'Martes', 'Wednesday': 'Miércoles',
+        'Thursday': 'Jueves', 'Friday': 'Viernes', 'Saturday': 'Sábado',
         'Sunday': 'Domingo',
     }
-    dia_actual_nombre_es = dias_map.get(dia_actual_nombre_en)
+    dia_actual_nombre_es = dias_map.get(fecha_actual.strftime('%A'))
 
     try:
         dia_obj = Dia.objects.get(nombre=dia_actual_nombre_es)
     except Dia.DoesNotExist:
         raise Http404(f"No se ha encontrado un día con el nombre {dia_actual_nombre_es}")
 
-    # Filtrar las loterías que se juegan el día de la semana correspondiente
+    # ---------- 4. Loterías del día ----------
     loterias = Loteria.objects.filter(dias_juego=dia_obj).order_by('nombre')
 
-    # Preparar un diccionario con el resultado actual (si existe) para cada lotería en la fecha seleccionada
+    # ---------- 5. Diccionario de resultados actuales ----------
     resultados_dict = {}
     for lot in loterias:
         resultado_obj = Resultado.objects.filter(loteria=lot, fecha=fecha_actual).first()
         resultados_dict[lot.id] = resultado_obj.resultado if resultado_obj else None
 
+    # ---------- 6. Registro manual (POST) ----------
     if request.method == 'POST':
-        # También se espera que el formulario incluya un campo oculto 'fecha'
         fecha_post = request.POST.get('fecha')
         if fecha_post:
             try:
                 fecha_actual = datetime.strptime(fecha_post, '%Y-%m-%d').date()
             except ValueError:
                 pass
+
         for lot in loterias:
-            key = f"resultado_{lot.id}"
+            key   = f"resultado_{lot.id}"
             valor = request.POST.get(key)
             if valor:
                 try:
@@ -457,16 +498,23 @@ def registro_resultados(request):
                     }
                 )
             else:
-                # Si se deja vacío, se elimina el registro (opcional)
+                # Si el campo se deja vacío, elimina el registro existente (opcional)
                 Resultado.objects.filter(loteria=lot, fecha=fecha_actual).delete()
-        return redirect('resultados')
 
-    return render(request, 'core/registro_resultados.html', {
-        'loterias': loterias,
-        'resultados_dict': resultados_dict,
-        'fecha_actual': fecha_actual,
-        'dia_actual_nombre': dia_actual_nombre_es,
-    })
+        messages.success(request, "Resultados guardados correctamente.")   # <<< NUEVO >>>
+        return redirect(f"{request.path}?fecha={fecha_actual.isoformat()}") # <<< cambia redirect
+
+    # ---------- 7. Render ----------
+    return render(
+        request,
+        'core/registro_resultados.html',
+        {
+            'loterias':           loterias,
+            'resultados_dict':    resultados_dict,
+            'fecha_actual':       fecha_actual,
+            'dia_actual_nombre':  dia_actual_nombre_es,
+        }
+    )
 
 # Vista para usuarios normales: Mostrar Resultados
 @login_required

@@ -16,6 +16,13 @@
     </div>
   </form>
 
+  <form method="get" class="d-inline">
+    <input type="hidden" name="fecha" value="{{ fecha_actual|date:'Y-m-d' }}">
+    <button type="submit" name="importar" value="1"
+            class="btn btn-info btn-sm">
+        Importar desde API
+    </button>
+</form>
   <!-- Formulario para registrar resultados -->
   <form method="post">
     {% csrf_token %}
