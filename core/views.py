@@ -5,7 +5,7 @@ from django.http import Http404, JsonResponse
 from django.contrib.auth.views import LoginView
 from .models import Loteria, Dia, Venta, Resultado
 from django.db import transaction, IntegrityError
-from .utils import importar_resultados   # ← añade esta línea
+from core.utils import importar_resultados  # ← añade esta línea
 from django.contrib import messages
 from django.db.models import Case, When, BooleanField, Sum, Count, F, Q
 from django.utils.timezone import localtime, now, make_aware
@@ -14,6 +14,7 @@ from django.core.paginator import Paginator
 from pytz import timezone as pytz_timezone
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
+from django.contrib.auth import get_user_model
 from datetime import date, timedelta, datetime
 import os
 
@@ -611,15 +612,13 @@ def importar_resultados_api(request):
         return JsonResponse({"error": "Método no permitido"}, status=405)
 
     token_recibido = request.headers.get("Authorization")
-    token_esperado = os.getenv("IMPORT_TOKEN")
+    token_esperado = os.getenv("IMPORT_TOKEN")  # o reemplaza por el string literal
 
-    if not token_recibido or token_recibido != f"Token {token_esperado}":
+    if not token_recibido or token_recibido != f"Token 1234superclaveAPI5678":
         return JsonResponse({"error": "No autorizado"}, status=401)
 
-    from core.utils import importar_resultados
     fecha_objetivo = localtime(now()).date() - timedelta(days=1)
 
-    from django.contrib.auth import get_user_model
     User = get_user_model()
     try:
         user = User.objects.get(username="daniel")
@@ -627,7 +626,6 @@ def importar_resultados_api(request):
         return JsonResponse({"error": "Usuario 'daniel' no encontrado"}, status=500)
 
     resultado = importar_resultados(fecha_objetivo, user=user)
-
     return JsonResponse({"resultado": resultado}, status=200)
 
 @csrf_exempt

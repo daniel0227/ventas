@@ -22,7 +22,7 @@ urlpatterns = [
     path('login/', CustomLoginView.as_view(), name='login'),
     path('logout/', LogoutView.as_view(), name='logout'),
     path('login-required/', views.login_required_view, name='login_required'),
-    path("api/importar_resultados/", importar_resultados_api, name="importar_resultados_api"),
+    path("api/importar_resultados/", views.importar_resultados_api, name="importar_resultados_api"),
     path("api/prueba_post/", prueba_post),
 ]
 
