@@ -633,9 +633,9 @@ def importar_resultados_api(request):
 @csrf_exempt
 def prueba_post(request):
     from django.utils.timezone import now
-    with open("/tmp/log_vista.txt", "a") as f:
-        f.write(f"📩 Recibida {request.method} a {now()}\n")
-    
-    if request.method == "POST":
-        return JsonResponse({"status": "ok"})
-    return JsonResponse({"error": "Método no permitido"}, status=405)
+    from django.http import JsonResponse
+
+    return JsonResponse({
+        "metodo_recibido": request.method,
+        "fecha": str(now())
+    })
