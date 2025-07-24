@@ -4,7 +4,7 @@ from django.utils import timezone
 from django.http import Http404, JsonResponse
 from django.contrib.auth.views import LoginView
 from .models import Loteria, Dia, Venta, Resultado
-from django.db              import transaction, IntegrityError
+from django.db import transaction, IntegrityError
 from .utils import importar_resultados   # ← añade esta línea
 from django.contrib import messages
 from django.db.models import Case, When, BooleanField, Sum, Count, F, Q
@@ -13,7 +13,9 @@ from .forms import VentaForm
 from django.core.paginator import Paginator
 from pytz import timezone as pytz_timezone
 from django.views.decorators.http import require_http_methods
+from django.views.decorators.csrf import csrf_exempt
 from datetime import date, timedelta, datetime
+import os
 
 # Vista Home
 @login_required
@@ -602,3 +604,34 @@ def reporte_descargas(request):
 
 def login_required_view(request):
     return render(request, 'core/login_required.html')
+
+@csrf_exempt
+def importar_resultados_api(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "Método no permitido"}, status=405)
+
+    token_recibido = request.headers.get("Authorization")
+    token_esperado = os.getenv("IMPORT_TOKEN")
+
+    if not token_recibido or token_recibido != f"Token {token_esperado}":
+        return JsonResponse({"error": "No autorizado"}, status=401)
+
+    from core.utils import importar_resultados
+    fecha_objetivo = localtime(now()).date() - timedelta(days=1)
+
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    try:
+        user = User.objects.get(username="daniel")
+    except User.DoesNotExist:
+        return JsonResponse({"error": "Usuario 'daniel' no encontrado"}, status=500)
+
+    resultado = importar_resultados(fecha_objetivo, user=user)
+
+    return JsonResponse({"resultado": resultado}, status=200)
+
+@csrf_exempt
+def prueba_post(request):
+    if request.method == "POST":
+        return JsonResponse({"status": "ok"})
+    return JsonResponse({"error": "Método no permitido"}, status=405)
