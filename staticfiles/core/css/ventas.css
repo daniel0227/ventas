@@ -1,0 +1,24 @@
+/* core/static/core/css/ventas.css */
+.dropdown-menu .form-check-input:disabled + label {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+  
+  .dropdown-menu .dropdown-item {
+    padding: 0.5rem 1rem;
+    white-space: normal;
+  }
+  
+  .dropdown-menu .form-check-label {
+    cursor: pointer;
+  }
+  
+  #selected-lotteries .badge {
+    font-size: 0.8em;
+    margin-left: 0.5rem;
+  }
+  
+  .dropdown-toggle::after {
+    vertical-align: middle;
+  }
+  
