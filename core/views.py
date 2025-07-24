@@ -438,7 +438,7 @@ def registro_resultados(request):
 
     # ---------- 2. Importar desde API ----------
     if request.GET.get("importar"):                               # <<< NUEVO >>>
-        resumen = importar_resultados(fecha_actual, user=request.user)
+        resumen = importar_resultados(fecha_actual, user=request.user) 
         if "error" in resumen:
             messages.error(request, f"Error al importar: {resumen['error']}")
         else:

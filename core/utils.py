@@ -14,7 +14,7 @@ def importar_resultados(fecha: date, user=None) -> dict:
     except Exception as exc:
         return {"error": str(exc)}
 
-    resumen = {"importados": 0, "omitidos": 0, "errores": 0}
+    resumen = {"importados": 0, "omitidos": 0, "errores": 0} 
     for item in data:
         slug   = item.get("slug")
         numero = item.get("result")
