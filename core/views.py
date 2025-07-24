@@ -637,3 +637,22 @@ def prueba_post(request):
         "metodo_recibido": request.method,
         "fecha": str(now())
     })
+
+@csrf_exempt
+def importar_resultados_via_get(request):
+    token_recibido = request.GET.get("token")
+    token_esperado = os.getenv("IMPORT_TOKEN")
+
+    if token_recibido != token_esperado:
+        return JsonResponse({"error": "No autorizado"}, status=401)
+
+    fecha = localtime(now()).date() - timedelta(days=1)
+    User = get_user_model()
+
+    try:
+        user = User.objects.get(username="daniel")
+    except User.DoesNotExist:
+        return JsonResponse({"error": "Usuario no encontrado"}, status=500)
+
+    resultado = importar_resultados(fecha, user=user)
+    return JsonResponse({"resultado": resultado})

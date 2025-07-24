@@ -23,7 +23,8 @@ urlpatterns = [
     path('logout/', LogoutView.as_view(), name='logout'),
     path('login-required/', views.login_required_view, name='login_required'),
     path("api/importar_resultados/", views.importar_resultados_api, name="importar_resultados_api"),
-    path("api/prueba_post/", prueba_post),
+    path("api/importar_resultados_via_get/", views.importar_resultados_via_get, name="importar_resultados_via_get"),
+
 ]
 
 if settings.DEBUG:
