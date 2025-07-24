@@ -3,6 +3,7 @@ from django.contrib import admin
 from django.urls import path
 from core import views
 from core.views import CustomLoginView, importar_resultados_api, prueba_post
+
 from django.contrib.auth.views import LogoutView
 from django.conf import settings
 from django.conf.urls.static import static
