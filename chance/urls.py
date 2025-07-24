@@ -2,7 +2,7 @@
 from django.contrib import admin
 from django.urls import path
 from core import views
-from core.views import CustomLoginView, importar_resultados_api, prueba_post
+from core.views import CustomLoginView, importar_resultados_api, prueba_post, importar_resultados_via_get
 
 from django.contrib.auth.views import LogoutView
 from django.conf import settings
@@ -23,7 +23,7 @@ urlpatterns = [
     path('logout/', LogoutView.as_view(), name='logout'),
     path('login-required/', views.login_required_view, name='login_required'),
     path("api/importar_resultados/", views.importar_resultados_api, name="importar_resultados_api"),
-    path("api/importar_resultados_via_get/", views.importar_resultados_via_get, name="importar_resultados_via_get"),
+    path("api/importar_resultados_via_get/", importar_resultados_via_get, name="importar_resultados_via_get"),
 
 ]
 
