@@ -632,6 +632,7 @@ def importar_resultados_api(request):
 
 @csrf_exempt
 def prueba_post(request):
+    print("💥 Se recibió una solicitud:", request.method)
     if request.method == "POST":
         return JsonResponse({"status": "ok"})
-    return JsonResponse({"error": "Método no permitido"}, status=405)
+    return JsonResponse({"error": f"Método {request.method} no permitido"}, status=405)
