@@ -1,20 +1,20 @@
-name: Importar resultados diarios
+name: Importar resultados automáticamente
 
 on:
   schedule:
-    - cron: '30 5 * * *'  # 12:30 AM Colombia (UTC-5)
-  workflow_dispatch:      # Permite ejecutar manualmente desde GitHub
+    - cron: '30 5 * * *'  # Ejecuta a las 12:30 AM Colombia todos los días
+  workflow_dispatch:  # Permite ejecución manual desde GitHub
 
 jobs:
-  importar-resultados:
+  importar_resultados:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Clonar repositorio
-        uses: actions/checkout@v4
+      - name: Checkout del código
+        uses: actions/checkout@v3
 
       - name: Configurar Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v4
         with:
           python-version: '3.11'
 
@@ -23,17 +23,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Configurar variables de entorno
-        run: |
-          echo "DJANGO_SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}" >> $GITHUB_ENV
-          echo "DEBUG=False" >> $GITHUB_ENV
-          echo "ALLOWED_HOSTS=.railway.app,localhost,127.0.0.1" >> $GITHUB_ENV
-          echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> $GITHUB_ENV
-
-      - name: Migraciones (opcional)
-        run: |
-          python manage.py migrate
-
-      - name: Ejecutar importación de resultados
+      - name: Ejecutar comando de importación
+        env:
+          RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
+          DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
         run: |
           python manage.py importar_resultados_diarios
