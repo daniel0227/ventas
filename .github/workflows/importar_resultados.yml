@@ -1,0 +1,39 @@
+name: Importar resultados diarios
+
+on:
+  schedule:
+    - cron: '30 5 * * *'  # 12:30 AM Colombia (UTC-5)
+  workflow_dispatch:      # Permite ejecutar manualmente desde GitHub
+
+jobs:
+  importar-resultados:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Clonar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Configurar variables de entorno
+        run: |
+          echo "DJANGO_SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}" >> $GITHUB_ENV
+          echo "DEBUG=False" >> $GITHUB_ENV
+          echo "ALLOWED_HOSTS=.railway.app,localhost,127.0.0.1" >> $GITHUB_ENV
+          echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> $GITHUB_ENV
+
+      - name: Migraciones (opcional)
+        run: |
+          python manage.py migrate
+
+      - name: Ejecutar importación de resultados
+        run: |
+          python manage.py importar_resultados_diarios
