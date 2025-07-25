@@ -59,20 +59,37 @@ class Command(BaseCommand):
                 if len(jugado) in (2, 3, 4) and jugado == numero_ganador[-len(jugado):]:
                     mult = {2: 60, 3: 550, 4: 4500}.get(len(jugado), 0)
                     valor = venta.monto * mult
-                    premios_detectados.append(f"🎉 {venta.vendedor} ganó ${valor:,} con {jugado} en {lot.nombre}")
+                    premios_detectados.append(
+                        f"💥 {venta.vendedor} acertó con *{jugado}* en *{lot.nombre}*.\nGanancia: *${valor:,}* 🧨"
+                    )
 
-        # Enviar notificación por WhatsApp (si hay premios o no)
-        mensaje = ""
+        # Crear el mensaje con tono divertido y emojis
         if premios_detectados:
-            mensaje = f"🎯 Premios detectados del {fecha_objetivo}:\n\n" + "\n".join(premios_detectados)
+            mensaje = (
+                f"😬 *¡Tenemos premios!* 😬\n\n"
+                f"📆 Fecha: {fecha_objetivo}\n"
+                f"🚨 Se detectaron jugadas ganadoras:\n\n" +
+                "\n\n".join(premios_detectados) +
+                "\n\n💸 Ve preparando la billetera... que hoy toca pagar."
+            )
         else:
-            mensaje = f"📭 No se detectaron premios en las ventas del día {fecha_objetivo}."
+            mensaje = (
+                f"✅ *Sin novedades ni premios* ✅\n\n"
+                f"📆 Fecha: {fecha_objetivo}\n"
+                f"🔍 Se revisaron todas las ventas y *nadie acertó*.\n\n"
+                f"🎉 Hoy no toca pagar. ¡Todo bajo control!"
+            )
 
-        # Enviar mensaje
-        respuesta = enviar_whatsapp_callmebot(
-            mensaje=mensaje,
-            telefono="573002393652",  # ← Reemplaza con tu número en formato internacional
-            apikey="2485881"
-        )
+        # 📲 Lista de destinatarios
+        destinatarios = [
+            {"telefono": "573002393652", "apikey": "2485881"},
+            {"telefono": "573001212758", "apikey": "7858937"}
+        ]
 
-        self.stdout.write(f"📲 Resultado envío WhatsApp: {respuesta}")
+        for d in destinatarios:
+            respuesta = enviar_whatsapp_callmebot(
+                mensaje=mensaje,
+                telefono=d["telefono"],
+                apikey=d["apikey"]
+            )
+            self.stdout.write(f"📤 Mensaje enviado a {d['telefono']} ➜ {respuesta}")
