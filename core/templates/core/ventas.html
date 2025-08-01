@@ -146,9 +146,8 @@
 </div>
 <!-- Botón flotante de WhatsApp -->
 <a id="btnCompartirWhatsApp"
-   class="btn btn-success position-fixed bottom-0 end-0 m-4 d-none"
-   target="_blank"
-   style="z-index: 3000;">
+   class="btn-whatsapp-central d-none"
+   target="_blank">
   📤 Compartir por WhatsApp
 </a>
   </form>
@@ -221,6 +220,28 @@
   </div>
   
   <style>
+
+    .btn-whatsapp-central {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #25D366;
+  color: white;
+  font-weight: bold;
+  border-radius: 40px;
+  padding: 18px 30px;
+  font-size: 20px;
+  z-index: 3000;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  text-align: center;
+  text-decoration: none;
+  transition: transform 0.2s ease-in-out;
+}
+
+.btn-whatsapp-central:hover {
+  transform: translateX(-50%) scale(1.05);
+}
     .dropdown-menu .form-check-input:disabled + label {
       cursor: not-allowed;
       opacity: 0.6;
