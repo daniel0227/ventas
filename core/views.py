@@ -213,15 +213,21 @@ def crear_venta(request):
         # --- Crear ventas dentro de una transacción ---
         try:
             with transaction.atomic():
+                ventas_creadas = []
+
                 for numero, monto, combi in zip(numeros, montos, combis):
                     venta = Venta.objects.create(
                         vendedor=request.user,
                         numero=numero.strip(),
-                        monto=int(monto),              # pesos colombianos ⇒ entero
+                        monto=int(monto),
                         fecha_venta=ahora,
                         combi=int(combi) if combi.strip() else None
                     )
                     venta.loterias.set(loterias_seleccionadas)
+                    ventas_creadas.append(venta)
+
+                # ID de referencia de la venta (la primera creada)
+                codigo_venta = ventas_creadas[0].id if ventas_creadas else None
 
         except IntegrityError as exc:   # Ej. unique constraint si la añades
             return JsonResponse(
@@ -229,7 +235,38 @@ def crear_venta(request):
             )
 
         # Todo OK
-        return JsonResponse({'success': True}, status=201)
+        # === Construcción del resumen para WhatsApp ===
+        jugadas_resumen = []
+
+        for numero, monto, combi in zip(numeros, montos, combis):
+            jugadas_resumen.append({
+                'numero': numero.strip(),
+                'combi': combi.strip(),
+                'monto': int(monto)
+            })
+
+        resumen_venta = {
+            'vendedor': request.user.username,
+            'loterias': [lot.nombre for lot in loterias_seleccionadas],
+            'jugadas': jugadas_resumen,
+            'total': sum(int(m) for m in montos) * loterias_seleccionadas.count()
+        }
+
+        return JsonResponse({
+    'success': True,
+    'resumen_venta': {
+        'codigo': codigo_venta,
+        'vendedor': request.user.username,
+        'loterias': [lot.nombre for lot in loterias_seleccionadas],
+        'jugadas': [{
+            'numero': v.numero,
+            'combi': v.combi,
+            'monto': v.monto
+        } for v in ventas_creadas],
+        'total': sum(v.monto for v in ventas_creadas) * loterias_seleccionadas.count()
+    }
+}, status=201)
+
 
     # ======================= GET ==========================
     return render(
