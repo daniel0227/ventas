@@ -303,11 +303,11 @@
 
       function construirMensajeWhatsapp(resumen) {
       const { codigo, vendedor, loterias, jugadas, total } = resumen;
-      let mensaje = `*🎟️ Jugada registrada*\n`;
-      mensaje += `🆔 *Código:* ${codigo}\n`;
-      mensaje += `👤 *Vendedor:* ${vendedor}\n`;
-      mensaje += `🎯 *Loterías:* ${loterias.join(', ')}\n`;
-      mensaje += `📄 *Jugadas:*\n`;
+      let mensaje = `*Jugada registrada*\n`;
+      mensaje += `*Código:* ${codigo}\n`;
+      mensaje += `*Vendedor:* ${vendedor}\n`;
+      mensaje += `*Loterías:* ${loterias.join(', ')}\n`;
+      mensaje += `*Jugadas:*\n`;
 
       jugadas.forEach(j => {
         const valor = j.numero || j.combi || 'N/A';
