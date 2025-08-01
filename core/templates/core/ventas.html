@@ -302,21 +302,32 @@
       'use strict';
 
       function construirMensajeWhatsapp(resumen) {
-      const { codigo, vendedor, loterias, jugadas, total } = resumen;
-      let mensaje = `*Jugada registrada*\n`;
-      mensaje += `*Código:* ${codigo}\n`;
-      mensaje += `*Vendedor:* ${vendedor}\n`;
-      mensaje += `*Loterías:* ${loterias.join(', ')}\n`;
-      mensaje += `*Jugadas:*\n`;
+  const { codigo, vendedor, loterias, jugadas, total } = resumen;
 
-      jugadas.forEach(j => {
-        const valor = j.numero || j.combi || 'N/A';
-        mensaje += `  • ${valor} - $${j.monto.toLocaleString('es-CO')}\n`;
-      });
+  const ahora = new Date();
+  const fechaFormateada = ahora.toLocaleString('es-CO', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }).replace(',', ' -');
 
-      mensaje += `\n💰 *Total:* $${total.toLocaleString('es-CO')}`;
-      return encodeURIComponent(mensaje);
-    }
+  let mensaje = `${fechaFormateada}\n\n`;
+  mensaje += `*Código:* ${codigo}\n`;
+  mensaje += `*Loterías:* ${loterias.join(', ')}\n\n`;
+  mensaje += `*Apuesta:*\n`;
+
+  jugadas.forEach(j => {
+    const valor = j.numero || j.combi || 'N/A';
+    const monto = `$${j.monto.toLocaleString('es-CO')}`;
+    mensaje += `• ${valor} - ${monto}\n`;
+  });
+
+  mensaje += `\n💰 *Total:* $${total.toLocaleString('es-CO')}`;
+  return encodeURIComponent(mensaje);
+}
 
   
       // Función para actualizar el total del formulario: SÓLO se suman los montos (campo "monto")
@@ -556,7 +567,7 @@ newConfirmButton.addEventListener('click', function() {
     // éxito: cerrar modal, mostrar toast y recargar
     saleDetailModal.hide();
     new bootstrap.Toast(document.getElementById('toastSuccess'), { delay:2000 }).show();
-    setTimeout(() => window.location.reload(), 2000);
+    setTimeout(() => window.location.reload(), 4000);
     // Mostrar botón de WhatsApp
 if (data.resumen_venta) {
   const mensaje = construirMensajeWhatsapp(data.resumen_venta);
