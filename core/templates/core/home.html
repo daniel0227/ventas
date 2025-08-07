@@ -195,6 +195,18 @@
       </a>
     </div>
     {% endif %}
+    {% if user.is_staff %}
+    <div class="col-md-3">
+      <a href="{% url 'reportes' %}" class="text-decoration-none">
+        <div class="card menu-card bg-7">
+          <div class="card-body menu-item">
+            <img src="{% static 'core/img/descargues.png' %}" alt="Loteria Icon" style="width: 30px; height: 30px; margin-right: 10px;">
+            <h5 style="margin: 0px 0 0px 15px;">Reportes Gerenciales</h5>
+          </div>
+        </div>
+      </a>
+    </div>
+    {% endif %}
     </div>
   </div>
 {% endblock %}

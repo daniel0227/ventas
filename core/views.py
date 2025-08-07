@@ -1,13 +1,15 @@
 from django.shortcuts import render, HttpResponse, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.utils import timezone
+from django.utils.dateparse import parse_date
 from django.http import Http404, JsonResponse
 from django.contrib.auth.views import LoginView
 from .models import Loteria, Dia, Venta, Resultado
 from django.db import transaction, IntegrityError
 from core.utils import importar_resultados  # ← añade esta línea
 from django.contrib import messages
-from django.db.models import Case, When, BooleanField, Sum, Count, F, Q
+from django.db.models import Case, When, BooleanField, Sum, Count, F, Q, ExpressionWrapper,IntegerField
+from collections import defaultdict
 from django.utils.timezone import localtime, now, make_aware
 from .forms import VentaForm
 from django.core.paginator import Paginator
@@ -16,6 +18,7 @@ from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import get_user_model
 from datetime import date, timedelta, datetime
+from django.db.models.functions import TruncDate
 import os
 
 # Vista Home
@@ -666,16 +669,6 @@ def importar_resultados_api(request):
     return JsonResponse({"resultado": resultado}, status=200)
 
 @csrf_exempt
-def prueba_post(request):
-    from django.utils.timezone import now
-    from django.http import JsonResponse
-
-    return JsonResponse({
-        "metodo_recibido": request.method,
-        "fecha": str(now())
-    })
-
-@csrf_exempt
 def importar_resultados_via_get(request):
     token_recibido = request.GET.get("token")
     token_esperado = os.getenv("IMPORT_TOKEN")
@@ -693,3 +686,59 @@ def importar_resultados_via_get(request):
 
     resultado = importar_resultados(fecha, user=user)
     return JsonResponse({"resultado": resultado})
+
+@user_passes_test(lambda u: u.is_staff)
+def reportes(request):
+    ventas_data = []
+    labels = []
+
+    # 1. Fechas
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+
+    try:
+        if start_date and end_date:
+            start = parse_date(start_date)
+            end = parse_date(end_date)
+            if not start or not end:
+                raise ValueError("Fechas inválidas")
+        else:
+            raise ValueError("Faltan fechas")
+    except:
+        start = end = timezone.localdate()
+        start_date = end_date = str(start)
+
+    # 2. Traer ventas con total_venta anotado
+    ventas_qs = (
+        Venta.objects
+            .annotate(fecha=TruncDate('fecha_venta'))
+            .filter(fecha__range=(start, end))
+            .select_related('vendedor')
+            .prefetch_related('loterias')
+            .annotate(
+                count_loterias=Count('loterias'),
+                total_venta=ExpressionWrapper(
+                    F('monto') * F('count_loterias'),
+                    output_field=IntegerField()
+                )
+            )
+            .values('vendedor__username', 'total_venta')
+    )
+
+    # 3. Agrupar manualmente en Python
+    resumen_por_vendedor = defaultdict(int)
+    for venta in ventas_qs:
+        username = venta['vendedor__username']
+        resumen_por_vendedor[username] += venta['total_venta']
+
+    # 4. Preparar datos para la gráfica
+    labels = list(resumen_por_vendedor.keys())
+    ventas_data = list(resumen_por_vendedor.values())
+
+    context = {
+        'labels': labels,
+        'data': ventas_data,
+        'start_date': start_date,
+        'end_date': end_date,
+    }
+    return render(request, 'core/reportes.html', context)
