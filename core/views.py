@@ -8,7 +8,7 @@ from .models import Loteria, Dia, Venta, Resultado
 from django.db import transaction, IntegrityError
 from core.utils import importar_resultados  # ← añade esta línea
 from django.contrib import messages
-from django.db.models import Case, When, BooleanField, Sum, Count, F, Q, ExpressionWrapper,IntegerField
+from django.db.models import Case, When, BooleanField, Sum, Count, F, Q, ExpressionWrapper,IntegerField, FloatField,Subquery, OuterRef
 from collections import defaultdict
 from django.utils.timezone import localtime, now, make_aware
 from .forms import VentaForm
@@ -19,6 +19,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import get_user_model
 from datetime import date, timedelta, datetime
 from django.db.models.functions import TruncDate
+from django.db.models.functions import Cast, Coalesce,Trim  
 import os
 
 # Vista Home
@@ -615,27 +616,47 @@ def resultados(request):
 @user_passes_test(lambda u: u.is_staff)
 @login_required
 def reporte_descargas(request):
-    # Obtener fecha de filtro
+    # Fecha filtro
     fecha_param = request.GET.get('fecha')
     hoy = timezone.localtime(timezone.now()).date()
-    if fecha_param:
-        try:
-            fecha = datetime.strptime(fecha_param, '%Y-%m-%d').date()
-        except ValueError:
-            fecha = hoy
-    else:
+    try:
+        fecha = datetime.strptime(fecha_param, '%Y-%m-%d').date() if fecha_param else hoy
+    except ValueError:
         fecha = hoy
 
-    # Query: agrupar por número y lotería
-    report = (
+    # Subquery: cantidad de loterías por venta (en la tabla through)
+    through = Venta.loterias.through  # core_venta_loterias
+    loterias_count_sq = (
+        through.objects
+        .filter(venta_id=OuterRef('pk'))
+        .values('venta_id')
+        .annotate(c=Count('loteria_id', distinct=True))
+        .values('c')[:1]
+    )
+
+    base = (
         Venta.objects
         .filter(fecha_venta__date=fecha)
-        .values('loterias__nombre', 'numero')
         .annotate(
-            veces_apostado=Count('id'),
-            total_ventas=Sum('monto'),
+            numero_clean=Trim('numero'),
+            cantidad_loterias=Coalesce(Subquery(loterias_count_sq, output_field=IntegerField()), 1),
         )
-        .order_by('-total_ventas')
+        .exclude(Q(numero_clean__isnull=True) | Q(numero_clean=''))
+        .annotate(
+            valor_ajustado=ExpressionWrapper(
+                Cast(F('monto'), FloatField()) / Cast(F('cantidad_loterias'), FloatField()),
+                output_field=FloatField()
+            )
+        )
+    )
+
+    report = (
+        base.values('loterias__nombre', 'numero_clean')
+            .annotate(
+                veces_apostado=Count('id'),
+                total_ventas=Sum('valor_ajustado'),
+            )
+            .order_by('-total_ventas')
     )
 
     return render(request, 'core/reporte_descargas.html', {
