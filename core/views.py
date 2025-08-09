@@ -710,56 +710,53 @@ def importar_resultados_via_get(request):
 
 @user_passes_test(lambda u: u.is_staff)
 def reportes(request):
-    ventas_data = []
-    labels = []
-
-    # 1. Fechas
+    # --- fechas robustas ---
     start_date = request.GET.get('start_date')
-    end_date = request.GET.get('end_date')
-
+    end_date   = request.GET.get('end_date')
     try:
         if start_date and end_date:
             start = parse_date(start_date)
-            end = parse_date(end_date)
+            end   = parse_date(end_date)
             if not start or not end:
-                raise ValueError("Fechas inválidas")
+                raise ValueError("fechas inválidas")
         else:
-            raise ValueError("Faltan fechas")
+            raise ValueError("faltan fechas")
     except:
         start = end = timezone.localdate()
         start_date = end_date = str(start)
 
-    # 2. Traer ventas con total_venta anotado
+    # --- queryset base con total por venta ---
     ventas_qs = (
         Venta.objects
-            .annotate(fecha=TruncDate('fecha_venta'))
-            .filter(fecha__range=(start, end))
-            .select_related('vendedor')
-            .prefetch_related('loterias')
-            .annotate(
-                count_loterias=Count('loterias'),
-                total_venta=ExpressionWrapper(
-                    F('monto') * F('count_loterias'),
-                    output_field=IntegerField()
-                )
-            )
-            .values('vendedor__username', 'total_venta')
+        .annotate(fecha=TruncDate('fecha_venta'))
+        .filter(fecha__range=(start, end))
+        .select_related('vendedor')
+        .prefetch_related('loterias')
+        .annotate(count_loterias=Count('loterias'))
+        .annotate(total_venta=ExpressionWrapper(F('monto') * F('count_loterias'),
+                                                output_field=IntegerField()))
+        .values('vendedor__username', 'total_venta')
     )
 
-    # 3. Agrupar manualmente en Python
+    # --- agregamos por vendedor en Python ---
     resumen_por_vendedor = defaultdict(int)
-    for venta in ventas_qs:
-        username = venta['vendedor__username']
-        resumen_por_vendedor[username] += venta['total_venta']
+    for v in ventas_qs:
+        resumen_por_vendedor[v['vendedor__username']] += v['total_venta']
 
-    # 4. Preparar datos para la gráfica
+    # datos para la gráfica
     labels = list(resumen_por_vendedor.keys())
-    ventas_data = list(resumen_por_vendedor.values())
+    data   = list(resumen_por_vendedor.values())
 
-    context = {
+    # --- NUEVO: filas de tabla y total general ---
+    rows = [{'vendedor': k, 'total': v} for k, v in resumen_por_vendedor.items()]
+    rows.sort(key=lambda r: r['total'], reverse=True)
+    total_general = sum(data) if data else 0
+
+    return render(request, 'core/reportes.html', {
         'labels': labels,
-        'data': ventas_data,
+        'data': data,
+        'rows': rows,                     # 👈 tabla
+        'total_general': total_general,   # 👈 total
         'start_date': start_date,
         'end_date': end_date,
-    }
-    return render(request, 'core/reportes.html', context)
+    })
