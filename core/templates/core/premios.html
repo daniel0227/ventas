@@ -14,7 +14,7 @@
   <div class="position-sticky top-0 bg-body z-3 py-2 mb-3 border-bottom sticky-filter">
     <form method="get" class="mb-0" role="search" aria-label="Filtrar por fecha">
       <label for="fecha" class="form-label mb-1">Seleccionar fecha</label>
-      <div class="input-group filter-group">  {# <-- input y botón misma línea/altura #}
+      <div class="input-group filter-group">
         <input
           type="date"
           id="fecha"
@@ -56,6 +56,7 @@
             <div class="premio-info">
               <h3 class="premio-title h6 mb-1">{{ premio.nombre }}</h3>
 
+              {# META ALINEADA: chip + "Vendedor: Nombre" como unidad #}
               <div class="premio-meta small">
                 <span class="chip-numero">Nº {{ premio.numero_ganador }}</span>
                 {% if es_admin %}
@@ -69,19 +70,25 @@
               </div>
             </div>
 
-            <div class="premio-valor fw-semibold text-nowrap">
-              ${{ premio.valor|format_colombian }}
-            </div>
+            {# Columna derecha: valor + botón compartir #}
+            <div class="premio-right">
+              <div class="premio-valor fw-semibold text-nowrap">
+                ${{ premio.valor|format_colombian }}
+              </div>
 
-            {% if permitir_compartir %}
-            <div class="premio-actions">
               <button type="button"
-                      class="btn btn-light btn-sm share-btn"
-                      data-share-text="{{ premio.nombre }} – Nº {{ premio.numero_ganador }} – ${{ premio.valor|format_colombian }} – {{ fecha }}">
-                Compartir
+                      class="btn btn-outline-success btn-icon share-btn"
+                      data-bs-toggle="tooltip"
+                      data-bs-title="Compartir"
+                      aria-label="Compartir premio"
+                      data-share-text="🎉 *Premio confirmado*&#10;&#10;🏆 *{{ premio.nombre }}*&#10;🔢 Número ganador: *{{ premio.numero_ganador }}*&#10;💰 Valor: *${{ premio.valor|format_colombian }} COP*&#10;📅 {{ fecha }}{% if es_admin %}&#10;👤 Vendedor: {{ premio.vendedor.get_full_name|default:premio.vendedor.username|title }}{% endif %}">
+                <!-- Ícono: paper plane (más diciente) -->
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M22 2L11 13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  <path d="M22 2L15.5 22l-4.5-7-7-4.5L22 2z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" fill="none"/>
+                </svg>
               </button>
             </div>
-            {% endif %}
 
           </li>
         {% endfor %}
@@ -148,27 +155,14 @@
 <style>
   /* ===== Mobile-first tweaks globales ===== */
 
-  /* (Opcional) Compacta la topbar en XS si usas estas clases en base.html */
-  @media (max-width: 576px) {
-    .topbar-saludo { display: none; }
-    .topbar .btn { padding: .25rem .5rem; }
-  }
-
-  .sticky-filter{
-    padding-top: max(.25rem, env(safe-area-inset-top));
-  }
+  .sticky-filter{ padding-top: max(.25rem, env(safe-area-inset-top)); }
 
   /* Alineación exacta entre input y botón del filtro */
-  .filter-group > .form-control,
-  .filter-group > .btn {
-    height: 40px;       /* misma altura para ambos */
-  }
+  .filter-group > .form-control, .filter-group > .btn { height: 40px; }
   .filter-group > .btn { line-height: 1; }
-
-  /* Evita que otra regla global rompa la alineación */
   input[type="date"], .btn { min-height: 0; }
 
-  /* Valores numéricos alineados */
+  /* Valores numéricos alineados y sin baile */
   .premio-valor, .valor-tabla, .monto, .currency {
     font-variant-numeric: tabular-nums;
     min-width: 7ch;
@@ -178,81 +172,40 @@
   /* ===== Tarjeta premio (móvil) ===== */
   .premio-item{
     display: grid;
-    grid-template-columns: 56px 1fr auto; /* logo | info | valor */
+    grid-template-columns: 56px 1fr auto; /* logo | info | (valor+share) */
     gap: .75rem;
     align-items: center;
     padding: .5rem .9rem .5rem .75rem;
     border-radius: 1rem;
     transition: transform .06s ease, box-shadow .12s ease;
+    content-visibility: auto;
+    contain-intrinsic-size: 80px;
   }
-  .premio-item:active{
-    transform: scale(.99);
-    box-shadow: 0 0 0 2px rgba(0,0,0,.03) inset;
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .premio-item { transition: none; }
-  }
+  .premio-item:active{ transform: scale(.99); box-shadow: 0 0 0 2px rgba(0,0,0,.03) inset; }
+  @media (prefers-reduced-motion: reduce){ .premio-item{ transition:none; } }
 
-  .premio-logo img{
-    border-radius: .5rem;
-    aspect-ratio: 1 / 1;
-    object-fit: cover;
-    display: block;
-  }
-  .premio-title{
-    margin: 0;
-    line-height: 1.2;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
+  .premio-logo img{ border-radius:.5rem; aspect-ratio:1/1; object-fit:cover; display:block; }
+  .premio-title{ margin:0; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
-  /* Meta alineada (chip + Vendedor) */
+  /* META ALINEADA */
   .premio-meta{
-    display: flex;
-    align-items: baseline;
-    flex-wrap: wrap;
-    gap: .5rem;
-    line-height: 1.15;
-    color: var(--bs-secondary-color);
+    display:flex; align-items:baseline; flex-wrap:wrap; gap:.5rem;
+    line-height:1.15; color:var(--bs-secondary-color);
   }
   .chip-numero{
-    display: inline-block;
-    padding: .1rem .5rem;
-    border-radius: 999px;
-    background: var(--bs-light);
-    border: 1px solid var(--bs-border-color);
-    font-weight: 600;
-    margin-right: .125rem;
-    white-space: nowrap;
+    display:inline-block; padding:.1rem .5rem; border-radius:999px;
+    background:var(--bs-light); border:1px solid var(--bs-border-color);
+    font-weight:600; margin-right:.125rem; white-space:nowrap;
   }
-  .vendedor{
-    display: inline-flex;
-    align-items: baseline;
-    gap: .25rem;
-    white-space: nowrap;
-    max-width: 55vw;
-    min-width: 0;
-  }
-  .vendedor-label{ color: var(--bs-secondary-color); }
-  .vendedor-nombre{
-    color: var(--bs-body-color);
-    font-weight: 600;
-    display: inline-block;
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
+  .vendedor{ display:inline-flex; align-items:baseline; gap:.25rem; white-space:nowrap; max-width:55vw; min-width:0; }
+  .vendedor-label{ color:var(--bs-secondary-color); }
+  .vendedor-nombre{ color:var(--bs-body-color); font-weight:600; display:inline-block; max-width:100%; overflow:hidden; text-overflow:ellipsis; }
 
-  /* Botón compartir (si se usa) */
-  .premio-actions .btn{
-    min-height: 36px;
-    padding: .25rem .5rem;
-  }
-
-  /* Redondeo general en XS */
-  @media (max-width: 576px){
-    .card{ border-radius: 1rem; }
+  /* Columna derecha: valor + botón compartir */
+  .premio-right{ display:flex; flex-direction:column; align-items:flex-end; gap:.25rem; }
+  .btn-icon{
+    padding:.25rem; line-height:1; height:32px; width:32px;
+    display:inline-flex; align-items:center; justify-content:center; border-radius:.5rem;
   }
 </style>
 
@@ -260,9 +213,9 @@
   // Auto-submit al cambiar la fecha (flujo rápido en móvil)
   document.getElementById('fecha')?.addEventListener('change', e => e.target.form?.submit());
 
-  // Web Share API + fallback (solo si habilitas el botón)
+  // Web Share API + fallback (WhatsApp / copiar) con mensaje estilizado
   function sharePremio(texto){
-    if(navigator.share){ navigator.share({ text: texto }).catch(()=>{}); return; }
+    if (navigator.share) { navigator.share({ text: texto }).catch(()=>{}); return; }
     const wa = 'https://wa.me/?text=' + encodeURIComponent(texto);
     /Android|iPhone|iPad/i.test(navigator.userAgent)
       ? window.open(wa, '_blank')
@@ -271,5 +224,10 @@
   document.querySelectorAll('.share-btn').forEach(b =>
     b.addEventListener('click', () => sharePremio(b.dataset.shareText))
   );
+
+  // Tooltip (si Bootstrap JS está cargado en base.html)
+  if (window.bootstrap) {
+    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
+  }
 </script>
 {% endblock %}
