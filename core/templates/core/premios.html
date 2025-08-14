@@ -3,57 +3,273 @@
 {% load format_filters %}
 
 {% block content %}
-<div class="container my-5">
-  <h1 class="text-center mb-4">Premios para {{ fecha }}</h1>
+<main class="container px-3 py-4">
 
-  <!-- Filtro de fecha -->
-  <form method="get" class="mb-4">
-    <div class="mb-3">
-      <label for="fecha" class="form-label">Seleccionar fecha</label>
-      <div class="input-group">
-        <input type="date" id="fecha" name="fecha" class="form-control" value="{{ fecha_actual }}">
-        <button type="submit" class="btn btn-secondary">Filtrar</button>
+  <!-- Título compacto -->
+  <header class="mb-2">
+    <h1 class="h5 text-center mb-0">Premios para {{ fecha }}</h1>
+  </header>
+
+  <!-- Filtro de fecha (sticky + input-group alineado) -->
+  <div class="position-sticky top-0 bg-body z-3 py-2 mb-3 border-bottom sticky-filter">
+    <form method="get" class="mb-0" role="search" aria-label="Filtrar por fecha">
+      <label for="fecha" class="form-label mb-1">Seleccionar fecha</label>
+      <div class="input-group filter-group">  {# <-- input y botón misma línea/altura #}
+        <input
+          type="date"
+          id="fecha"
+          name="fecha"
+          class="form-control"
+          value="{{ fecha_actual|date:'Y-m-d'|default:'' }}"
+          max="{{ fecha_actual|date:'Y-m-d' }}"
+          aria-label="Seleccionar fecha">
+        <button type="submit" class="btn btn-outline-secondary">Filtrar</button>
       </div>
-    </div>
-  </form>
+    </form>
+  </div>
 
   {% if premios_list %}
-    <table class="table table-striped">
-      <thead>
-        <tr>
-          <th>Imagen</th>
-          <th>Lotería</th>
-          <th>Número</th>
-          <th>Valor</th>
-          {% if es_admin %}                      {# <<< agregado #}
-            <th>Vendedor</th>                   {# <<< agregado #}
-          {% endif %}
-        </tr>
-      </thead>
-      <tbody>
+
+    {# ===== Vista móvil: tarjetas (XS–SM) ===== #}
+    <section class="d-md-none" aria-label="Listado de premios">
+      <ul class="list-unstyled m-0">
         {% for premio in premios_list %}
-          <tr>
-            <td>
+          <li class="card premio-item mb-2 shadow-sm">
+
+            <div class="premio-logo">
               {% if premio.imagen %}
-                <img src="{{ premio.imagen.url }}" alt="{{ premio.nombre }}" style="max-width:65px;">
+                <img
+                  src="{{ premio.imagen.url }}"
+                  {% if premio.imagen_2x %}srcset="{{ premio.imagen.url }} 1x, {{ premio.imagen_2x.url }} 2x"{% endif %}
+                  alt="Logo {{ premio.nombre }}"
+                  width="56" height="56"
+                  loading="lazy" decoding="async">
               {% else %}
-                <img src="{% static 'core/img/default-loteria.png' %}" alt="{{ premio.nombre }}" style="max-width:65px;">
+                <img
+                  src="{% static 'core/img/default-loteria.png' %}"
+                  alt="Logo por defecto"
+                  width="56" height="56"
+                  loading="lazy" decoding="async">
               {% endif %}
-            </td>
-            <td>{{ premio.nombre }}</td>
-            <td>{{ premio.numero_ganador }}</td>
-            <td>{{ premio.valor|format_colombian }}</td>
-            {% if es_admin %}                    {# <<< agregado #}
-              <td>{{ premio.vendedor.get_full_name|default:premio.vendedor.username }}</td>
+            </div>
+
+            <div class="premio-info">
+              <h3 class="premio-title h6 mb-1">{{ premio.nombre }}</h3>
+
+              <div class="premio-meta small">
+                <span class="chip-numero">Nº {{ premio.numero_ganador }}</span>
+                {% if es_admin %}
+                  <span class="vendedor">
+                    <span class="vendedor-label">Vendedor:</span>
+                    <span class="vendedor-nombre">
+                      {{ premio.vendedor.get_full_name|default:premio.vendedor.username|title }}
+                    </span>
+                  </span>
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="premio-valor fw-semibold text-nowrap">
+              ${{ premio.valor|format_colombian }}
+            </div>
+
+            {% if permitir_compartir %}
+            <div class="premio-actions">
+              <button type="button"
+                      class="btn btn-light btn-sm share-btn"
+                      data-share-text="{{ premio.nombre }} – Nº {{ premio.numero_ganador }} – ${{ premio.valor|format_colombian }} – {{ fecha }}">
+                Compartir
+              </button>
+            </div>
             {% endif %}
-          </tr>
+
+          </li>
         {% endfor %}
-      </tbody>
-    </table>
+      </ul>
+    </section>
+
+    {# ===== Vista tablet/escritorio: tabla (≥ md) ===== #}
+    <section class="d-none d-md-block">
+      <div class="table-responsive">
+        <table class="table align-middle">
+          <thead class="table-light">
+            <tr>
+              <th scope="col">Imagen</th>
+              <th scope="col">Lotería</th>
+              <th scope="col">Número</th>
+              <th scope="col" class="text-end">Valor</th>
+              {% if es_admin %}
+                <th scope="col">Vendedor</th>
+              {% endif %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for premio in premios_list %}
+              <tr>
+                <td>
+                  {% if premio.imagen %}
+                    <img
+                      src="{{ premio.imagen.url }}"
+                      {% if premio.imagen_2x %}srcset="{{ premio.imagen.url }} 1x, {{ premio.imagen_2x.url }} 2x"{% endif %}
+                      alt="Logo {{ premio.nombre }}"
+                      class="rounded-2 object-fit-cover"
+                      width="65" height="65"
+                      loading="lazy" decoding="async">
+                  {% else %}
+                    <img
+                      src="{% static 'core/img/default-loteria.png' %}"
+                      alt="Logo por defecto"
+                      class="rounded-2 object-fit-cover"
+                      width="65" height="65"
+                      loading="lazy" decoding="async">
+                  {% endif %}
+                </td>
+                <td class="fw-semibold">{{ premio.nombre }}</td>
+                <td>Nº {{ premio.numero_ganador }}</td>
+                <td class="text-end valor-tabla">${{ premio.valor|format_colombian }}</td>
+                {% if es_admin %}
+                  <td>{{ premio.vendedor.get_full_name|default:premio.vendedor.username|title }}</td>
+                {% endif %}
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
   {% else %}
-    <div class="alert alert-info" role="alert">
+    <div class="alert alert-info" role="status" aria-live="polite">
       No se han registrado premios para la fecha {{ fecha }}.
     </div>
   {% endif %}
-</div>
+
+</main>
+
+<style>
+  /* ===== Mobile-first tweaks globales ===== */
+
+  /* (Opcional) Compacta la topbar en XS si usas estas clases en base.html */
+  @media (max-width: 576px) {
+    .topbar-saludo { display: none; }
+    .topbar .btn { padding: .25rem .5rem; }
+  }
+
+  .sticky-filter{
+    padding-top: max(.25rem, env(safe-area-inset-top));
+  }
+
+  /* Alineación exacta entre input y botón del filtro */
+  .filter-group > .form-control,
+  .filter-group > .btn {
+    height: 40px;       /* misma altura para ambos */
+  }
+  .filter-group > .btn { line-height: 1; }
+
+  /* Evita que otra regla global rompa la alineación */
+  input[type="date"], .btn { min-height: 0; }
+
+  /* Valores numéricos alineados */
+  .premio-valor, .valor-tabla, .monto, .currency {
+    font-variant-numeric: tabular-nums;
+    min-width: 7ch;
+    text-align: right;
+  }
+
+  /* ===== Tarjeta premio (móvil) ===== */
+  .premio-item{
+    display: grid;
+    grid-template-columns: 56px 1fr auto; /* logo | info | valor */
+    gap: .75rem;
+    align-items: center;
+    padding: .5rem .9rem .5rem .75rem;
+    border-radius: 1rem;
+    transition: transform .06s ease, box-shadow .12s ease;
+  }
+  .premio-item:active{
+    transform: scale(.99);
+    box-shadow: 0 0 0 2px rgba(0,0,0,.03) inset;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .premio-item { transition: none; }
+  }
+
+  .premio-logo img{
+    border-radius: .5rem;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    display: block;
+  }
+  .premio-title{
+    margin: 0;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Meta alineada (chip + Vendedor) */
+  .premio-meta{
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: .5rem;
+    line-height: 1.15;
+    color: var(--bs-secondary-color);
+  }
+  .chip-numero{
+    display: inline-block;
+    padding: .1rem .5rem;
+    border-radius: 999px;
+    background: var(--bs-light);
+    border: 1px solid var(--bs-border-color);
+    font-weight: 600;
+    margin-right: .125rem;
+    white-space: nowrap;
+  }
+  .vendedor{
+    display: inline-flex;
+    align-items: baseline;
+    gap: .25rem;
+    white-space: nowrap;
+    max-width: 55vw;
+    min-width: 0;
+  }
+  .vendedor-label{ color: var(--bs-secondary-color); }
+  .vendedor-nombre{
+    color: var(--bs-body-color);
+    font-weight: 600;
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Botón compartir (si se usa) */
+  .premio-actions .btn{
+    min-height: 36px;
+    padding: .25rem .5rem;
+  }
+
+  /* Redondeo general en XS */
+  @media (max-width: 576px){
+    .card{ border-radius: 1rem; }
+  }
+</style>
+
+<script>
+  // Auto-submit al cambiar la fecha (flujo rápido en móvil)
+  document.getElementById('fecha')?.addEventListener('change', e => e.target.form?.submit());
+
+  // Web Share API + fallback (solo si habilitas el botón)
+  function sharePremio(texto){
+    if(navigator.share){ navigator.share({ text: texto }).catch(()=>{}); return; }
+    const wa = 'https://wa.me/?text=' + encodeURIComponent(texto);
+    /Android|iPhone|iPad/i.test(navigator.userAgent)
+      ? window.open(wa, '_blank')
+      : (navigator.clipboard?.writeText(texto).then(()=>alert('Texto copiado ✅')));
+  }
+  document.querySelectorAll('.share-btn').forEach(b =>
+    b.addEventListener('click', () => sharePremio(b.dataset.shareText))
+  );
+</script>
 {% endblock %}
