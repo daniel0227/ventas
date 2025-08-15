@@ -77,17 +77,21 @@
               </div>
 
               <button type="button"
-                      class="btn btn-outline-success btn-icon share-btn"
-                      data-bs-toggle="tooltip"
-                      data-bs-title="Compartir"
-                      aria-label="Compartir premio"
-                      data-share-text="🎉 *Premio confirmado*&#10;&#10;🏆 *{{ premio.nombre }}*&#10;🔢 Número ganador: *{{ premio.numero_ganador }}*&#10;💰 Valor: *${{ premio.valor|format_colombian }} COP*&#10;📅 {{ fecha }}{% if es_admin %}&#10;👤 Vendedor: {{ premio.vendedor.get_full_name|default:premio.vendedor.username|title }}{% endif %}">
-                <!-- Ícono: paper plane (más diciente) -->
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <path d="M22 2L11 13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  <path d="M22 2L15.5 22l-4.5-7-7-4.5L22 2z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" fill="none"/>
-                </svg>
-              </button>
+        class="btn btn-icon-outline share-btn"
+        aria-label="Compartir por WhatsApp"
+        title="Compartir por WhatsApp"
+        data-share-text="🎉 *Premio confirmado*&#10;&#10;🏆 *{{ premio.nombre }}*&#10;🔢 Número ganador: *{{ premio.numero_ganador }}*&#10;💰 Valor: *${{ premio.valor|format_colombian }} COP*&#10;📅 {{ fecha }}{% if es_admin %}&#10;👤 Vendedor: {{ premio.vendedor.get_full_name|default:premio.vendedor.username|title }}{% endif %}&#10;&#10;— Enviado desde Solven · Resultados">
+  <!-- WhatsApp outline (burbuja + auricular) -->
+  <svg class="icon-wa-outline" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <!-- círculo/burbuja -->
+    <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/>
+    <!-- colita de la burbuja -->
+    <path d="M7.2 17.4L6 19l1.9-.6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <!-- auricular estilo WA -->
+    <path d="M15.8 14.2l-.8 1.3c-.2.3-.6.4-1 .3c-1-.3-2.2-.9-3.2-1.9s-1.6-2.2-1.9-3.2c-.1-.4 0-.8.3-1l1.3-.8M10.5 9.1l1.6.9c.4.2.6.7.4 1.1l-.4.7c.7.4 1.3.7 2 .9l.7-.4c.4-.2.9 0 1.1.4l.9 1.6"
+          fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+</button>
             </div>
 
           </li>
@@ -153,6 +157,32 @@
 </main>
 
 <style>
+
+  :root { --wa: #22c55e; }   /* puedes usar #25D366 si quieres el oficial */
+
+.btn-icon-outline{
+  width:44px; height:44px; padding:0;
+  display:inline-flex; align-items:center; justify-content:center;
+  border-radius:.75rem;
+  border:2px solid var(--wa);
+  color:var(--wa);
+  background:transparent;
+  line-height:1;
+}
+.btn-icon-outline:hover,
+.btn-icon-outline:focus{
+  background: color-mix(in srgb, var(--wa) 8%, transparent);
+  outline: none;
+}
+.btn-icon-outline:active{ transform: scale(.98); }
+
+/* Ícono WhatsApp lineal: tamaño y nitidez */
+.icon-wa-outline{
+  width:22px; height:22px;
+  display:block;
+  filter: drop-shadow(0 0 .5px rgba(0,0,0,.15)); /* halo sutil para claridad */
+}
+
   /* ===== Mobile-first tweaks globales ===== */
 
   .sticky-filter{ padding-top: max(.25rem, env(safe-area-inset-top)); }
