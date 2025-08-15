@@ -80,7 +80,7 @@
         class="btn btn-icon-outline share-btn"
         aria-label="Compartir por WhatsApp"
         title="Compartir por WhatsApp"
-        data-share-text="🎉 *Premio confirmado*&#10;&#10;🏆 *{{ premio.nombre }}*&#10;🔢 Número ganador: *{{ premio.numero_ganador }}*&#10;💰 Valor: *${{ premio.valor|format_colombian }} COP*&#10;📅 {{ fecha }}{% if es_admin %}&#10;👤 Vendedor: {{ premio.vendedor.get_full_name|default:premio.vendedor.username|title }}{% endif %}&#10;&#10;— Enviado desde Solven · Resultados">
+        data-share-text="🎉 *Premio confirmado*&#10;&#10;🏆 *{{ premio.nombre }}*&#10;🔢 Número ganador: *{{ premio.numero_ganador }}*&#10;💰 Valor: *${{ premio.valor|format_colombian }} COP*&#10;📅 {{ fecha }}{% if es_admin %}&#10;👤 Vendedor: {{ premio.vendedor.get_full_name|default:premio.vendedor.username|title }}{% endif %}">
   <!-- WhatsApp outline (burbuja + auricular) -->
   <svg class="icon-wa-outline" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
     <!-- círculo/burbuja -->
