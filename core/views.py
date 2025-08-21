@@ -372,19 +372,20 @@ def historico_ventas(request):
 @login_required
 def premios(request):
     """
-    Vista que calcula y muestra los premios para una fecha dada.
-    Se consideran las ventas del día para cada lotería y se verifica si el
-    número apostado coincide (por sus últimos dígitos) con el resultado registrado.
-    Multiplicador:
-      - Si la venta tiene 2 cifras y coincide con los dos últimos dígitos: * 60
-      - Si la venta tiene 3 cifras y coincide con los tres últimos dígitos: * 550
-      - Si la venta tiene 4 cifras y coincide exactamente: * 4500
+    Calcula y PERSISTE los premios para una fecha.
+    Reglas:
+      - 2 cifras (coincide 2 últimos): * 60
+      - 3 cifras (coincide 3 últimos): * 550
+      - 4 cifras (coincide exacto):    * 4500
+    Si el usuario es admin (staff) ve todas las ventas/premios; de lo contrario, solo los suyos.
     """
     from datetime import datetime
     from django.http import Http404
     from django.utils import timezone
 
-    # Obtener la fecha del filtro (GET), si no se indica se usa la fecha actual
+    from core.models import Dia, Loteria, Resultado, Venta, Premio  # ajusta imports a tu estructura
+
+    # -------- Fecha filtro --------
     fecha_param = request.GET.get('fecha')
     ahora = timezone.localtime(timezone.now())
     if fecha_param:
@@ -395,7 +396,7 @@ def premios(request):
     else:
         fecha = ahora.date()
 
-    # Convertir la fecha a nombre del día en inglés y luego a español
+    # -------- Día ES --------
     dia_actual_nombre_en = fecha.strftime('%A')
     dias_map = {
         'Monday': 'Lunes',
@@ -412,50 +413,86 @@ def premios(request):
     except Dia.DoesNotExist:
         raise Http404(f"No se ha encontrado el día {dia_nombre_es}")
 
-    # Filtrar las loterías que se juegan ese día
+    # -------- Loterías que juegan ese día --------
     loterias = Loteria.objects.filter(dias_juego=dia_obj)
 
-    premios_list = []
-    for lot in loterias:
-        # Se obtiene el resultado registrado para la lotería en la fecha indicada
-        resultado_obj = Resultado.objects.filter(loteria=lot, fecha=fecha).first()
-        if resultado_obj:
-            # El número ganador siempre es de 4 cifras
+    # -------- Cálculo y persistencia --------
+    # Hacemos todo atómico para consistencia si hay múltiples upserts.
+    with transaction.atomic():
+        for lot in loterias:
+            resultado_obj = Resultado.objects.filter(loteria=lot, fecha=fecha).first()
+            if not resultado_obj:
+                continue
+
             winning_number = str(resultado_obj.resultado).zfill(4).strip()
 
-            # Filtrar las ventas: si es administrador (staff) se ven todas; sino, solo las del usuario logueado
             if request.user.is_staff:
-                ventas = Venta.objects.filter(fecha_venta__date=fecha, loterias=lot)
+                ventas_qs = Venta.objects.filter(fecha_venta__date=fecha, loterias=lot)
             else:
-                ventas = Venta.objects.filter(fecha_venta__date=fecha, loterias=lot, vendedor=request.user)
-            
-            for venta in ventas:
-                sale_number = venta.numero.strip()
-                # Solo se consideran ventas con 2, 3 o 4 dígitos
+                ventas_qs = Venta.objects.filter(
+                    fecha_venta__date=fecha,
+                    loterias=lot,
+                    vendedor=request.user
+                )
+
+            for venta in ventas_qs.select_related('vendedor'):
+                sale_number = (venta.numero or '').strip()
                 if len(sale_number) not in (2, 3, 4):
                     continue
-                # Se extrae la porción final del número ganador según la cantidad de dígitos de la venta
+
+                # Coincidencia por últimos dígitos
                 if sale_number == winning_number[-len(sale_number):]:
                     if len(sale_number) == 2:
                         multiplier = 60
                     elif len(sale_number) == 3:
                         multiplier = 550
-                    elif len(sale_number) == 4:
+                    else:  # 4
                         multiplier = 4500
-                    else:
-                        multiplier = 0
-                    premio_valor = venta.monto * multiplier
-                    premios_list.append({
-                        'loteria': lot,
-                        'imagen': lot.imagen,
-                        'nombre': lot.nombre,
-                        'numero_ganador': sale_number,
-                        'valor': premio_valor,
-                        'vendedor': venta.vendedor, # Vendedor de la venta
-                    })
+
+                    premio_valor = int(venta.monto) * multiplier
+
+                    # Persistir sin duplicar (idempotente por venta/lotería/fecha)
+                    Premio.objects.update_or_create(
+                        venta=venta,
+                        loteria=lot,
+                        fecha=fecha,
+                        defaults={
+                            'vendedor': venta.vendedor,
+                            'numero': sale_number,
+                            'valor': int(venta.monto),
+                            'cifras': len(sale_number),
+                            'premio': premio_valor,
+                        }
+                    )
+
+    # -------- Consulta para mostrar en el template (desde BD) --------
+    if request.user.is_staff:
+        premios_qs = Premio.objects.filter(fecha=fecha, loteria__in=loterias).select_related('loteria', 'vendedor')
+    else:
+        premios_qs = Premio.objects.filter(
+            fecha=fecha,
+            loteria__in=loterias,
+            vendedor=request.user
+        ).select_related('loteria', 'vendedor')
+
+    # Opcional: construir lista para el template (si tu template espera un shape específico)
+    premios_list = [
+        {
+            'loteria': p.loteria,
+            'imagen': getattr(p.loteria, 'imagen', None),
+            'nombre': getattr(p.loteria, 'nombre', str(p.loteria)),
+            'numero_ganador': p.numero,
+            'valor': p.premio,
+            'vendedor': p.vendedor,
+            'cifras': p.cifras,
+            'valor_apostado': p.valor,
+        }
+        for p in premios_qs
+    ]
+
     context = {
         'premios_list': premios_list,
-        'fecha': fecha,  # En formato YYYY-MM-DD
+        'fecha': fecha,
         'es_admin': request.user.is_staff,
     }
     return render(request, 'core/premios.html', context)

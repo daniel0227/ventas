@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.utils.timezone import now
 
@@ -46,3 +47,42 @@ class Resultado(models.Model):
 
     def __str__(self):
         return f"{self.loteria} - {self.fecha}: {self.resultado}"
+    
+class Premio(models.Model):
+    vendedor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name='premios'
+    )
+    loteria = models.ForeignKey(
+        'Loteria',
+        on_delete=models.PROTECT,
+        related_name='premios'
+    )
+    # Guardar la venta que originó el premio (útil para trazabilidad)
+    venta = models.ForeignKey(
+        'Venta',
+        on_delete=models.CASCADE,
+        related_name='premios',
+        null=True, blank=True
+    )
+    numero = models.CharField(max_length=10, db_index=True)      # número apostado
+    valor = models.PositiveIntegerField()                         # valor apostado (monto)
+    cifras = models.PositiveSmallIntegerField()                   # 2, 3 o 4
+    premio = models.PositiveBigIntegerField()                     # valor del premio (payout)
+    fecha = models.DateField(db_index=True)
+
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        # Evita duplicados por el mismo día/venta/lotería
+        constraints = [
+            models.UniqueConstraint(
+                fields=['venta', 'loteria', 'fecha'],
+                name='uniq_premio_por_venta_loteria_fecha'
+            )
+        ]
+
+    def __str__(self):
+        return f'{self.fecha} • {self.loteria} • {self.vendedor} • {self.numero} = {self.premio}'
