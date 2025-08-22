@@ -3,154 +3,296 @@
 {% load format_filters %}
 
 {% block content %}
-<div class="py-4">
-    <div class="d-flex justify-content-between w-100 flex-wrap">
-        <h1 class="h4">Listado de Ventas</h1>
-    </div>
+
+<style>
+  /* ---- Mobile-first polish ---- */
+  .filter-bar {
+    position: sticky; top: calc(var(--bs-navbar-height, 56px) + 0px);
+    z-index: 1030; background: var(--bs-body-bg);
+    backdrop-filter: saturate(1.1) blur(6px);
+    border-bottom: 1px solid var(--bs-border-color);
+  }
+  .filter-chip-group { overflow:auto; white-space:nowrap; }
+  .filter-chip-group .btn { margin-right:.5rem; }
+  .input-group-text { background: var(--bs-body-bg); }
+  .tap { min-height:44px; }
+  .card-rounded, .table, .form-control, .form-select, .btn { border-radius: 1rem; }
+  .fs-total { font-size: clamp(1.6rem, 3vw, 2rem); }
+  /* Mobile cards for rows */
+  @media (max-width: 575.98px) {
+    .table-wrapper { display:none; }
+  }
+  @media (min-width: 576px) {
+    .cards-wrapper { display:none; }
+  }
+  /* Sticky table head on desktop */
+  @media (min-width: 576px) {
+    thead.thead-light th { position: sticky; top: 0; z-index: 2; background: var(--bs-light); }
+  }
+  /* Focus states accesibles */
+  .form-control:focus, .form-select:focus, .btn:focus {
+    box-shadow: 0 0 0 .2rem rgba(var(--bs-primary-rgb), .2);
+  }
+</style>
+
+<div class="py-3">
+  <div class="d-flex justify-content-between align-items-center flex-wrap">
+    <h1 class="h4 mb-0">Listado de Ventas</h1>
+  </div>
 </div>
 
-<!-- Filtro de búsqueda -->
-<form method="GET" class="mb-3">
-    <div class="row">
-        <div class="col-md-3">
-            <input
-                type="text"
-                class="form-control"
-                name="search"
-                value="{{ search }}"
-                placeholder="Buscar por número"
-            >
+<!-- ====== FILTROS (sticky) ====== -->
+<section class="filter-bar py-2">
+  <form method="GET" class="container-fluid px-0">
+    
+    <div class="row g-2 align-items-stretch">
+      <!-- Buscar -->
+      <div class="col-12">
+        <div class="input-group">
+          <span class="input-group-text tap">
+            <i class="bi bi-search" aria-hidden="true"></i>
+            <span class="visually-hidden">Buscar</span>
+          </span>
+          <input
+            type="search"
+            class="form-control tap"
+            name="search"
+            value="{{ search }}"
+            placeholder="Buscar por número"
+            autocomplete="off"
+            inputmode="numeric"
+          >
+          <button class="btn btn-outline-secondary tap d-none d-sm-inline-flex" id="btn-clear" type="button">Limpiar</button>
         </div>
-        <div class="col-md-3">
-            <input
-                type="date"
-                class="form-control"
-                name="start_date"
-                id="start_date"
-                value="{{ filter_date }}"
-            >
+      </div>
+
+      <!-- Fecha -->
+      <div class="col-12">
+        <div class="input-group">
+          <span class="input-group-text tap">
+            <i class="bi bi-calendar-event" aria-hidden="true"></i>
+            <span class="visually-hidden">Fecha</span>
+          </span>
+          <input
+            type="date"
+            class="form-control tap"
+            name="start_date"
+            id="start_date"
+            value="{{ filter_date }}"
+          >
         </div>
-        {% if user.is_staff %}
-        <div class="col-md-3">
-            <select name="vendedor" class="form-control">
-                <option value="">Selecciona un Vendedor</option>
-                {% for vendedor in vendedores %}
-                <option
-                    value="{{ vendedor.vendedor__id }}"
-                    {% if vendedor_id == vendedor.vendedor__id|stringformat:"s" %}selected{% endif %}
-                >
-                    {{ vendedor.vendedor__username }}
-                </option>
-                {% endfor %}
-            </select>
+      </div>
+
+      <!-- Vendedor (solo admin) -->
+      {% if user.is_staff %}
+      <div class="col-12">
+        <div class="input-group">
+          <span class="input-group-text tap">
+            <i class="bi bi-person-badge" aria-hidden="true"></i>
+            <span class="visually-hidden">Vendedor</span>
+          </span>
+          <select name="vendedor" class="form-select tap">
+            <option value="">Selecciona un Vendedor</option>
+            {% for vendedor in vendedores %}
+              <option
+                value="{{ vendedor.vendedor__id }}"
+                {% if vendedor_id == vendedor.vendedor__id|stringformat:"s" %}selected{% endif %}
+              >
+                {{ vendedor.vendedor__username|capfirst }}
+              </option>
+            {% endfor %}
+          </select>
         </div>
+      </div>
+      {% else %}
+      <!-- Espacio symétrico cuando no hay select -->
+      <div class="col-6"></div>
+      {% endif %}
+
+      <!-- Botones -->
+      <div class="col-12 d-grid d-sm-flex gap-2 mt-1">
+        <button type="submit" class="btn btn-primary tap">
+          <i class="bi bi-funnel" aria-hidden="true"></i> Filtrar
+        </button>
+      </div>
+    </div>
+  </form>
+</section>
+
+<!-- ====== TOTAL ====== -->
+<div class="card border-0 shadow-sm card-rounded mt-3 mb-3">
+  <div class="card-body d-flex justify-content-between align-items-center">
+    <div>
+      <div class="text-muted small">Total de Ventas</div>
+      <div class="fw-bold fs-total" aria-live="polite">
+        ${{ total_ventas|format_colombian }} <span class="text-muted fs-6">COP</span>
+      </div>
+    </div>
+    {# Si luego calculas delta, puedes mostrar badge aquí #}
+  </div>
+</div>
+
+<!-- ====== LISTADO ====== -->
+<div class="card border-0 shadow-sm card-rounded mb-4">
+  <div class="card-body">
+
+    <!-- Desktop / tablet: tabla -->
+    <div class="table-responsive table-wrapper">
+      <table class="table table-hover align-middle mb-0 rounded">
+        <thead class="thead-light">
+          <tr>
+            {% if user.is_staff %}
+              <th class="border-0 rounded-start">#</th>
+            {% endif %}
+            <th class="border-0">Vendedor</th>
+            <th class="border-0">Lotería</th>
+            <th class="border-0">Número</th>
+            <th class="border-0 text-end">Monto</th>
+            <th class="border-0">Fecha de Venta</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for venta in ventas %}
+          <tr>
+            {% if user.is_staff %}
+              <td>{{ venta.id }}</td>
+            {% endif %}
+            <td>{{ venta.vendedor.username }}</td>
+            <td>{{ venta.loterias.all|join:", " }}</td>
+            <td>
+              {% if venta.numero %}
+                {{ venta.numero }}
+              {% else %}
+                ({{ venta.combi }})
+              {% endif %}
+            </td>
+            <td class="text-end">${{ venta.monto|format_colombian }}</td>
+            <td>{{ venta.fecha_venta }}</td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="{% if user.is_staff %}6{% else %}5{% endif %}" class="text-center py-5">
+              <i class="bi bi-inboxes fs-1 d-block mb-2"></i>
+              <div class="text-muted">No se encontraron ventas.</div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Móvil: cards -->
+    <div class="cards-wrapper">
+      {% for venta in ventas %}
+      <article class="card mb-2 shadow-0 border rounded-3">
+        <div class="card-body p-3">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <div class="fw-semibold">{{ venta.vendedor.username }}</div>
+              <div class="text-muted">{{ venta.loterias.all|join:", " }}</div>
+            </div>
+            <div class="text-end">
+              <div class="fw-bold">${{ venta.monto|format_colombian }}</div>
+              <small class="text-muted">{{ venta.fecha_venta }}</small>
+            </div>
+          </div>
+          <div class="mt-3">
+            <div class="border rounded-3 px-3 py-2 d-inline-block fw-bold bg-light">
+                {% if venta.numero %}#{{ venta.numero }}{% else %}( {{ venta.combi }} ){% endif %}
+            </div>
+            {% if user.is_staff %}
+            <span class="badge border border-secondary text-secondary ms-2">
+                ID: {{ venta.id }}
+            </span>
+            {% endif %}
+          </div>
+        </div>
+      </article>
+      {% empty %}
+      <div class="text-center text-muted py-5">
+        <i class="bi bi-inboxes fs-1 d-block mb-2"></i>
+        No se encontraron ventas.
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- Paginación -->
+    {% if ventas.paginator.num_pages > 1 %}
+    <nav aria-label="Page navigation" class="mt-3">
+      <ul class="pagination justify-content-center flex-wrap">
+        {% if ventas.has_previous %}
+          <li class="page-item">
+            <a class="page-link" href="?page={{ ventas.previous_page_number }}&start_date={{ filter_date }}&search={{ search|urlencode }}&vendedor={{ vendedor_id }}">« Anterior</a>
+          </li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">«</span></li>
         {% endif %}
-        <div class="col-md-3">
-            <button type="submit" class="btn btn-primary">Filtrar</button>
-        </div>
-    </div>
-</form>
 
-<!-- Total de ventas -->
-<div class="card border-0 shadow mb-4">
-    <div class="card-body">
-        <h5 class="card-title">Total de Ventas</h5>
-        <p class="card-text">
-            <strong>${{ total_ventas|format_colombian }}</strong> COP
-        </p>
-    </div>
+        {% for num in ventas.paginator.page_range %}
+          <li class="page-item {% if ventas.number == num %}active{% endif %}">
+            <a class="page-link" href="?page={{ num }}&start_date={{ filter_date }}&search={{ search|urlencode }}&vendedor={{ vendedor_id }}">{{ num }}</a>
+          </li>
+        {% endfor %}
+
+        {% if ventas.has_next %}
+          <li class="page-item">
+            <a class="page-link" href="?page={{ ventas.next_page_number }}&start_date={{ filter_date }}&search={{ search|urlencode }}&vendedor={{ vendedor_id }}">Siguiente »</a>
+          </li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">»</span></li>
+        {% endif %}
+      </ul>
+    </nav>
+    {% endif %}
+  </div>
 </div>
 
-<!-- Tabla de ventas -->
-<div class="card border-0 shadow mb-4">
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-centered table-nowrap mb-0 rounded">
-                <thead class="thead-light">
-                    <tr>
-                        {% if user.is_staff %}
-                        <th class="border-0 rounded-start">#</th>
-                        {% endif %}
-                        <th class="border-0">Vendedor</th>
-                        <th class="border-0">Lotería</th>
-                        <th class="border-0">Número</th>
-                        <th class="border-0">Monto</th>
-                        <th class="border-0">Fecha de Venta</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for venta in ventas %}
-                    <tr>
-                        {% if user.is_staff %}
-                        <td>{{ venta.id }}</td>
-                        {% endif %}
-                        <td>{{ venta.vendedor.username }}</td>
-                        <td>{{ venta.loterias.all|join:", " }}</td>
-                        {# ← si 'numero' está vacío, muestra 'combi' #}
-                        <td>
-                            {% if venta.numero %}
-                                {{ venta.numero }}
-                            {% else %}
-                                ({{ venta.combi }})
-                            {% endif %}
-                        </td>
-                        <td>${{ venta.monto|format_colombian }}</td>
-                        <td>{{ venta.fecha_venta }}</td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="6" class="text-center">No se encontraron ventas.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+<!-- ====== Comportamiento (debounce, chips, limpiar) ====== -->
+<script>
+  (() => {
+    const form = document.querySelector('.filter-bar form');
+    const q = form?.querySelector('input[name="search"]');
+    const fecha = form?.querySelector('input[name="start_date"]');
+    const btnClear = document.getElementById('btn-clear');
 
-        <!-- Paginación -->
-        <nav aria-label="Page navigation" class="mt-3">
-            <ul class="pagination">
-                {% if ventas.has_previous %}
-                <li class="page-item">
-                    <a
-                        class="page-link"
-                        href="?page={{ ventas.previous_page_number }}&start_date={{ filter_date }}&search={{ search|urlencode }}&vendedor={{ vendedor_id }}"
-                    >
-                        « Anterior
-                    </a>
-                </li>
-                {% else %}
-                <li class="page-item disabled">
-                    <span class="page-link">«</span>
-                </li>
-                {% endif %}
+    // Debounce para búsqueda por número
+    let t;
+    q?.addEventListener('input', () => {
+      if (btnClear) btnClear.classList.toggle('d-none', !q.value);
+      clearTimeout(t);
+      t = setTimeout(() => form.submit(), 350);
+    });
 
-                {% for num in ventas.paginator.page_range %}
-                <li class="page-item {% if ventas.number == num %}active{% endif %}">
-                    <a
-                        class="page-link"
-                        href="?page={{ num }}&start_date={{ filter_date }}&search={{ search|urlencode }}&vendedor={{ vendedor_id }}"
-                    >
-                        {{ num }}
-                    </a>
-                </li>
-                {% endfor %}
+    // Botón limpiar texto
+    btnClear?.addEventListener('click', () => {
+      q.value = '';
+      form.submit();
+    });
 
-                {% if ventas.has_next %}
-                <li class="page-item">
-                    <a
-                        class="page-link"
-                        href="?page={{ ventas.next_page_number }}&start_date={{ filter_date }}&search={{ search|urlencode }}&vendedor={{ vendedor_id }}"
-                    >
-                        Siguiente »
-                    </a>
-                </li>
-                {% else %}
-                <li class="page-item disabled">
-                    <span class="page-link">»</span>
-                </li>
-                {% endif %}
-            </ul>
-        </nav>
-    </div>
-</div>
+    // Chips de fecha
+    const addDays = (d) => {
+      const x = new Date();
+      x.setHours(0,0,0,0);
+      x.setDate(x.getDate() + d);
+      return x.toISOString().slice(0,10);
+    };
+    form?.querySelectorAll('[data-date]').forEach(b => {
+      b.addEventListener('click', () => {
+        const k = b.dataset.date;
+        if (k === 'today') fecha.value = addDays(0);
+        else if (k === 'yesterday') fecha.value = addDays(-1);
+        else if (k === 'week') {
+          // Por simplicidad, dejamos fecha desde lunes de la semana actual.
+          const d = new Date(); const day = d.getDay() || 7; // 1..7
+          d.setDate(d.getDate() - day + 1);
+          fecha.value = d.toISOString().slice(0,10);
+        } else if (k === 'clear') {
+          fecha.value = '';
+        }
+        form.submit();
+      });
+    });
+  })();
+</script>
+
 {% endblock %}

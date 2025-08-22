@@ -337,6 +337,7 @@ def ventas_list(request):
         Venta.objects
              .values('vendedor__id', 'vendedor__username')
              .distinct()
+             .order_by('vendedor__username')   # 👈 ordenados alfabéticamente
         if request.user.is_staff else []
     )
 
