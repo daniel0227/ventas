@@ -1,6 +1,7 @@
 from django.shortcuts import render, HttpResponse, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.utils import timezone
+from decimal import Decimal, ROUND_HALF_UP
 from django.utils.dateparse import parse_date
 from django.http import Http404, JsonResponse
 from django.contrib.auth.views import LoginView
@@ -746,6 +747,14 @@ def importar_resultados_via_get(request):
     resultado = importar_resultados(fecha, user=user)
     return JsonResponse({"resultado": resultado})
 
+RETENCION_PCT = Decimal('0.10')   # 10%
+COMISION_PCT  = Decimal('0.35')   # 35%
+
+def _round_cop(n) -> int:
+    if not isinstance(n, Decimal):
+        n = Decimal(n)
+    return int(n.quantize(Decimal('1'), rounding=ROUND_HALF_UP))
+
 @user_passes_test(lambda u: u.is_staff)
 def reportes(request):
     # --- fechas robustas ---
@@ -759,42 +768,65 @@ def reportes(request):
                 raise ValueError("fechas inválidas")
         else:
             raise ValueError("faltan fechas")
-    except:
+    except Exception:
         start = end = timezone.localdate()
         start_date = end_date = str(start)
 
-    # --- queryset base con total por venta ---
+    # --- por venta: monto × #loterías ---
     ventas_qs = (
         Venta.objects
         .annotate(fecha=TruncDate('fecha_venta'))
         .filter(fecha__range=(start, end))
         .select_related('vendedor')
         .prefetch_related('loterias')
-        .annotate(count_loterias=Count('loterias'))
-        .annotate(total_venta=ExpressionWrapper(F('monto') * F('count_loterias'),
+        .annotate(count_loterias=Count('loterias', distinct=True))
+        .annotate(total_bruta=ExpressionWrapper(F('monto') * F('count_loterias'),
                                                 output_field=IntegerField()))
-        .values('vendedor__username', 'total_venta')
+        .values('vendedor__username', 'total_bruta')
     )
 
-    # --- agregamos por vendedor en Python ---
-    resumen_por_vendedor = defaultdict(int)
+    # --- sumar por vendedor en Python (evita aggregate-over-aggregate) ---
+    sumas_brutas = defaultdict(int)
     for v in ventas_qs:
-        resumen_por_vendedor[v['vendedor__username']] += v['total_venta']
+        sumas_brutas[v['vendedor__username']] += int(v['total_bruta'] or 0)
 
-    # datos para la gráfica
-    labels = list(resumen_por_vendedor.keys())
-    data   = list(resumen_por_vendedor.values())
+    # construir filas + totales y métricas derivadas
+    rows = []
+    labels, data = [], []
 
-    # --- NUEVO: filas de tabla y total general ---
-    rows = [{'vendedor': k, 'total': v} for k, v in resumen_por_vendedor.items()]
+    total_general_bruta = total_general_neta = 0
+    total_general_comision = total_general_liquidacion = 0
+
+    for vendedor, bruta in sumas_brutas.items():
+        neta = _round_cop(Decimal(bruta) * (Decimal('1') - RETENCION_PCT))
+        comision = _round_cop(Decimal(neta) * COMISION_PCT)
+        liquidacion = neta - comision
+
+        rows.append({
+            'vendedor': vendedor,
+            'total': bruta,
+            'venta_neta': neta,
+            'comision': comision,
+            'liquidacion': liquidacion,
+        })
+
+        labels.append(vendedor)
+        data.append(bruta)
+        total_general_bruta += bruta
+        total_general_neta += neta
+        total_general_comision += comision
+        total_general_liquidacion += liquidacion
+
     rows.sort(key=lambda r: r['total'], reverse=True)
-    total_general = sum(data) if data else 0
 
     return render(request, 'core/reportes.html', {
         'labels': labels,
         'data': data,
-        'rows': rows,                     # 👈 tabla
-        'total_general': total_general,   # 👈 total
+        'rows': rows,
+        'total_general': total_general_bruta,
+        'total_general_neta': total_general_neta,
+        'total_general_comision': total_general_comision,
+        'total_general_liquidacion': total_general_liquidacion,
         'start_date': start_date,
         'end_date': end_date,
     })

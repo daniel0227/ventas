@@ -44,29 +44,36 @@
     {% if rows %}
       <div class="table-responsive">
         <table class="table table-sm align-middle mb-0">
-          <thead class="table-light">
-            <tr>
-              <th style="width:60px;">#</th>
-              <th>Vendedor</th>
-              <th class="text-end">Total (COP)</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for r in rows %}
-              <tr>
-                <td>{{ forloop.counter }}</td>
-                <td class="text-truncate" style="max-width: 220px;">{{ r.vendedor }}</td>
-                <td class="text-end">${{ r.total|format_colombian }}</td>
-              </tr>
-            {% endfor %}
-          </tbody>
-          <tfoot>
-            <tr>
-              <th colspan="2" class="text-end">Total general</th>
-              <th class="text-end">${{ total_general|format_colombian }}</th>
-            </tr>
-          </tfoot>
-        </table>
+    <thead class="table-light">
+      <tr>
+        <th>Vendedor</th>
+        <th class="text-end">Total</th>
+        <th class="text-end">Venta (-10%)</th>
+        <th class="text-end">Comisión (35%)</th>
+        <th class="text-end">Liquidación</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+        <tr>
+          <td class="text-truncate" style="max-width: 220px;">{{ r.vendedor }}</td>
+          <td class="text-end">${{ r.total|format_colombian }}</td>
+          <td class="text-end">${{ r.venta_neta|format_colombian }}</td>
+          <td class="text-end">${{ r.comision|format_colombian }}</td>
+          <td class="text-end fw-semibold">${{ r.liquidacion|format_colombian }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+  <tr>
+    <th class="text-end" scope="row">Totales</th>
+    <th class="text-end">${{ total_general|format_colombian }}</th>
+    <th class="text-end">${{ total_general_neta|format_colombian }}</th>
+    <th class="text-end">${{ total_general_comision|format_colombian }}</th>
+    <th class="text-end fw-semibold">${{ total_general_liquidacion|format_colombian }}</th>
+  </tr>
+</tfoot>
+  </table>
       </div>
     {% else %}
       <div class="alert alert-info mb-0">No hay datos para el rango seleccionado.</div>
