@@ -384,6 +384,8 @@ def premios(request):
     from datetime import datetime
     from django.http import Http404
     from django.utils import timezone
+    from django.db import transaction
+    from django.db.models import Sum
 
     from core.models import Dia, Loteria, Resultado, Venta, Premio  # ajusta imports a tu estructura
 
@@ -438,7 +440,8 @@ def premios(request):
                 )
 
             for venta in ventas_qs.select_related('vendedor'):
-                sale_number = (venta.numero or '').strip()
+                # robustez: si numero es int, casteamos
+                sale_number = str(venta.numero or '').strip()
                 if len(sale_number) not in (2, 3, 4):
                     continue
 
@@ -461,9 +464,9 @@ def premios(request):
                         defaults={
                             'vendedor': venta.vendedor,
                             'numero': sale_number,
-                            'valor': int(venta.monto),
+                            'valor': int(venta.monto),  # valor apostado
                             'cifras': len(sale_number),
-                            'premio': premio_valor,
+                            'premio': premio_valor,     # payout
                         }
                     )
 
@@ -477,27 +480,40 @@ def premios(request):
             vendedor=request.user
         ).select_related('loteria', 'vendedor')
 
-    # Opcional: construir lista para el template (si tu template espera un shape específico)
+    # -------- Totales y conteo --------
+    total_premios = premios_qs.aggregate(total=Sum('premio'))['total'] or 0
+    premios_count = premios_qs.count()
+
+    # -------- Shape para el template (alineado con tu HTML) --------
     premios_list = [
         {
             'loteria': p.loteria,
             'imagen': getattr(p.loteria, 'imagen', None),
+            'imagen_2x': getattr(p.loteria, 'imagen_2x', None),
             'nombre': getattr(p.loteria, 'nombre', str(p.loteria)),
             'numero_ganador': p.numero,
-            'valor': p.premio,
+            'valor': p.premio,            # lo que muestras en la UI (payout)
             'vendedor': p.vendedor,
             'cifras': p.cifras,
-            'valor_apostado': p.valor,
+            'valor_apostado': p.valor,    # por si necesitas mostrarlo más adelante
         }
         for p in premios_qs
     ]
+    # ... después de construir premios_qs
+    total_premios = premios_qs.aggregate(total=Sum('premio'))['total'] or 0
+    premios_count = premios_qs.count()
+
 
     context = {
-        'premios_list': premios_list,
-        'fecha': fecha,
-        'es_admin': request.user.is_staff,
-    }
+    'premios_list': premios_list,
+    'total_premios': total_premios,      # 👈 importante
+    'premios_count': premios_count,      # 👈 opcional para mostrar cantidad
+    'fecha': fecha,
+    'fecha_actual': timezone.localdate(),# 👈 para el input date
+    'es_admin': request.user.is_staff,
+}
     return render(request, 'core/premios.html', context)
+
 
 @user_passes_test(lambda u: u.is_superuser)
 @login_required

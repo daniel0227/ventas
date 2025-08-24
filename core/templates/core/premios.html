@@ -30,6 +30,29 @@
 
   {% if premios_list %}
 
+    {# ===== Resumen de totales (píldoras con ícono) ===== #}
+    <section class="mb-3" aria-label="Resumen de premios del día">
+      <div class="d-flex flex-wrap gap-2 align-items-center">
+        <span class="summary-pill summary-green">
+          <!-- trophy -->
+          <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" class="me-1">
+            <path d="M18 4h2a2 2 0 0 1 2 2v1a5 5 0 0 1-5 5h-1a5 5 0 0 1-5-5V4h7Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M6 4H4a2 2 0 0 0-2 2v1a5 5 0 0 0 5 5h1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M12 14v5M8 21h8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+          <strong>Total:</strong> ${{ total_premios|default:0|format_colombian }}
+        </span>
+
+        <span class="summary-pill summary-amber">
+          <!-- hashtag -->
+          <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" class="me-1">
+            <path d="M4 9h16M3 15h16M9 4l-2 16M17 4l-2 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+          <strong>Cantidad:</strong> {{ premios_list|length }}
+        </span>
+      </div>
+    </section>
+
     {# ===== Vista móvil: tarjetas (XS–SM) ===== #}
     <section class="d-md-none" aria-label="Listado de premios">
       <ul class="list-unstyled m-0">
@@ -56,7 +79,6 @@
             <div class="premio-info">
               <h3 class="premio-title h6 mb-1">{{ premio.nombre }}</h3>
 
-              {# META ALINEADA: chip + "Vendedor: Nombre" como unidad #}
               <div class="premio-meta small">
                 <span class="chip-numero">Nº {{ premio.numero_ganador }}</span>
                 {% if es_admin %}
@@ -77,21 +99,18 @@
               </div>
 
               <button type="button"
-        class="btn btn-icon-outline share-btn"
-        aria-label="Compartir por WhatsApp"
-        title="Compartir por WhatsApp"
-        data-share-text="🎉 *Premio confirmado*&#10;&#10;🏆 *{{ premio.nombre }}*&#10;🔢 Número ganador: *{{ premio.numero_ganador }}*&#10;💰 Valor: *${{ premio.valor|format_colombian }} COP*&#10;📅 {{ fecha }}{% if es_admin %}&#10;👤 Vendedor: {{ premio.vendedor.get_full_name|default:premio.vendedor.username|title }}{% endif %}">
-  <!-- WhatsApp outline (burbuja + auricular) -->
-  <svg class="icon-wa-outline" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-    <!-- círculo/burbuja -->
-    <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/>
-    <!-- colita de la burbuja -->
-    <path d="M7.2 17.4L6 19l1.9-.6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-    <!-- auricular estilo WA -->
-    <path d="M15.8 14.2l-.8 1.3c-.2.3-.6.4-1 .3c-1-.3-2.2-.9-3.2-1.9s-1.6-2.2-1.9-3.2c-.1-.4 0-.8.3-1l1.3-.8M10.5 9.1l1.6.9c.4.2.6.7.4 1.1l-.4.7c.7.4 1.3.7 2 .9l.7-.4c.4-.2.9 0 1.1.4l.9 1.6"
-          fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  </svg>
-</button>
+                class="btn btn-icon-outline share-btn"
+                aria-label="Compartir por WhatsApp"
+                title="Compartir por WhatsApp"
+                data-share-text="🎉 *Premio confirmado*&#10;&#10;🏆 *{{ premio.nombre }}*&#10;🔢 Número ganador: *{{ premio.numero_ganador }}*&#10;💰 Valor: *${{ premio.valor|format_colombian }} COP*&#10;📅 {{ fecha }}{% if es_admin %}&#10;👤 Vendedor: {{ premio.vendedor.get_full_name|default:premio.vendedor.username|title }}{% endif %}">
+                <!-- WhatsApp outline -->
+                <svg class="icon-wa-outline" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/>
+                  <path d="M7.2 17.4L6 19l1.9-.6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M15.8 14.2l-.8 1.3c-.2.3-.6.4-1 .3c-1-.3-2.2-.9-3.2-1.9s-1.6-2.2-1.9-3.2c-.1-.4 0-.8.3-1l1.3-.8M10.5 9.1l1.6.9c.4.2.6.7.4 1.1l-.4.7c.7.4 1.3.7 2 .9l.7-.4c.4-.2.9 0 1.1.4l.9 1.6"
+                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
             </div>
 
           </li>
@@ -144,6 +163,15 @@
               </tr>
             {% endfor %}
           </tbody>
+
+          {# ===== Total en pie de tabla ===== #}
+          <tfoot>
+            <tr>
+              <th colspan="3" class="text-end">Total premios</th>
+              <th class="text-end">${{ total_premios|default:0|format_colombian }}</th>
+              {% if es_admin %}<th></th>{% endif %}
+            </tr>
+          </tfoot>
         </table>
       </div>
     </section>
@@ -157,52 +185,57 @@
 </main>
 
 <style>
+  :root { --wa: #22c55e; }
 
-  :root { --wa: #22c55e; }   /* puedes usar #25D366 si quieres el oficial */
+  /* ===== Píldoras resumen ===== */
+  .summary-pill{
+    display:inline-flex; align-items:center; gap:.35rem;
+    padding:.35rem .65rem; border-radius:999px; font-weight:600;
+    line-height:1; font-size: .98rem; white-space:nowrap;
+  }
+  .summary-green{
+    color:#0f5132; background:#d1e7dd; border:1px solid #badbcc;
+  }
+  .summary-amber{
+    color:#664d03; background:#fff3cd; border:1px solid #ffecb5;
+  }
 
-.btn-icon-outline{
-  width:44px; height:44px; padding:0;
-  display:inline-flex; align-items:center; justify-content:center;
-  border-radius:.75rem;
-  border:2px solid var(--wa);
-  color:var(--wa);
-  background:transparent;
-  line-height:1;
-}
-.btn-icon-outline:hover,
-.btn-icon-outline:focus{
-  background: color-mix(in srgb, var(--wa) 8%, transparent);
-  outline: none;
-}
-.btn-icon-outline:active{ transform: scale(.98); }
+  .btn-icon-outline{
+    width:44px; height:44px; padding:0;
+    display:inline-flex; align-items:center; justify-content:center;
+    border-radius:.75rem;
+    border:2px solid var(--wa);
+    color:var(--wa);
+    background:transparent;
+    line-height:1;
+  }
+  .btn-icon-outline:hover,
+  .btn-icon-outline:focus{
+    background: color-mix(in srgb, var(--wa) 8%, transparent);
+    outline: none;
+  }
+  .btn-icon-outline:active{ transform: scale(.98); }
 
-/* Ícono WhatsApp lineal: tamaño y nitidez */
-.icon-wa-outline{
-  width:22px; height:22px;
-  display:block;
-  filter: drop-shadow(0 0 .5px rgba(0,0,0,.15)); /* halo sutil para claridad */
-}
-
-  /* ===== Mobile-first tweaks globales ===== */
+  .icon-wa-outline{
+    width:22px; height:22px;
+    display:block;
+    filter: drop-shadow(0 0 .5px rgba(0,0,0,.15));
+  }
 
   .sticky-filter{ padding-top: max(.25rem, env(safe-area-inset-top)); }
-
-  /* Alineación exacta entre input y botón del filtro */
   .filter-group > .form-control, .filter-group > .btn { height: 40px; }
   .filter-group > .btn { line-height: 1; }
   input[type="date"], .btn { min-height: 0; }
 
-  /* Valores numéricos alineados y sin baile */
   .premio-valor, .valor-tabla, .monto, .currency {
     font-variant-numeric: tabular-nums;
     min-width: 7ch;
     text-align: right;
   }
 
-  /* ===== Tarjeta premio (móvil) ===== */
   .premio-item{
     display: grid;
-    grid-template-columns: 56px 1fr auto; /* logo | info | (valor+share) */
+    grid-template-columns: 56px 1fr auto;
     gap: .75rem;
     align-items: center;
     padding: .5rem .9rem .5rem .75rem;
@@ -217,7 +250,6 @@
   .premio-logo img{ border-radius:.5rem; aspect-ratio:1/1; object-fit:cover; display:block; }
   .premio-title{ margin:0; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
-  /* META ALINEADA */
   .premio-meta{
     display:flex; align-items:baseline; flex-wrap:wrap; gap:.5rem;
     line-height:1.15; color:var(--bs-secondary-color);
@@ -231,7 +263,6 @@
   .vendedor-label{ color:var(--bs-secondary-color); }
   .vendedor-nombre{ color:var(--bs-body-color); font-weight:600; display:inline-block; max-width:100%; overflow:hidden; text-overflow:ellipsis; }
 
-  /* Columna derecha: valor + botón compartir */
   .premio-right{ display:flex; flex-direction:column; align-items:flex-end; gap:.25rem; }
   .btn-icon{
     padding:.25rem; line-height:1; height:32px; width:32px;
@@ -240,10 +271,10 @@
 </style>
 
 <script>
-  // Auto-submit al cambiar la fecha (flujo rápido en móvil)
+  // Auto-submit al cambiar la fecha
   document.getElementById('fecha')?.addEventListener('change', e => e.target.form?.submit());
 
-  // Web Share API + fallback (WhatsApp / copiar) con mensaje estilizado
+  // Share con Web Share API + fallback a WhatsApp o copiar
   function sharePremio(texto){
     if (navigator.share) { navigator.share({ text: texto }).catch(()=>{}); return; }
     const wa = 'https://wa.me/?text=' + encodeURIComponent(texto);
@@ -255,7 +286,6 @@
     b.addEventListener('click', () => sharePremio(b.dataset.shareText))
   );
 
-  // Tooltip (si Bootstrap JS está cargado en base.html)
   if (window.bootstrap) {
     document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
   }
