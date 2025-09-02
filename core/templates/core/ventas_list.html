@@ -201,7 +201,7 @@
                 {% if venta.numero %}#{{ venta.numero }}{% else %}( {{ venta.combi }} ){% endif %}
             </div>
             {% if user.is_staff %}
-            <span class="badge border border-secondary text-secondary ms-2">
+            <span class="badge border border-secondary text-secondary ms-2" style="font-size: 1rem;">
                 ID: {{ venta.id }}
             </span>
             {% endif %}
