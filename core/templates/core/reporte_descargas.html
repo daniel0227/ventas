@@ -1,34 +1,55 @@
 {# core/templates/core/reporte_descargas.html #}
 {% extends "core/base.html" %}
-{% load static %}
 {% load format_filters %}
 
 {% block content %}
-<div class="container my-5">
-  <h4 class="text-center mb-4">Reporte de Descargas para {{ fecha }}</h4>
+<div class="container my-4 my-md-5">
+  <div class="d-flex flex-column flex-md-row align-items-md-end justify-content-between gap-2 mb-3">
+    <div>
+      <h4 class="mb-1">Reporte de Descargas</h4>
+      <p class="text-muted mb-0">Fecha consultada: <strong>{{ fecha }}</strong></p>
+    </div>
+    {% if report %}
+      <span class="badge text-bg-primary rounded-pill px-3 py-2">
+        {{ report|length }} registro{{ report|length|pluralize }}
+      </span>
+    {% endif %}
+  </div>
 
-  <!-- Filtro de fecha -->
   <form method="get" class="mb-4">
-    <div class="row align-items-end">
-      <div class="col-md-8">
+    <div class="row g-2 align-items-end">
+      <div class="col-md-6">
         <label for="fecha" class="form-label">Seleccionar fecha</label>
-        <input type="date" id="fecha" name="fecha" class="form-control" value="{{ fecha }}">
+        <input
+          type="date"
+          id="fecha"
+          name="fecha"
+          class="form-control"
+          value="{{ fecha }}"
+          max="{% now 'Y-m-d' %}"
+          required
+        >
       </div>
-      <div class="col-md-4 text-end">
+      <div class="col-md-6 d-flex flex-wrap justify-content-md-end gap-2">
+        <button type="button" id="btnHoy" class="btn btn-outline-secondary">Hoy</button>
+        <a href="{% url 'reporte_descargas' %}" class="btn btn-outline-dark">Limpiar</a>
         <button type="submit" class="btn btn-secondary">Filtrar</button>
       </div>
     </div>
   </form>
 
   {% if report %}
-    <div class="table-responsive">
-      <table class="table table-striped">
-        <thead>
+    <div class="table-responsive border rounded-3 shadow-sm">
+      <table class="table table-striped table-hover align-middle mb-0">
+        <caption class="px-3 py-2 text-muted">
+          Resumen de descargas agrupadas por lotería y número.
+        </caption>
+        <thead class="table-light reporte-sticky-head">
           <tr>
-            <th>Lotería</th>
-            <th>Número</th>
-            <th>Veces Apostado</th>
-            <th>Valor Total</th>
+            <th scope="col">Lotería</th>
+            <th scope="col">Número</th>
+            <th scope="col" class="text-end">Veces Apostado</th>
+            <th scope="col" class="text-end">Valor Total</th>
           </tr>
         </thead>
         <tbody>
@@ -36,18 +57,57 @@
           <tr>
             <td>{{ row.loterias__nombre }}</td>
             <td>{{ row.numero_clean }}</td>
-            <td>{{ row.veces_apostado }}</td>
-            <td>${{ row.total_ventas|format_colombian }} COP</td>
+            <td class="text-end reporte-num">{{ row.veces_apostado }}</td>
+            <td class="text-end reporte-num">${{ row.total_ventas|format_colombian }} COP</td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
   {% else %}
-    <div class="alert alert-info" role="alert">
-      No se encontraron ventas para la fecha {{ fecha }}.
+    <div class="alert alert-info d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2" role="alert">
+      <span>No se encontraron ventas para la fecha <strong>{{ fecha }}</strong>.</span>
+      <button type="button" id="btnHoyEmpty" class="btn btn-sm btn-outline-primary align-self-start align-self-md-auto">
+        Ir a hoy
+      </button>
     </div>
   {% endif %}
 </div>
-{% endblock %}
 
+<style>
+  .reporte-sticky-head th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+
+  .reporte-num {
+    font-variant-numeric: tabular-nums;
+  }
+</style>
+
+<script>
+  (function () {
+    const fechaInput = document.getElementById('fecha');
+    const btnHoy = document.getElementById('btnHoy');
+    const btnHoyEmpty = document.getElementById('btnHoyEmpty');
+
+    function goToToday() {
+      if (!fechaInput) return;
+      const today = new Date();
+      const y = today.getFullYear();
+      const m = String(today.getMonth() + 1).padStart(2, '0');
+      const d = String(today.getDate()).padStart(2, '0');
+      fechaInput.value = `${y}-${m}-${d}`;
+      fechaInput.form.submit();
+    }
+
+    if (btnHoy) {
+      btnHoy.addEventListener('click', goToToday);
+    }
+    if (btnHoyEmpty) {
+      btnHoyEmpty.addEventListener('click', goToToday);
+    }
+  })();
+</script>
+{% endblock %}
