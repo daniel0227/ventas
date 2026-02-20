@@ -1,215 +1,207 @@
-{% extends 'core/base.html' %}
+{% extends "core/base.html" %}
+{% load static %}
 
-{% block content %} 
+{% block content %}
+<section class="home-menu container py-4 py-md-5">
+  <header class="mb-4">
+    <h2 class="home-title mb-1">Panel Principal</h2>
+    <p class="home-subtitle mb-0">Accede rapidamente a las operaciones del sistema.</p>
+  </header>
 
-  {% load static %}
-  <head>
-    <meta charset="UTF-8" />
-    <title>Buhowl</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
-
-    <!-- Librerías CSS -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.1/css/bootstrap.min.css" />
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet" />
-    <!-- Librerías JS de Bootstrap -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.1/js/bootstrap.bundle.min.js"></script>
-    <style>
-      body {
-        background-color: #f1f2f6; /* Fondo general gris claro */
-      }
-
-      .menu-card {
-        border-radius: 12px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        transition: transform 0.3s, box-shadow 0.3s;
-        color: #2d3436; /* Texto oscuro para contraste */
-        width: 100%;
-        padding: 10px;
-      }
-
-      .menu-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 6px 10px rgba(0, 0, 0, 0.15);
-      }
-
-      .menu-card .card-body {
-        font-family: 'Roboto', sans-serif;
-        text-align: left;
-      }
-
-      .menu-card svg {
-        width: 30px; /* Reducido tamaño de íconos */
-        height: 30px;
-        margin-right: 10px;
-      }
-
-      .menu-container {
-        padding: 20px;
-      }
-
-      .menu-card.bg-1 {
-        background-color: #FFD3B5; /* Peach pastel */
-      }
-      
-      .menu-card.bg-2 {
-        background-color: #FEC8D8; /* Pink pastel */
-      }
-      
-      .menu-card.bg-3 {
-        background-color: #AFCBFF; /* Light baby blue */
-      }
-      
-      .menu-card.bg-4 {
-        background-color: #C7CEEA; /* Lavender pastel */
-      }
-      
-      .menu-card.bg-5 {
-        background-color: #B5EAD7; /* Mint pastel */
-      }
-      
-      .menu-card.bg-6 {
-        background-color: #FBEAD3; /* Cream pastel */
-      }
-      
-      .menu-card.bg-7 {
-        background-color: #E2F0CB; /* Lime pastel */
-      }
-      .menu-card.bg-8 {
-        background-color: #cbe4f0ff; /* Lime pastel */
-      }
-
-      /* Ajuste de tamaño del menú */
-      .menu-item {
-        display: flex;
-        align-items: center;
-        justify-content: flex-start;
-        padding: 12px;
-        width: 100%; /* Mantener el ancho completo, pero reducimos la proporción en el layout */
-      }
-
-      /* Mejoras en el estilo del encabezado de bienvenida */
-      .welcome-container {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding-bottom: 15px;
-        margin-bottom: 20px;
-      }
-
-      .welcome-container h4 {
-        margin: 0;
-      }
-
-      .welcome-container form {
-        display: flex;
-        gap: 10px;
-      }
-
-      .btn-custom {
-        background-color: #74b9ff;
-        color: white;
-        border: none;
-        padding: 8px 20px;
-        border-radius: 5px;
-        font-size: 16px;
-      }
-
-      .btn-custom:hover {
-        background-color: #3498db;
-        cursor: pointer;
-      }
-      
-    </style>
-  </head>
-    <!-- Menu Cards -->
-    <div class="row gy-4">
-      
-      <div class="col-md-3">
-        <a href="{% url 'ventas' %}" class="text-decoration-none">
-          <div class="card menu-card bg-1">
-            <div class="card-body menu-item">
-              <img src="{% static 'core/img/sales.png' %}" alt="Venta Directa Icon" style="width: 30px; height: 30px; margin-right: 10px;">
-              <h5 style="margin: 0px 0 0px 15px;">Venta Directa</h5>
-            </div>
-          </div>
-        </a>
-      </div>
-      <div class="col-md-3">
-        <a href="{% url 'loterias' %}" class="text-decoration-none">
-          <div class="card menu-card bg-2">
-            <div class="card-body menu-item">
-              <img src="{% static 'core/img/lottery.png' %}" alt="Loteria Icon" style="width: 30px; height: 30px; margin-right: 10px;">
-              <h5 style="margin: 0px 0 0px 15px;">Loterías</h5>
-            </div>
-          </div>
-        </a>
-      </div>
-      <div class="col-md-3">
-        <a href="{% url 'ventas_list' %}" class="text-decoration-none">
-          <div class="card menu-card bg-3">
-            <div class="card-body menu-item">
-              <img src="{% static 'core/img/report.png' %}" alt="report" style="width: 27px; margin-right: 10px;">
-              <h5 style="margin: 0px 0 0px 15px;">Reporte de ventas</h5>
-            </div>
-          </div>
-        </a>
-      </div>
-      <div class="col-md-3">
-        <a href="{% url 'premios' %}" class="text-decoration-none">
-          <div class="card menu-card bg-4">
-            <div class="card-body menu-item">
-              <img src="{% static 'core/img/dollar.png' %}" alt="report" style="width: 30px; margin-right: 10px;">
-              <h5 style="margin: 0px 0 0px 15px;">Premios</h5>
-            </div>
-          </div>
-        </a>
-      </div>
-      <div class="col-md-3">
-        <a href="{% url 'resultados' %}" class="text-decoration-none">
-          <div class="card menu-card bg-5">
-            <div class="card-body menu-item">
-              <img src="{% static 'core/img/results.png' %}" alt="Loteria Icon" style="width: 30px; height: 30px; margin-right: 10px;">
-              <h5 style="margin: 0px 0 0px 15px;">Resultados</h5>
-            </div>
-          </div>
-        </a>
-      </div>
-      {% if user.is_staff %}
-      <div class="col-md-3">
-        <a href="{% url 'registro_resultados' %}" class="text-decoration-none">
-          <div class="card menu-card bg-6">
-            <div class="card-body menu-item">
-              <img src="{% static 'core/img/register.png' %}" alt="Loteria Icon" style="width: 30px; height: 30px; margin-right: 10px;">
-              <h5 style="margin: 0px 0 0px 15px;">Registrar Resultados</h5>
-            </div>
-          </div>
-        </a>
-      </div>
-      {% endif %}
-    {% if user.is_staff %}
-    <div class="col-md-3">
-      <a href="{% url 'reporte_descargas' %}" class="text-decoration-none">
-        <div class="card menu-card bg-7">
+  <div class="row g-3 g-md-4">
+    <div class="col-12 col-sm-6 col-xl-3">
+      <a href="{% url 'ventas' %}" class="menu-link">
+        <article class="card menu-card menu-card-sales h-100">
           <div class="card-body menu-item">
-            <img src="{% static 'core/img/descargues.png' %}" alt="Loteria Icon" style="width: 30px; height: 30px; margin-right: 10px;">
-            <h5 style="margin: 0px 0 0px 15px;">Reporte Descargas</h5>
+            <img src="{% static 'core/img/sales.png' %}" alt="" class="menu-icon" aria-hidden="true">
+            <h3 class="menu-label">Venta Directa</h3>
           </div>
-        </div>
+        </article>
       </a>
     </div>
-    {% endif %}
-    {% if user.is_staff %}
-    <div class="col-md-3">
-      <a href="{% url 'reportes' %}" class="text-decoration-none">
-        <div class="card menu-card bg-8">
+
+    <div class="col-12 col-sm-6 col-xl-3">
+      <a href="{% url 'loterias' %}" class="menu-link">
+        <article class="card menu-card menu-card-lotteries h-100">
           <div class="card-body menu-item">
-            <img src="{% static 'core/img/sales.png' %}" alt="Loteria Icon" style="width: 30px; height: 30px; margin-right: 10px;">
-            <h5 style="margin: 0px 0 0px 15px;">Reportes Gerenciales</h5>
+            <img src="{% static 'core/img/lottery.png' %}" alt="" class="menu-icon" aria-hidden="true">
+            <h3 class="menu-label">Loterias</h3>
           </div>
-        </div>
+        </article>
       </a>
     </div>
-    {% endif %}
+
+    <div class="col-12 col-sm-6 col-xl-3">
+      <a href="{% url 'ventas_list' %}" class="menu-link">
+        <article class="card menu-card menu-card-sales-report h-100">
+          <div class="card-body menu-item">
+            <img src="{% static 'core/img/report.png' %}" alt="" class="menu-icon" aria-hidden="true">
+            <h3 class="menu-label">Reporte de Ventas</h3>
+          </div>
+        </article>
+      </a>
     </div>
+
+    <div class="col-12 col-sm-6 col-xl-3">
+      <a href="{% url 'premios' %}" class="menu-link">
+        <article class="card menu-card menu-card-prizes h-100">
+          <div class="card-body menu-item">
+            <img src="{% static 'core/img/dollar.png' %}" alt="" class="menu-icon" aria-hidden="true">
+            <h3 class="menu-label">Premios</h3>
+          </div>
+        </article>
+      </a>
+    </div>
+
+    <div class="col-12 col-sm-6 col-xl-3">
+      <a href="{% url 'resultados' %}" class="menu-link">
+        <article class="card menu-card menu-card-results h-100">
+          <div class="card-body menu-item">
+            <img src="{% static 'core/img/results.png' %}" alt="" class="menu-icon" aria-hidden="true">
+            <h3 class="menu-label">Resultados</h3>
+          </div>
+        </article>
+      </a>
+    </div>
+
+    {% if user.is_staff %}
+      <div class="col-12 col-sm-6 col-xl-3">
+        <a href="{% url 'registro_resultados' %}" class="menu-link">
+          <article class="card menu-card menu-card-register h-100">
+            <div class="card-body menu-item">
+              <img src="{% static 'core/img/register.png' %}" alt="" class="menu-icon" aria-hidden="true">
+              <h3 class="menu-label">Registrar Resultados</h3>
+            </div>
+          </article>
+        </a>
+      </div>
+
+      <div class="col-12 col-sm-6 col-xl-3">
+        <a href="{% url 'reporte_descargas' %}" class="menu-link">
+          <article class="card menu-card menu-card-downloads h-100">
+            <div class="card-body menu-item">
+              <img src="{% static 'core/img/descargues.png' %}" alt="" class="menu-icon" aria-hidden="true">
+              <h3 class="menu-label">Reporte Descargas</h3>
+            </div>
+          </article>
+        </a>
+      </div>
+
+      <div class="col-12 col-sm-6 col-xl-3">
+        <a href="{% url 'reportes' %}" class="menu-link">
+          <article class="card menu-card menu-card-management h-100">
+            <div class="card-body menu-item">
+              <img src="{% static 'core/img/sales.png' %}" alt="" class="menu-icon" aria-hidden="true">
+              <h3 class="menu-label">Reportes Gerenciales</h3>
+            </div>
+          </article>
+        </a>
+      </div>
+    {% endif %}
   </div>
+</section>
+
+<style>
+  .home-menu {
+    max-width: 1200px;
+  }
+
+  .home-title {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: #1f2937;
+  }
+
+  .home-subtitle {
+    color: #6b7280;
+  }
+
+  .menu-link {
+    display: block;
+    text-decoration: none;
+  }
+
+  .menu-card {
+    border: 0;
+    border-radius: 14px;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .menu-link:hover .menu-card,
+  .menu-link:focus-visible .menu-card {
+    transform: translateY(-3px);
+    box-shadow: 0 14px 26px rgba(15, 23, 42, 0.14);
+  }
+
+  .menu-link:focus-visible {
+    outline: none;
+  }
+
+  .menu-link:focus-visible .menu-card {
+    box-shadow:
+      0 0 0 3px rgba(2, 132, 199, 0.35),
+      0 14px 26px rgba(15, 23, 42, 0.14);
+  }
+
+  .menu-item {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    padding: 1rem 1.1rem;
+  }
+
+  .menu-icon {
+    width: 30px;
+    height: 30px;
+    flex: 0 0 auto;
+  }
+
+  .menu-label {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.3;
+    color: #1f2937;
+  }
+
+  .menu-card-sales { background-color: #ffe8d6; }
+  .menu-card-lotteries { background-color: #ffdce5; }
+  .menu-card-sales-report { background-color: #deebff; }
+  .menu-card-prizes { background-color: #e8e7ff; }
+  .menu-card-results { background-color: #dcfce7; }
+  .menu-card-register { background-color: #fef3c7; }
+  .menu-card-downloads { background-color: #e0f2fe; }
+  .menu-card-management { background-color: #dbeafe; }
+
+  @media (max-width: 575.98px) {
+    .home-menu {
+      padding-top: 1rem !important;
+      padding-bottom: 1rem !important;
+    }
+
+    .home-title {
+      font-size: 1.35rem;
+    }
+
+    .home-subtitle {
+      font-size: 0.92rem;
+    }
+
+    .menu-item {
+      gap: 0.2rem;
+      padding: 0.25rem 0.8rem;
+    }
+
+    .menu-icon {
+      width: 22px;
+      height: 22px;
+    }
+
+    .menu-label {
+      font-size: 0.92rem;
+      line-height: 1.15;
+    }
+  }
+</style>
 {% endblock %}
