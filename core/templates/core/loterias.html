@@ -1,45 +1,205 @@
 {% extends 'core/base.html' %}
-{% load static %} 
-
+{% load static %}
 
 {% block content %}
-<h3>Loterías para hoy ({{ dia_actual_nombre }} - {{ fecha_actual|date:"j \\d\\e F \\d\\e Y" }})</h3>
-<p>Hora actual: {{ current_time }}</p>
+<section class="lotteries-report container-fluid px-0">
+    <header class="report-header mb-3 mb-md-4">
+        <h3 class="report-title mb-1">Loterias de hoy</h3>
+        <p class="report-meta mb-0">
+            {{ dia_actual_nombre }} - {{ fecha_actual|date:"j \\d\\e F \\d\\e Y" }} | Hora actual: {{ current_time }}
+        </p>
+    </header>
 
-    <div class="table-responsive">
-        <table class="table table-striped table-bordered">
+    <div class="d-md-none">
+        <div class="vstack gap-2">
+            {% for loteria in loterias %}
+                <article class="lottery-card {% if loteria.hora_fin < current_time %}lottery-card-closed{% endif %}">
+                    <img src="{{ loteria.imagen.url }}" alt="{{ loteria.nombre }}" class="lottery-thumb">
+                    <div class="lottery-content">
+                        <h4 class="lottery-name mb-1">{{ loteria.nombre }}</h4>
+                        <p class="lottery-time mb-1">
+                            <span>Inicio {{ loteria.hora_inicio }}</span>
+                            <span>Fin {{ loteria.hora_fin }}</span>
+                        </p>
+                        <p class="mb-0">
+                            {% if loteria.hora_fin < current_time %}
+                                <span class="status-chip status-chip-muted">Hora de juego pasada</span>
+                            {% else %}
+                                <span class="status-chip status-chip-ok">Disponible</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                </article>
+            {% empty %}
+                <div class="empty-state">
+                    No hay loterias disponibles para hoy.
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="table-responsive d-none d-md-block">
+        <table class="table table-striped table-bordered report-table align-middle">
             <thead>
                 <tr>
                     <th>Imagen</th>
                     <th>Nombre</th>
-                    <th>Hora de inicio</th>
-                    <th>Hora de fin</th>
+                    <th>Inicio</th>
+                    <th>Fin</th>
                     <th>Estado</th>
                 </tr>
             </thead>
             <tbody>
                 {% for loteria in loterias %}
-                    <tr class="{% if loteria.hora_fin < current_time %}readonly{% endif %}">
+                    <tr class="{% if loteria.hora_fin < current_time %}table-secondary{% endif %}">
                         <td>
-                            <img src="{{ loteria.imagen.url }}" alt="{{ loteria.nombre }}" class="img-thumbnail" style="width: 80px; height: auto;">
+                            <img src="{{ loteria.imagen.url }}" alt="{{ loteria.nombre }}" class="img-thumbnail report-thumb">
                         </td>
                         <td>{{ loteria.nombre }}</td>
                         <td>{{ loteria.hora_inicio }}</td>
                         <td>{{ loteria.hora_fin }}</td>
                         <td>
                             {% if loteria.hora_fin < current_time %}
-                                <span class="text-muted">Hora de juego pasada</span>
+                                <span class="status-chip status-chip-muted">Hora de juego pasada</span>
                             {% else %}
-                                <span class="text-success">Disponible</span>
+                                <span class="status-chip status-chip-ok">Disponible</span>
                             {% endif %}
                         </td>
                     </tr>
                 {% empty %}
                     <tr>
-                        <td colspan="5" class="text-center">No hay loterías disponibles para hoy.</td>
+                        <td colspan="5" class="text-center py-4">No hay loterias disponibles para hoy.</td>
                     </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
+</section>
+
+<style>
+    .lotteries-report {
+        max-width: 1080px;
+    }
+
+    .report-title {
+        margin: 0;
+        font-size: 1.45rem;
+        font-weight: 700;
+        color: #0f172a;
+    }
+
+    .report-meta {
+        font-size: 0.92rem;
+        color: #64748b;
+    }
+
+    .lottery-card {
+        display: flex;
+        gap: 0.7rem;
+        align-items: center;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 0.58rem;
+    }
+
+    .lottery-card-closed {
+        background: #f8fafc;
+    }
+
+    .lottery-thumb {
+        width: 58px;
+        height: 58px;
+        object-fit: cover;
+        border-radius: 10px;
+        border: 1px solid #e2e8f0;
+        flex: 0 0 auto;
+    }
+
+    .lottery-content {
+        min-width: 0;
+    }
+
+    .lottery-name {
+        font-size: 0.97rem;
+        font-weight: 700;
+        color: #0f172a;
+        line-height: 1.25;
+    }
+
+    .lottery-time {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        font-size: 0.82rem;
+        color: #475569;
+    }
+
+    .status-chip {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 0.18rem 0.55rem;
+        font-size: 0.76rem;
+        font-weight: 600;
+    }
+
+    .status-chip-ok {
+        background: #dcfce7;
+        color: #166534;
+    }
+
+    .status-chip-muted {
+        background: #e2e8f0;
+        color: #334155;
+    }
+
+    .report-table th {
+        font-size: 0.85rem;
+        color: #334155;
+    }
+
+    .report-table td {
+        font-size: 0.9rem;
+    }
+
+    .report-thumb {
+        width: 72px;
+        border-radius: 8px;
+    }
+
+    .empty-state {
+        border: 1px dashed #cbd5e1;
+        border-radius: 12px;
+        background: #ffffff;
+        color: #64748b;
+        text-align: center;
+        padding: 1rem;
+        font-size: 0.9rem;
+    }
+
+    @media (max-width: 575.98px) {
+        .report-title {
+            font-size: 1.2rem;
+        }
+
+        .report-meta {
+            font-size: 0.84rem;
+        }
+
+        .lottery-card {
+            padding: 0.5rem;
+            gap: 0.62rem;
+        }
+
+        .lottery-thumb {
+            width: 52px;
+            height: 52px;
+        }
+
+        .lottery-name {
+            font-size: 0.92rem;
+        }
+    }
+</style>
 {% endblock %}
