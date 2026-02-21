@@ -4,7 +4,11 @@
 
 {% block content %}
 
-  <h3 class="text-center mb-4">Registrar Ventas</h3>
+  <section class="ventas-shell">
+    <header class="ventas-header text-center mb-3 mb-md-4">
+      <h3 class="ventas-title mb-1">Registrar Ventas</h3>
+      <p class="ventas-subtitle mb-0">Crea jugadas de forma rapida y clara.</p>
+    </header>
   
   <!-- Toast Container (Mensaje de éxito) -->
   <div aria-live="polite" aria-atomic="true" class="position-fixed top-0 end-0 p-3" style="z-index: 1080;">
@@ -18,59 +22,69 @@
     </div>
   </div>
   
-  <form id="ventas-form" method="post" class="needs-validation" novalidate>
+  <form id="ventas-form" method="post" class="needs-validation ventas-form" novalidate>
     {% csrf_token %}
   
     <!-- Selección de Loterías -->
     {% if loterias %}
+      <section class="ventas-card mb-3">
+      <div class="section-head">
+        <h4 class="section-title mb-0">Loterias</h4>
+      </div>
       <div class="dropdown">
         <button class="btn btn-secondary dropdown-toggle w-100" type="button" 
                 id="lotteryDropdown" data-bs-toggle="dropdown" aria-expanded="false" data-bs-auto-close="outside">
           Seleccionar Loterías ({{ loterias_seleccionadas.count }})
         </button>
-        <div class="dropdown-menu p-3"
+        <div class="dropdown-menu p-2 lottery-menu"
      aria-labelledby="lotteryDropdown"
-     style="width: 100%; max-height: 300px; overflow-y: auto;"
      id="lotteriesContainer">
   {% for loteria in loterias %}
-    <div class="form-check dropdown-item"
+    <div class="dropdown-item lottery-option"
          data-fin="{{ loteria.hora_fin|time:'H:i' }}">
-      <input class="form-check-input"
+      <input class="lottery-option-input"
              type="checkbox"
              name="loterias"
              value="{{ loteria.id }}"
              id="loteria-{{ loteria.id }}"
+             data-name="{{ loteria.nombre }}"
+             data-close="{{ loteria.hora_fin|time:'H:i' }}"
              {% if not loteria.disponible %} disabled {% endif %}>
-             <label class="form-check-label w-100 d-flex justify-content-between align-items-center"
+             <label class="lottery-option-label"
              for="loteria-{{ loteria.id }}">
-        <span style="width: 80%">
-          {{ loteria.nombre }}
-          <span class="text-muted small ms-2">
-            (cierra {{ loteria.hora_fin|time:"H:i" }})
-          </span>
-        </span>
-        {% if loteria.disponible %}
-          <span style="width: 21%" class="badge bg-success"></span>
-        {% else %}
-          <span style="width: 21%" class="badge bg-secondary">No Disponible</span>
-        {% endif %}
+              <span class="lottery-item-main">
+                <span class="lottery-item-name">{{ loteria.nombre }}</span>
+                <span class="lottery-item-meta">
+                  <i class="bi bi-clock"></i>
+                  Cierra {{ loteria.hora_fin|time:"H:i" }}
+                </span>
+              </span>
+              {% if loteria.disponible %}
+                <span class="lottery-item-state badge bg-success">Disponible</span>
+              {% else %}
+                <span class="lottery-item-state badge bg-secondary">Cerrada</span>
+              {% endif %}
       </label>
       
     </div>
   {% endfor %}
 </div>
       </div>
-      <div id="selected-lotteries" class="mt-3">
+      <div id="selected-lotteries" class="mt-3 selected-lotteries-wrap">
         <!-- Aquí se mostrarán las loterías seleccionadas -->
       </div>
+      </section>
     {% else %}
       <p class="text-danger">No hay loterías disponibles para el día y hora actuales.</p>
     {% endif %}
   
     <!-- Detalles de la Venta -->
-    <h4 class="mb-3">Detalles de la Venta:</h4>
+    <section class="ventas-card">
+    <div class="section-head">
+      <h4 class="section-title mb-0">Detalles de la Venta</h4>
+    </div>
     <div class="table-responsive">
-      <table id="dynamic-table" class="table table-bordered table-striped">
+      <table id="dynamic-table" class="table table-bordered table-striped ventas-table">
         <thead class="table-dark">
           <tr>
             <th style="text-align: center;">Número</th>
@@ -95,22 +109,32 @@
           {% endfor %}
         </tbody>
       </table>
-      <div class="d-flex justify-content-between mt-4">
-        <button type="button" id="add-row" class="btn btn-success">
+      <div class="d-flex justify-content-between mt-3 ventas-actions">
+        <button type="button" id="add-row" class="btn btn-success btn-add-row">
           <i class="bi bi-plus-circle"></i> Agregar Fila
         </button>
-        <button type="submit" class="btn btn-primary">
+        <button type="submit" class="btn btn-primary btn-save d-none d-md-inline-flex">
           <i class="bi bi-save"></i> Guardar
         </button>
       </div>
     </div>
+    </section>
   
     <!-- Total Dinámico -->
-    <div class="mt-4">
-      <h5 class="text-end">
+    <div class="mt-3 mt-md-4 total-wrap d-none d-md-block">
+      <h5 class="text-end total-inline">
         Total: 
         <input type="text" id="total-monto" class="form-control d-inline-block w-auto text-end" value="0" readonly>
       </h5>
+    </div>
+    <div class="mobile-submit-bar d-md-none">
+      <div class="mobile-total-block">
+        <span class="mobile-total-label">Total</span>
+        <span id="mobile-total-monto" class="mobile-total-value">$0</span>
+      </div>
+      <button type="submit" class="btn btn-primary mobile-save-btn">
+        <i class="bi bi-save me-1"></i> Guardar
+      </button>
     </div>
 <!-- Overlay de procesamiento (solo DISPLAY: none al cargar) -->
 <div id="processingOverlay" style="
@@ -151,6 +175,7 @@
   📤 Compartir por WhatsApp
 </a>
   </form>
+  </section>
   
   <!-- Modal de Detalle de la Venta -->
   <div class="modal fade" id="saleDetailModal" tabindex="-1" aria-labelledby="saleDetailModalLabel" aria-hidden="true">
@@ -218,68 +243,391 @@
       </div>
     </div>
   </div>
-  
+
   <style>
+    :root {
+      --ventas-bg: #f8fafc;
+      --ventas-surface: #ffffff;
+      --ventas-border: #e2e8f0;
+      --ventas-text: #0f172a;
+      --ventas-muted: #64748b;
+      --ventas-primary: #0ea5e9;
+    }
 
-    .btn-whatsapp-central {
-  position: fixed;
-  bottom: 30px;
-  left: 50%;
-  transform: translateX(-50%);
-  background-color: #25D366;
-  color: white;
-  font-weight: bold;
-  border-radius: 40px;
-  padding: 18px 30px;
-  font-size: 20px;
-  z-index: 3000;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-  text-align: center;
-  text-decoration: none;
-  transition: transform 0.2s ease-in-out;
-}
+    .ventas-shell {
+      max-width: 1040px;
+      margin: 0 auto;
+    }
 
-.btn-whatsapp-central:hover {
-  transform: translateX(-50%) scale(1.05);
-}
-    .dropdown-menu .form-check-input:disabled + label {
+    .ventas-title {
+      color: var(--ventas-text);
+      font-weight: 700;
+      font-size: 1.45rem;
+    }
+
+    .ventas-subtitle {
+      color: var(--ventas-muted);
+      font-size: 0.93rem;
+    }
+
+    .ventas-card {
+      background: var(--ventas-surface);
+      border: 1px solid var(--ventas-border);
+      border-radius: 14px;
+      box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
+      padding: 0.9rem;
+      margin-bottom: 0.9rem;
+    }
+
+    .section-head {
+      margin-bottom: 0.7rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .section-title {
+      color: var(--ventas-text);
+      font-size: 1rem;
+      font-weight: 700;
+    }
+
+    #lotteryDropdown {
+      background: #f1f5f9;
+      color: #0f172a;
+      border: 1px solid #cbd5e1;
+      font-weight: 600;
+      border-radius: 10px;
+      padding: 0.62rem 0.8rem;
+    }
+
+    #lotteriesContainer {
+      width: 100%;
+      max-height: 320px;
+      overflow-y: auto;
+      border-radius: 10px;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+    }
+
+    .dropdown-menu .dropdown-item {
+      padding: 0.45rem 0.55rem;
+      white-space: normal;
+      border-radius: 10px;
+      margin-bottom: 0.28rem;
+      background: #fff;
+      border: 1px solid #edf2f7;
+    }
+
+    .dropdown-menu .dropdown-item:hover {
+      background: #f8fafc;
+      border-color: #e2e8f0;
+    }
+
+    .lottery-menu {
+      width: 100%;
+      max-height: 300px;
+      overflow-y: auto;
+      padding: 0.35rem !important;
+      border-radius: 12px;
+    }
+
+    /* Override global theme rule: .dropdown-menu span { width: 30px; } */
+    #lotteriesContainer span {
+      width: auto;
+    }
+
+    #lotteriesContainer .lottery-item-main {
+      width: 100%;
+    }
+
+    .lottery-option {
+      margin: 0 0 0.35rem 0;
+      display: grid !important;
+      grid-template-columns: 1.1rem minmax(0, 1fr);
+      align-items: start;
+      gap: 0.58rem;
+      padding: 0.56rem 0.6rem;
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+      background: #fff;
+      white-space: normal;
+      transition: border-color 0.15s ease, background-color 0.15s ease;
+    }
+
+    .lottery-option:last-child {
+      margin-bottom: 0;
+    }
+
+    .lottery-option:hover {
+      background: #f8fafc;
+      border-color: #cbd5e1;
+    }
+
+    .lottery-option-input {
+      width: 1.05rem;
+      height: 1.05rem;
+      margin: 0.12rem 0 0;
+      accent-color: #0ea5e9;
+      cursor: pointer;
+    }
+
+    .lottery-option-label {
+      width: 100%;
+      margin: 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 0.5rem;
+      line-height: 1.2;
+      cursor: pointer;
+      min-width: 0;
+    }
+
+    .lottery-item-main {
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+      flex: 1 1 auto;
+      justify-self: stretch;
+    }
+
+    .lottery-item-name {
+      color: #0f172a;
+      font-weight: 700;
+      font-size: 0.95rem;
+      line-height: 1.15;
+      word-break: normal;
+      overflow-wrap: break-word;
+    }
+
+    .lottery-item-meta {
+      color: #64748b;
+      font-size: 0.78rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+
+    .lottery-item-state {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 22px;
+      border-radius: 999px;
+      font-size: 0.69rem;
+      font-weight: 700;
+      padding: 0.16rem 0.52rem;
+      white-space: nowrap;
+    }
+
+    .lottery-option-input:checked + .lottery-option-label {
+      background: #eff6ff;
+      border-radius: 10px;
+      padding: 0.22rem 0.3rem 0.22rem 0.22rem;
+      margin: -0.22rem -0.3rem -0.22rem -0.22rem;
+    }
+
+    .lottery-option-input:disabled {
+      cursor: not-allowed;
+      opacity: 0.65;
+    }
+
+    .lottery-option-input:disabled + .lottery-option-label {
       cursor: not-allowed;
       opacity: 0.6;
     }
-    .dropdown-menu .dropdown-item {
-      padding: 0.5rem 1rem;
-      white-space: normal;
-    }
-    .dropdown-menu .form-check-label {
-      cursor: pointer;
-    }
-    #selected-lotteries .badge {
-      font-size: 0.8em;
-      margin-left: 0.5rem;
-    }
+
     .dropdown-toggle::after {
       vertical-align: middle;
     }
-  
+
+    .selected-lotteries-wrap h6 {
+      color: var(--ventas-muted);
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      margin-bottom: 0.45rem;
+    }
+
     .badge-lottery {
-      background-color: #B5EAD7;
-      color: #333;
-      border-radius: 13px;
-      padding: 6px 12px;
-      font-size: 0.9rem;
+      background: #dcfce7;
+      color: #14532d;
+      border-radius: 999px;
+      padding: 0.26rem 0.6rem;
+      font-size: 0.8rem;
       display: inline-flex;
       align-items: center;
+      gap: 0.35rem;
+      border: 1px solid #bbf7d0;
+      margin-bottom: 0.35rem;
     }
     
     .badge-lottery .remove-lottery-icon {
-      margin-left: 8px;
       cursor: pointer;
-      color: #d90202;
+      color: #b91c1c;
     }
-    .closing-time {
-      color: #6c757d;    /* gris Bootstrap, o cámbialo por #888888, por ejemplo */
-      opacity: 0.7;      /* baja un poco la opacidad */
-      font-size: 0.875rem;
+
+    .ventas-table thead th {
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .ventas-table td {
+      vertical-align: middle;
+    }
+
+    .ventas-table input.form-control {
+      min-height: 38px;
+      border-radius: 8px;
+      border-color: #dbe2ea;
+    }
+
+    .btn-add-row,
+    .btn-save {
+      border-radius: 10px;
+      font-weight: 600;
+      padding: 0.55rem 0.95rem;
+    }
+
+    .total-inline {
+      color: var(--ventas-text);
+      font-weight: 700;
+      font-size: 1rem;
+      margin-bottom: 0;
+    }
+
+    #total-monto {
+      border-radius: 9px;
+      border-color: #cbd5e1;
+      font-weight: 700;
+      color: #0f172a;
+      font-size: 0.96rem;
+    }
+
+    .mobile-submit-bar {
+      position: sticky;
+      bottom: 10px;
+      z-index: 1030;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.55rem;
+      padding: 0.55rem 0.65rem;
+      border: 1px solid #dbeafe;
+      background: rgba(255, 255, 255, 0.96);
+      border-radius: 12px;
+      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.14);
+      backdrop-filter: blur(5px);
+      margin-top: 0.75rem;
+    }
+
+    .mobile-total-block {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.1;
+    }
+
+    .mobile-total-label {
+      font-size: 0.74rem;
+      color: var(--ventas-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .mobile-total-value {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .mobile-save-btn {
+      border-radius: 10px;
+      font-weight: 700;
+      padding: 0.5rem 0.82rem;
+      white-space: nowrap;
+    }
+
+    .btn-whatsapp-central {
+      position: fixed;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: #25D366;
+      color: white;
+      font-weight: 700;
+      border-radius: 999px;
+      padding: 12px 20px;
+      font-size: 16px;
+      z-index: 3000;
+      box-shadow: 0 8px 18px rgba(0, 0, 0, 0.25);
+      text-align: center;
+      text-decoration: none;
+      transition: transform 0.2s ease-in-out;
+    }
+
+    .btn-whatsapp-central:hover {
+      transform: translateX(-50%) scale(1.04);
+    }
+
+    @media (min-width: 768px) {
+      .ventas-card {
+        padding: 1rem 1.1rem;
+      }
+
+      .mobile-submit-bar {
+        display: none !important;
+      }
+    }
+
+    @media (max-width: 575.98px) {
+      .ventas-title {
+        font-size: 1.2rem;
+      }
+
+      .ventas-subtitle {
+        font-size: 0.84rem;
+      }
+
+      .ventas-card {
+        padding: 0.7rem;
+        border-radius: 12px;
+      }
+
+      .ventas-table thead th {
+        font-size: 0.72rem;
+      }
+
+      .ventas-actions {
+        margin-bottom: 0.2rem;
+      }
+
+      .lottery-option-input {
+        width: 1rem;
+        height: 1rem;
+        margin-top: 0.14rem;
+      }
+
+      .lottery-option-label {
+        gap: 0.44rem;
+      }
+
+      .lottery-item-name {
+        font-size: 0.92rem;
+      }
+
+      .lottery-item-meta {
+        font-size: 0.74rem;
+      }
+
+      .lottery-item-state {
+        font-size: 0.66rem;
+        padding: 0.16rem 0.42rem;
+      }
     }
   </style>
   
@@ -345,6 +693,14 @@
           currency: 'COP',
           minimumFractionDigits: 0
         });
+        const mobileTotal = document.getElementById('mobile-total-monto');
+        if (mobileTotal) {
+          mobileTotal.textContent = total.toLocaleString('es-CO', {
+            style: 'currency',
+            currency: 'COP',
+            minimumFractionDigits: 0
+          });
+        }
       }
   
       // Función para actualizar la visualización de loterías seleccionadas
@@ -357,11 +713,11 @@
         container.innerHTML = selected.length > 0 ? '<h6 class="mb-2">Loterías seleccionadas:</h6>' : '';
       
         selected.forEach(function(loteria) {
-          const labelText = loteria.parentNode.querySelector('label').textContent.trim();
+          const lotteryName = loteria.dataset.name || loteria.parentNode.querySelector('label').textContent.trim();
           container.innerHTML += `
-            <span class="badge-lottery me-1 mb-1">
-              ${labelText}
-              <i class="bi bi-x-circle remove-lottery-icon"></i>
+            <span class="badge-lottery me-1 mb-1" data-loteria-id="${loteria.value}">
+              ${lotteryName}
+              <i class="bi bi-x-circle remove-lottery-icon" role="button" aria-label="Quitar loteria"></i>
             </span>
           `;
         });
@@ -593,3 +949,7 @@ setTimeout(() => window.location.reload(), 2000);
   </script>
   
 {% endblock %}
+
+
+
+
