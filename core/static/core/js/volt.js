@@ -19,13 +19,13 @@
 const d = document;
 d.addEventListener("DOMContentLoaded", function(event) {
 
-    const swalWithBootstrapButtons = Swal.mixin({
+    const swalWithBootstrapButtons = window.Swal ? window.Swal.mixin({
         customClass: {
             confirmButton: 'btn btn-primary me-3',
             cancelButton: 'btn btn-gray'
         },
         buttonsStyling: false
-    });
+    }) : null;
 
     var themeSettingsEl = document.getElementById('theme-settings');
     var themeSettingsExpandEl = document.getElementById('theme-settings-expand');

@@ -10,12 +10,12 @@
       <p class="ventas-subtitle mb-0">Crea jugadas de forma rapida y clara.</p>
     </header>
   
-  <!-- Toast Container (Mensaje de éxito) -->
+  <!-- Toast Container (Mensaje de exito) -->
   <div aria-live="polite" aria-atomic="true" class="position-fixed top-0 end-0 p-3" style="z-index: 1080;">
     <div id="toastSuccess" class="toast align-items-center text-white bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
       <div class="d-flex">
         <div class="toast-body">
-          ¡La venta se guardó correctamente!
+          La venta se guardo correctamente.
         </div>
         <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
       </div>
@@ -24,6 +24,7 @@
   
   <form id="ventas-form" method="post" class="needs-validation ventas-form" novalidate>
     {% csrf_token %}
+    <div id="ventasFeedback" class="alert d-none ventas-feedback" role="alert"></div>
   
     <!-- Selección de Loterías -->
     {% if loterias %}
@@ -34,14 +35,29 @@
       <div class="dropdown">
         <button class="btn btn-secondary dropdown-toggle w-100" type="button" 
                 id="lotteryDropdown" data-bs-toggle="dropdown" aria-expanded="false" data-bs-auto-close="outside">
-          Seleccionar Loterías ({{ loterias_seleccionadas.count }})
+          Seleccionar Loterias ({{ loterias_seleccionadas.count }})
         </button>
         <div class="dropdown-menu p-2 lottery-menu"
      aria-labelledby="lotteryDropdown"
      id="lotteriesContainer">
+  <div class="lottery-controls">
+    <div class="lottery-search-wrap">
+      <i class="bi bi-search"></i>
+      <input type="search" id="lotterySearch" class="form-control form-control-sm" placeholder="Buscar loteria...">
+    </div>
+    <div class="lottery-filter-group" role="group" aria-label="Filtrar loterias">
+      <button type="button" class="btn btn-filter active" data-filter="all">Todas</button>
+      <button type="button" class="btn btn-filter" data-filter="open">Disponibles</button>
+      <button type="button" class="btn btn-filter" data-filter="closed">Cerradas</button>
+    </div>
+  </div>
+  <div id="lotteryEmptyState" class="lottery-empty-state d-none">
+    No hay loterias que coincidan con la busqueda.
+  </div>
   {% for loteria in loterias %}
     <div class="dropdown-item lottery-option"
-         data-fin="{{ loteria.hora_fin|time:'H:i' }}">
+         data-fin="{{ loteria.hora_fin|time:'H:i' }}"
+         data-available="{% if loteria.disponible %}1{% else %}0{% endif %}">
       <input class="lottery-option-input"
              type="checkbox"
              name="loterias"
@@ -75,7 +91,7 @@
       </div>
       </section>
     {% else %}
-      <p class="text-danger">No hay loterías disponibles para el día y hora actuales.</p>
+      <p class="text-danger">No hay loterias disponibles para el dia y hora actuales.</p>
     {% endif %}
   
     <!-- Detalles de la Venta -->
@@ -97,11 +113,11 @@
           {# Se generan 5 filas por defecto #}
           {% for i in "12345"|make_list %}
             <tr>
-              <td><input type="number" name="numero" class="form-control"></td>
-              <td><input type="number" name="combi" class="form-control combi"></td>
-              <td><input type="number" name="monto" class="form-control monto"></td>
-              <td>
-                <button type="button" class="btn btn-danger btn-sm remove-row">
+              <td data-label="Numero"><input type="number" name="numero" class="form-control" inputmode="numeric" min="0" step="1"></td>
+              <td data-label="Combi"><input type="number" name="combi" class="form-control combi" inputmode="numeric" min="0" step="1"></td>
+              <td data-label="Monto"><input type="number" name="monto" class="form-control monto" inputmode="decimal" min="0" step="any"></td>
+              <td class="cell-remove" data-label="Accion">
+                <button type="button" class="btn btn-danger btn-sm remove-row remove-row-btn" title="Eliminar fila">
                   <i class="bi bi-trash"></i>
                 </button>
               </td>
@@ -110,9 +126,11 @@
         </tbody>
       </table>
       <div class="d-flex justify-content-between mt-3 ventas-actions">
-        <button type="button" id="add-row" class="btn btn-success btn-add-row">
-          <i class="bi bi-plus-circle"></i> Agregar Fila
-        </button>
+        <div class="d-flex gap-2">
+          <button type="button" id="add-row" class="btn btn-success btn-add-row">
+            <i class="bi bi-plus-circle"></i> Agregar Fila
+          </button>
+        </div>
         <button type="submit" class="btn btn-primary btn-save d-none d-md-inline-flex">
           <i class="bi bi-save"></i> Guardar
         </button>
@@ -127,52 +145,46 @@
         <input type="text" id="total-monto" class="form-control d-inline-block w-auto text-end" value="0" readonly>
       </h5>
     </div>
-    <div class="mobile-submit-bar d-md-none">
+    <div class="mobile-inline-action-row">
+      <div class="mobile-subtotal-inline">
+        <span class="mobile-subtotal-label">Subtotal</span>
+        <span id="mobile-subtotal-inline" class="mobile-subtotal-value">$0</span>
+      </div>
+      <button type="submit" class="btn btn-primary mobile-inline-save-btn">
+        <i class="bi bi-save me-1"></i> Guardar
+      </button>
+    </div>
+    <div id="mobile-summary-inline" class="mobile-summary-counts mobile-summary-inline">0 loterias - 0 jugadas</div>
+    <div id="mobileSaveBar" class="mobile-submit-bar d-md-none">
       <div class="mobile-total-block">
         <span class="mobile-total-label">Total</span>
         <span id="mobile-total-monto" class="mobile-total-value">$0</span>
+        <span id="mobile-summary-counts" class="mobile-summary-counts">0 loterias - 0 jugadas</span>
       </div>
       <button type="submit" class="btn btn-primary mobile-save-btn">
         <i class="bi bi-save me-1"></i> Guardar
       </button>
     </div>
-<!-- Overlay de procesamiento (solo DISPLAY: none al cargar) -->
-<div id="processingOverlay" style="
-    display: none;               /* oculto al inicio */
-    position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(255,255,255,0.9);
-    z-index: 2000;
-    /* las siguientes no declaran DISPLAY */
-    justify-content: center;
-    align-items: center;
-    flex-direction: column;
-    gap: 1rem;
-">
+<!-- Overlay de procesamiento -->
+<div id="processingOverlay" class="processing-overlay">
   <!-- Loader -->
-  <div id="loaderContainer" style="display: flex; flex-direction: column; align-items: center; z-index: 2001;">
-    <img src="{% static 'core/img/loader.gif' %}" alt="Cargando…" style="width: 80px; height: 80px;">
-    <div style="font-size: 1.1rem;">Realizando apuesta…</div>
+  <div id="loaderContainer" class="overlay-loader">
+    <img src="{% static 'core/img/loader.gif' %}" alt="Cargando..." class="overlay-loader-img">
+    <div class="overlay-loader-text">Realizando apuesta...</div>
   </div>
-  <!-- Mensaje de éxito -->
-  <div id="successContainer" style="
-      display: none;
-      flex-direction: column;
-      align-items: center;
-      color: #28a745;
-      z-index: 2001;               /* por si acaso */
-  ">
-    <i class="bi bi-check-circle-fill" style="font-size: 3rem;"></i>
-    <div style="font-size: 1.2rem; font-weight: bold;">
-      ¡Apuesta realizada con éxito!
+  <!-- Mensaje de exito -->
+  <div id="successContainer" class="overlay-success">
+    <i class="bi bi-check-circle-fill overlay-success-icon"></i>
+    <div class="overlay-success-text">
+      Apuesta realizada con exito.
     </div>
   </div>
 </div>
-<!-- Botón flotante de WhatsApp -->
+<!-- Boton flotante de WhatsApp -->
 <a id="btnCompartirWhatsApp"
    class="btn-whatsapp-central d-none"
    target="_blank">
-  📤 Compartir por WhatsApp
+  Compartir por WhatsApp
 </a>
   </form>
   </section>
@@ -279,6 +291,14 @@
       margin-bottom: 0.9rem;
     }
 
+    .ventas-feedback {
+      border-radius: 12px;
+      border: 1px solid transparent;
+      padding: 0.55rem 0.75rem;
+      margin-bottom: 0.75rem;
+      font-size: 0.9rem;
+    }
+
     .section-head {
       margin-bottom: 0.7rem;
       display: flex;
@@ -332,6 +352,60 @@
       border-radius: 12px;
     }
 
+    .lottery-controls {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: #ffffff;
+      padding: 0.2rem 0.1rem 0.45rem;
+      margin-bottom: 0.3rem;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .lottery-search-wrap {
+      position: relative;
+      margin-bottom: 0.35rem;
+    }
+
+    .lottery-search-wrap i {
+      position: absolute;
+      left: 0.55rem;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 0.8rem;
+      color: #64748b;
+      pointer-events: none;
+    }
+
+    #lotterySearch {
+      border-radius: 9px;
+      border-color: #d2dbe6;
+      padding-left: 1.7rem;
+      min-height: 34px;
+    }
+
+    .lottery-filter-group {
+      display: flex;
+      gap: 0.25rem;
+      flex-wrap: wrap;
+    }
+
+    .btn-filter {
+      border: 1px solid #dbe2ea;
+      background: #f8fafc;
+      color: #334155;
+      font-size: 0.73rem;
+      border-radius: 999px;
+      padding: 0.2rem 0.56rem;
+      line-height: 1.2;
+    }
+
+    .btn-filter.active {
+      background: #e0f2fe;
+      color: #075985;
+      border-color: #bae6fd;
+    }
+
     /* Override global theme rule: .dropdown-menu span { width: 30px; } */
     #lotteriesContainer span {
       width: auto;
@@ -341,11 +415,28 @@
       width: 100%;
     }
 
+    #lotteriesContainer .lottery-option,
+    #lotteriesContainer .lottery-option-label,
+    #lotteriesContainer .lottery-item-main {
+      width: 100% !important;
+    }
+
+    .lottery-empty-state {
+      font-size: 0.78rem;
+      color: #64748b;
+      border: 1px dashed #dbe2ea;
+      border-radius: 10px;
+      padding: 0.5rem 0.6rem;
+      margin: 0.2rem 0.1rem 0.35rem;
+      text-align: center;
+      background: #f8fafc;
+    }
+
     .lottery-option {
       margin: 0 0 0.35rem 0;
       display: grid !important;
       grid-template-columns: 1.1rem minmax(0, 1fr);
-      align-items: start;
+      align-items: center;
       gap: 0.58rem;
       padding: 0.56rem 0.6rem;
       border-radius: 12px;
@@ -453,6 +544,21 @@
       margin-bottom: 0.45rem;
     }
 
+    .selected-lotteries-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      align-items: center;
+    }
+
+    .selected-lotteries-head {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.1rem;
+    }
+
     .badge-lottery {
       background: #dcfce7;
       color: #14532d;
@@ -494,6 +600,12 @@
       padding: 0.55rem 0.95rem;
     }
 
+    .remove-row-btn {
+      min-width: 34px;
+      min-height: 34px;
+      border-radius: 9px;
+    }
+
     .total-inline {
       color: var(--ventas-text);
       font-weight: 700;
@@ -509,7 +621,52 @@
       font-size: 0.96rem;
     }
 
-    .mobile-submit-bar {
+    .mobile-subtotal-inline {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border: 1px solid #dbeafe;
+      background: #f8fbff;
+      border-radius: 10px;
+      padding: 0.45rem 0.62rem;
+      margin-top: 0.65rem;
+    }
+
+    .mobile-inline-action-row {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      margin-top: 0.65rem;
+    }
+
+    .mobile-subtotal-label {
+      color: #64748b;
+      font-size: 0.74rem;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    .mobile-subtotal-value {
+      color: #0f172a;
+      font-size: 0.95rem;
+      font-weight: 700;
+    }
+
+    .mobile-summary-inline {
+      margin-top: 0.3rem;
+      margin-bottom: 0.45rem;
+    }
+
+    .mobile-inline-save-btn {
+      flex: 0 0 auto;
+      border-radius: 10px;
+      font-weight: 700;
+      padding: 0.55rem 0.8rem;
+      margin-bottom: 0;
+      white-space: nowrap;
+    }
+
+    #mobileSaveBar.mobile-submit-bar {
       position: sticky;
       bottom: 10px;
       z-index: 1030;
@@ -545,11 +702,68 @@
       color: #0f172a;
     }
 
+    .mobile-summary-counts {
+      font-size: 0.68rem;
+      color: #64748b;
+      line-height: 1.2;
+      margin-top: 0.14rem;
+    }
+
     .mobile-save-btn {
       border-radius: 10px;
       font-weight: 700;
       padding: 0.5rem 0.82rem;
       white-space: nowrap;
+    }
+
+    .processing-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(255, 255, 255, 0.92);
+      z-index: 2000;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      gap: 1rem;
+      backdrop-filter: blur(3px);
+    }
+
+    .overlay-loader {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      z-index: 2001;
+      gap: 0.45rem;
+    }
+
+    .overlay-loader-img {
+      width: 80px;
+      height: 80px;
+    }
+
+    .overlay-loader-text {
+      font-size: 1.02rem;
+      color: #0f172a;
+      font-weight: 600;
+    }
+
+    .overlay-success {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      color: #28a745;
+      z-index: 2001;
+      gap: 0.25rem;
+    }
+
+    .overlay-success-icon {
+      font-size: 3rem;
+    }
+
+    .overlay-success-text {
+      font-size: 1.1rem;
+      font-weight: 700;
     }
 
     .btn-whatsapp-central {
@@ -579,7 +793,24 @@
         padding: 1rem 1.1rem;
       }
 
-      .mobile-submit-bar {
+      .mobile-subtotal-inline,
+      .mobile-inline-action-row,
+      .mobile-inline-save-btn,
+      .mobile-summary-inline {
+        display: none !important;
+      }
+
+      #mobileSaveBar.mobile-submit-bar {
+        display: none !important;
+      }
+    }
+
+    @media (max-width: 767.98px) {
+      .ventas-form {
+        padding-bottom: 18px;
+      }
+
+      #mobileSaveBar.mobile-submit-bar {
         display: none !important;
       }
     }
@@ -598,12 +829,97 @@
         border-radius: 12px;
       }
 
+      .mobile-inline-action-row {
+        gap: 0.4rem;
+      }
+
+      .mobile-subtotal-inline {
+        flex: 1 1 auto;
+        min-width: 0;
+        margin-top: 0;
+        padding: 0.42rem 0.55rem;
+      }
+
+      .mobile-inline-save-btn {
+        flex: 0 0 auto;
+        padding: 0.52rem 0.72rem;
+      }
+
+      .table-responsive {
+        border: 1px solid #dbe2ea;
+        border-radius: 12px;
+        background: #ffffff;
+        overflow-x: visible;
+      }
+
+      .ventas-table {
+        table-layout: fixed;
+        width: 100%;
+        min-width: 100%;
+        margin-bottom: 0;
+      }
+
+      .ventas-table thead {
+        display: table-header-group;
+      }
+
       .ventas-table thead th {
-        font-size: 0.72rem;
+        font-size: 0.66rem;
+        letter-spacing: 0.02em;
+        padding: 0.36rem 0.28rem;
+        white-space: nowrap;
+      }
+
+      .ventas-table thead th:last-child {
+        width: 42px;
+        min-width: 42px;
+        max-width: 42px;
       }
 
       .ventas-actions {
         margin-bottom: 0.2rem;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.45rem;
+      }
+
+      .ventas-actions > .d-flex {
+        width: 100%;
+      }
+
+      .btn-add-row,
+      .btn-save {
+        flex: 1 1 0;
+      }
+
+      .ventas-table tbody td {
+        padding: 0.28rem;
+        vertical-align: middle;
+      }
+
+      .ventas-table tbody td::before {
+        content: none;
+      }
+
+      .ventas-table tbody td.cell-remove {
+        width: 42px;
+        min-width: 42px;
+        max-width: 42px;
+        text-align: center;
+        padding-left: 0.14rem;
+        padding-right: 0.14rem;
+      }
+
+      .ventas-table input.form-control {
+        min-height: 34px;
+        font-size: 0.9rem;
+        padding: 0.32rem 0.42rem;
+      }
+
+      .remove-row-btn {
+        min-width: 32px;
+        min-height: 32px;
+        padding: 0.2rem 0.28rem;
       }
 
       .lottery-option-input {
@@ -628,229 +944,374 @@
         font-size: 0.66rem;
         padding: 0.16rem 0.42rem;
       }
+
+      .lottery-filter-group {
+        gap: 0.18rem;
+      }
+
+      .btn-filter {
+        font-size: 0.68rem;
+        padding: 0.17rem 0.46rem;
+      }
     }
   </style>
   
-  <script>
-    document.addEventListener('DOMContentLoaded', function(){
-      const container = document.getElementById('lotteriesContainer');
-      if (!container) return;
-    
-      // Obtener todos los dropdown-item y ordenarlos por data-fin (HH:MM) ascendente
-      const items = Array.from(container.querySelectorAll('.dropdown-item'));
-      items.sort((a, b) => a.dataset.fin.localeCompare(b.dataset.fin));
-    
-      // Volver a insertarlos en orden
-      items.forEach(item => container.appendChild(item));
-    });
-    </script>
-
-  <script>
+    <script>
     (function() {
       'use strict';
 
+      const form = document.getElementById('ventas-form');
+      if (!form) return;
+
+      const tableBody = document.querySelector('#dynamic-table tbody');
+      const lotteryContainer = document.getElementById('lotteriesContainer');
+      const lotteryDropdownButton = document.getElementById('lotteryDropdown');
+      const lotterySearchInput = document.getElementById('lotterySearch');
+      const lotteryEmptyState = document.getElementById('lotteryEmptyState');
+      const lotteryFilterButtons = Array.from(document.querySelectorAll('.btn-filter'));
+      const feedbackEl = document.getElementById('ventasFeedback');
+      const overlay = document.getElementById('processingOverlay');
+      const loaderContainer = document.getElementById('loaderContainer');
+      const successContainer = document.getElementById('successContainer');
+
+      function clearFormMessage() {
+        if (!feedbackEl) return;
+        feedbackEl.className = 'alert d-none ventas-feedback';
+        feedbackEl.textContent = '';
+      }
+
+      function showFormMessage(message, type) {
+        if (!feedbackEl) return;
+        const alertType = type || 'warning';
+        feedbackEl.className = `alert alert-${alertType} ventas-feedback`;
+        feedbackEl.textContent = message;
+        feedbackEl.classList.remove('d-none');
+      }
+
+      function setProcessingState(state) {
+        if (!overlay || !loaderContainer || !successContainer) return;
+
+        if (state === 'loading') {
+          overlay.style.display = 'flex';
+          loaderContainer.style.display = 'flex';
+          successContainer.style.display = 'none';
+          return;
+        }
+
+        if (state === 'success') {
+          overlay.style.display = 'flex';
+          loaderContainer.style.display = 'none';
+          successContainer.style.display = 'flex';
+          return;
+        }
+
+        overlay.style.display = 'none';
+        loaderContainer.style.display = 'flex';
+        successContainer.style.display = 'none';
+      }
+
       function construirMensajeWhatsapp(resumen) {
-  const { codigo, vendedor, loterias, jugadas, total } = resumen;
+        const { codigo, loterias, jugadas, total } = resumen;
+        const ahora = new Date();
+        const fechaFormateada = ahora.toLocaleString('es-CO', {
+          day: '2-digit',
+          month: 'long',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false
+        }).replace(',', ' -');
 
-  const ahora = new Date();
-  const fechaFormateada = ahora.toLocaleString('es-CO', {
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false
-  }).replace(',', ' -');
+        let mensaje = `${fechaFormateada}\n\n`;
+        mensaje += `*Codigo:* ${codigo}\n`;
+        mensaje += `*Loterias:* ${loterias.join(', ')}\n\n`;
+        mensaje += `*Apuesta:*\n`;
 
-  let mensaje = `${fechaFormateada}\n\n`;
-  mensaje += `*Código:* ${codigo}\n`;
-  mensaje += `*Loterías:* ${loterias.join(', ')}\n\n`;
-  mensaje += `*Apuesta:*\n`;
-
-  jugadas.forEach(j => {
-    const valor = j.numero || j.combi || 'N/A';
-    const monto = `$${j.monto.toLocaleString('es-CO')}`;
-    mensaje += `• ${valor} - ${monto}\n`;
-  });
-
-  mensaje += `\n💰 *Total:* $${total.toLocaleString('es-CO')}`;
-  return encodeURIComponent(mensaje);
-}
-
-  
-      // Función para actualizar el total del formulario: SÓLO se suman los montos (campo "monto")
-      function updateTotal() {
-        const rows = document.querySelectorAll('#dynamic-table tbody tr');
-        const loteriasSeleccionadas = document.querySelectorAll('input[name="loterias"]:checked');
-        let total = 0;
-        rows.forEach(function(row) {
-          const montoVal = parseFloat(row.querySelector('input[name="monto"]').value) || 0;
-          total += montoVal;
+        jugadas.forEach(j => {
+          const valor = j.numero || j.combi || 'N/A';
+          const monto = `${j.monto.toLocaleString('es-CO')}`;
+          mensaje += `- ${valor} - ${monto}\n`;
         });
-        total *= loteriasSeleccionadas.length;
-        document.getElementById('total-monto').value = total.toLocaleString('es-CO', {
+
+        mensaje += `\n*Total:* ${total.toLocaleString('es-CO')}`;
+        return encodeURIComponent(mensaje);
+      }
+
+      function sortLotteryOptions() {
+        if (!lotteryContainer) return;
+        const items = Array.from(lotteryContainer.querySelectorAll('.lottery-option'));
+        items.sort((a, b) => (a.dataset.fin || '').localeCompare(b.dataset.fin || ''));
+        items.forEach(item => lotteryContainer.appendChild(item));
+      }
+
+      function applyLotteryFilters() {
+        if (!lotteryContainer) return;
+        const searchValue = lotterySearchInput ? lotterySearchInput.value.trim().toLowerCase() : '';
+        const activeButton = lotteryFilterButtons.find(btn => btn.classList.contains('active'));
+        const activeFilter = activeButton ? activeButton.dataset.filter : 'all';
+        let visibleCount = 0;
+
+        lotteryContainer.querySelectorAll('.lottery-option').forEach(option => {
+          const name = (option.querySelector('.lottery-item-name')?.textContent || '').toLowerCase();
+          const isAvailable = option.dataset.available === '1';
+          const matchesSearch = name.includes(searchValue);
+          const matchesFilter = (
+            activeFilter === 'all' ||
+            (activeFilter === 'open' && isAvailable) ||
+            (activeFilter === 'closed' && !isAvailable)
+          );
+          const isVisible = matchesSearch && matchesFilter;
+          option.classList.toggle('d-none', !isVisible);
+          if (isVisible) visibleCount += 1;
+        });
+
+        if (lotteryEmptyState) {
+          lotteryEmptyState.classList.toggle('d-none', visibleCount !== 0);
+        }
+      }
+
+      function getSelectedLotteries() {
+        return Array.from(document.querySelectorAll('input[name="loterias"]:checked'));
+      }
+
+      function getRows() {
+        return Array.from(document.querySelectorAll('#dynamic-table tbody tr'));
+      }
+
+      function countFilledRows() {
+        let count = 0;
+        getRows().forEach(row => {
+          const numero = row.querySelector('input[name="numero"]').value.trim();
+          const combi = row.querySelector('input[name="combi"]').value.trim();
+          const monto = row.querySelector('input[name="monto"]').value.trim();
+          if (numero || combi || monto) count += 1;
+        });
+        return count;
+      }
+
+      function updateMobileSummary() {
+        const lotteryCount = getSelectedLotteries().length;
+        const playCount = countFilledRows();
+        const lotteryWord = lotteryCount === 1 ? 'loteria' : 'loterias';
+        const playWord = playCount === 1 ? 'jugada' : 'jugadas';
+        const summaryText = `${lotteryCount} ${lotteryWord} - ${playCount} ${playWord}`;
+
+        const floatingSummary = document.getElementById('mobile-summary-counts');
+        if (floatingSummary) floatingSummary.textContent = summaryText;
+
+        const inlineSummary = document.getElementById('mobile-summary-inline');
+        if (inlineSummary) inlineSummary.textContent = summaryText;
+      }
+
+      function updateTotal() {
+        let total = 0;
+        const selected = getSelectedLotteries();
+
+        getRows().forEach(row => {
+          total += parseFloat(row.querySelector('input[name="monto"]').value) || 0;
+        });
+
+        total *= selected.length;
+        const formatted = total.toLocaleString('es-CO', {
           style: 'currency',
           currency: 'COP',
           minimumFractionDigits: 0
         });
+
+        const totalInput = document.getElementById('total-monto');
+        if (totalInput) totalInput.value = formatted;
+
         const mobileTotal = document.getElementById('mobile-total-monto');
-        if (mobileTotal) {
-          mobileTotal.textContent = total.toLocaleString('es-CO', {
-            style: 'currency',
-            currency: 'COP',
-            minimumFractionDigits: 0
-          });
-        }
+        if (mobileTotal) mobileTotal.textContent = formatted;
+
+        const mobileInlineTotal = document.getElementById('mobile-subtotal-inline');
+        if (mobileInlineTotal) mobileInlineTotal.textContent = formatted;
+
+        updateMobileSummary();
       }
-  
-      // Función para actualizar la visualización de loterías seleccionadas
+
       function updateSelectedLotteries() {
-        const selected = document.querySelectorAll('input[name="loterias"]:checked');
+        const selected = getSelectedLotteries();
         const container = document.getElementById('selected-lotteries');
-        const button = document.getElementById('lotteryDropdown');
-      
-        button.textContent = `Seleccionar Loterías (${selected.length})`;
-        container.innerHTML = selected.length > 0 ? '<h6 class="mb-2">Loterías seleccionadas:</h6>' : '';
-      
-        selected.forEach(function(loteria) {
+        if (!container || !lotteryDropdownButton) return;
+
+        lotteryDropdownButton.textContent = `Seleccionar Loterias (${selected.length})`;
+
+        if (!selected.length) {
+          container.innerHTML = '';
+          updateMobileSummary();
+          return;
+        }
+
+        container.innerHTML = `
+          <div class="selected-lotteries-head">
+            <h6 class="mb-2">Loterias seleccionadas</h6>
+            <button type="button" class="btn btn-sm btn-link text-danger p-0" id="clearSelectedLotteries">Limpiar</button>
+          </div>
+        `;
+
+        selected.forEach(loteria => {
           const lotteryName = loteria.dataset.name || loteria.parentNode.querySelector('label').textContent.trim();
-          container.innerHTML += `
+          container.insertAdjacentHTML('beforeend', `
             <span class="badge-lottery me-1 mb-1" data-loteria-id="${loteria.value}">
               ${lotteryName}
               <i class="bi bi-x-circle remove-lottery-icon" role="button" aria-label="Quitar loteria"></i>
             </span>
-          `;
+          `);
         });
-      
-        container.querySelectorAll('.remove-lottery-icon').forEach(function(icon) {
-          icon.addEventListener('click', function() {
-            const text = icon.parentNode.textContent.trim();
-            document.querySelectorAll('input[name="loterias"]').forEach(function(checkbox) {
-              if (checkbox.parentNode.textContent.trim() === text) {
-                checkbox.click();
-              }
+
+        const clearBtn = document.getElementById('clearSelectedLotteries');
+        if (clearBtn) {
+          clearBtn.addEventListener('click', () => {
+            document.querySelectorAll('input[name="loterias"]:checked').forEach(checkbox => {
+              checkbox.checked = false;
             });
+            updateSelectedLotteries();
+            updateTotal();
+          });
+        }
+
+        container.querySelectorAll('.remove-lottery-icon').forEach(icon => {
+          icon.addEventListener('click', () => {
+            const lotteryId = icon.parentNode.dataset.loteriaId;
+            const checkbox = document.querySelector(`input[name="loterias"][value="${lotteryId}"]`);
+            if (checkbox) checkbox.checked = false;
+            updateSelectedLotteries();
+            updateTotal();
           });
         });
+
+        updateMobileSummary();
       }
-  
-      // Asignar eventos a los checkboxes de loterías
-      document.querySelectorAll('input[name="loterias"]').forEach(function(checkbox) {
-        checkbox.addEventListener('change', function() {
-          updateSelectedLotteries();
-          updateTotal();
-        });
-      });
-  
-      // Delegación para eliminar filas de la tabla
-      document.getElementById('dynamic-table').addEventListener('click', function(e) {
-        if (e.target.closest('.remove-row')) {
-          e.target.closest('tr').remove();
-          updateTotal();
-        }
-      });
-  
-      // Asigna listeners a los campos "monto" y "combi" en cada fila
+
       function attachRowListeners(row) {
-        const montoInput = row.querySelector('.monto');
-        if (montoInput) {
-          montoInput.addEventListener('input', updateTotal);
-        }
-        const combiInput = row.querySelector('.combi');
-        if (combiInput) {
-          combiInput.addEventListener('input', function() {
-            // No se llama updateTotal ya que combi no afecta el total
-          });
-        }
+        row.querySelectorAll('input').forEach(input => {
+          input.addEventListener('input', updateTotal);
+        });
       }
-  
-      // Inicializa filas existentes y actualiza total y loterías seleccionadas
-      document.querySelectorAll('#dynamic-table tbody tr').forEach(function(row) {
-        attachRowListeners(row);
-      });
-      updateTotal();
-      updateSelectedLotteries();
-  
-      // Agregar nueva fila
-      document.getElementById('add-row').addEventListener('click', function() {
-        const tbody = document.querySelector('#dynamic-table tbody');
-        const newRow = document.createElement('tr');
-        newRow.innerHTML = `
-          <td><input type="number" name="numero" class="form-control"></td>
-          <td><input type="number" name="combi" class="form-control combi"></td>
-          <td><input type="number" name="monto" class="form-control monto"></td>
-          <td>
-            <button type="button" class="btn btn-danger btn-sm remove-row">
+
+      function buildRowHtml(values) {
+        const numero = values?.numero || '';
+        const combi = values?.combi || '';
+        const monto = values?.monto || '';
+        return `
+          <td data-label="Numero"><input type="number" name="numero" class="form-control" value="${numero}" inputmode="numeric" min="0" step="1"></td>
+          <td data-label="Combi"><input type="number" name="combi" class="form-control combi" value="${combi}" inputmode="numeric" min="0" step="1"></td>
+          <td data-label="Monto"><input type="number" name="monto" class="form-control monto" value="${monto}" inputmode="decimal" min="0" step="any"></td>
+          <td class="cell-remove" data-label="Accion">
+            <button type="button" class="btn btn-danger btn-sm remove-row remove-row-btn" title="Eliminar fila">
               <i class="bi bi-trash"></i>
             </button>
           </td>
         `;
-        tbody.appendChild(newRow);
-        attachRowListeners(newRow);
-        updateTotal();
+      }
+
+      if (lotterySearchInput) lotterySearchInput.addEventListener('input', applyLotteryFilters);
+      lotteryFilterButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          lotteryFilterButtons.forEach(item => item.classList.remove('active'));
+          btn.classList.add('active');
+          applyLotteryFilters();
+        });
       });
-  
-      // Manejo del submit del formulario
-      document.getElementById('ventas-form').addEventListener('submit', function(e) {
+
+      document.querySelectorAll('input[name="loterias"]').forEach(checkbox => {
+        checkbox.addEventListener('change', () => {
+          clearFormMessage();
+          updateSelectedLotteries();
+          updateTotal();
+        });
+      });
+
+      if (tableBody) {
+        tableBody.addEventListener('click', e => {
+          if (!e.target.closest('.remove-row')) return;
+          const row = e.target.closest('tr');
+          const rows = getRows();
+          if (rows.length <= 1) {
+            row.querySelectorAll('input').forEach(input => { input.value = ''; });
+          } else {
+            row.remove();
+          }
+          updateTotal();
+        });
+      }
+
+      const addRowBtn = document.getElementById('add-row');
+      if (addRowBtn) {
+        addRowBtn.addEventListener('click', () => {
+          if (!tableBody) return;
+          const newRow = document.createElement('tr');
+          newRow.innerHTML = buildRowHtml();
+          tableBody.appendChild(newRow);
+          attachRowListeners(newRow);
+          newRow.querySelector('input[name="numero"]').focus();
+          updateTotal();
+        });
+      }
+
+      getRows().forEach(attachRowListeners);
+      sortLotteryOptions();
+      applyLotteryFilters();
+      updateTotal();
+      updateSelectedLotteries();
+
+      form.addEventListener('submit', function(e) {
         e.preventDefault();
-        const form = e.target;
-        const selectedLotteries = document.querySelectorAll('input[name="loterias"]:checked');
-  
-        if (selectedLotteries.length === 0) {
-          alert("Debe seleccionar al menos una lotería.");
+        clearFormMessage();
+
+        const selectedLotteries = getSelectedLotteries();
+        if (!selectedLotteries.length) {
+          showFormMessage('Debes seleccionar al menos una loteria.', 'warning');
           return;
         }
-  
-        // Validar filas
-let rows = Array.from(document.querySelectorAll('#dynamic-table tbody tr'));
-let incompleteFound = false;
-let validRowExists  = false;
 
-rows.forEach(function(row) {
-  const numero = row.querySelector('input[name="numero"]').value.trim();
-  const combi  = row.querySelector('input[name="combi"]').value.trim();
-  const monto  = row.querySelector('input[name="monto"]').value.trim();
+        let incompleteFound = false;
+        let validRowExists = false;
 
-  // Fila completamente vacía → se descarta
-  if (numero === '' && combi === '' && monto === '') {
-    row.remove();
-    return;
-  }
+        getRows().forEach(row => {
+          const numero = row.querySelector('input[name="numero"]').value.trim();
+          const combi = row.querySelector('input[name="combi"]').value.trim();
+          const monto = row.querySelector('input[name="monto"]').value.trim();
 
-  // Reglas: monto obligatorio Y (numero || combi)
-  if (monto === '' || (numero === '' && combi === '')) {
-    incompleteFound = true;
-  } else {
-    validRowExists = true;
-  }
-});
+          if (!numero && !combi && !monto) {
+            row.remove();
+            return;
+          }
 
-if (incompleteFound) {
-  alert("Cada fila debe tener Monto y al menos Número o Combi.");
-  return;
-}
-if (!validRowExists) {
-  alert("Debe completar al menos una fila con datos válidos.");
-  return;
-}
-  
-        // Llenar el modal con los datos
-        const saleLoteriasList = document.getElementById('saleLoteriasList');
-        saleLoteriasList.innerHTML = '';
-        selectedLotteries.forEach(function(loteria) {
-          const li = document.createElement('li');
-          li.textContent = loteria.parentNode.querySelector('label').textContent.trim();
-          saleLoteriasList.appendChild(li);
+          if (!monto || (!numero && !combi)) {
+            incompleteFound = true;
+          } else {
+            validRowExists = true;
+          }
         });
-  
+
+        if (!getRows().length && tableBody) {
+          const fallbackRow = document.createElement('tr');
+          fallbackRow.innerHTML = buildRowHtml();
+          tableBody.appendChild(fallbackRow);
+          attachRowListeners(fallbackRow);
+        }
+
+        if (incompleteFound) {
+          showFormMessage('Cada fila debe tener monto y al menos Numero o Combi.', 'warning');
+          return;
+        }
+        if (!validRowExists) {
+          showFormMessage('Debes completar al menos una jugada valida.', 'warning');
+          return;
+        }
+
+        const saleLoteriasList = document.getElementById('saleLoteriasList');
+        saleLoteriasList.textContent = selectedLotteries.map(l => l.dataset.name || '').join(', ');
+
         const saleDetailsList = document.getElementById('saleDetailsList');
         saleDetailsList.innerHTML = '';
-        document.querySelectorAll('#dynamic-table tbody tr').forEach(function(row) {
-          const numero = row.querySelector('input[name="numero"]').value.trim();
-          const monto = row.querySelector('input[name="monto"]').value.trim();
+        getRows().forEach(row => {
+          const numero = row.querySelector('input[name="numero"]').value.trim() || 'N/A';
           const combi = row.querySelector('input[name="combi"]').value.trim() || 'N/A';
-          const parsedMonto = parseFloat(monto) || 0;
-          const formattedMonto = parsedMonto.toLocaleString('es-CO', {
+          const monto = parseFloat(row.querySelector('input[name="monto"]').value) || 0;
+          const formattedMonto = monto.toLocaleString('es-CO', {
             style: 'currency',
             currency: 'COP',
             minimumFractionDigits: 0
@@ -859,10 +1320,9 @@ if (!validRowExists) {
           tr.innerHTML = `<td>${numero}</td><td>${formattedMonto}</td><td>${combi}</td>`;
           saleDetailsList.appendChild(tr);
         });
-  
-        // Calcular total para el modal (solo se suman los montos)
+
         let total = 0;
-        document.querySelectorAll('.monto').forEach(function(input) {
+        document.querySelectorAll('.monto').forEach(input => {
           total += parseFloat(input.value) || 0;
         });
         total *= selectedLotteries.length;
@@ -871,11 +1331,8 @@ if (!validRowExists) {
           currency: 'COP',
           minimumFractionDigits: 0
         });
-  
-        // Actualizar fecha/hora dinámica en el modal
-        const saleDayElement = document.getElementById('saleDay');
-        const now = new Date();
-        const options = {
+
+        document.getElementById('saleDay').textContent = new Date().toLocaleString('es-CO', {
           weekday: 'long',
           year: 'numeric',
           month: 'long',
@@ -884,72 +1341,78 @@ if (!validRowExists) {
           minute: '2-digit',
           second: '2-digit',
           hour12: false
-        };
-        saleDayElement.textContent = now.toLocaleString('es-CO', options);
-  
-        // Mostrar modal de detalle
+        });
+
         const saleDetailModal = new bootstrap.Modal(document.getElementById('saleDetailModal'));
         saleDetailModal.show();
-  
-        // Asignar evento de confirmación (una sola vez)
-const confirmButton = document.getElementById('confirmSaleButton');
-const newConfirmButton = confirmButton.cloneNode(true);
-confirmButton.parentNode.replaceChild(newConfirmButton, confirmButton);
 
-newConfirmButton.addEventListener('click', function() {
-  // 1) Mostrar overlay y deshabilitar botón
-  const overlay = document.getElementById('processingOverlay');
-  overlay.style.display = 'flex';
-  newConfirmButton.disabled = true;
-  newConfirmButton.textContent = 'Enviando…';
+        const confirmButton = document.getElementById('confirmSaleButton');
+        const newConfirmButton = confirmButton.cloneNode(true);
+        confirmButton.parentNode.replaceChild(newConfirmButton, confirmButton);
 
-  // 2) Realizar el envío
-  const formData = new FormData(form);
-  fetch(form.action || window.location.href, {
-    method: 'POST',
-    headers: { 'X-CSRFToken': formData.get('csrfmiddlewaretoken') },
-    body: formData
-  })
-  .then(response => response.json())
-  .then(data => {
-    if (!data.success) {
-      alert(data.error);
-      // reactiva botón y oculta overlay
-      newConfirmButton.disabled = false;
-      newConfirmButton.textContent = 'Apostar';
-      overlay.style.display = 'none';
-      return;
-    }
-    // éxito: cerrar modal, mostrar toast y recargar
-    saleDetailModal.hide();
-    new bootstrap.Toast(document.getElementById('toastSuccess'), { delay:2000 }).show();
-    setTimeout(() => window.location.reload(), 4000);
-    // Mostrar botón de WhatsApp
-if (data.resumen_venta) {
-  const mensaje = construirMensajeWhatsapp(data.resumen_venta);
-  const btnWhatsApp = document.getElementById('btnCompartirWhatsApp');
-  btnWhatsApp.href = `https://wa.me/?text=${mensaje}`;
-  btnWhatsApp.classList.remove('d-none');
-}
-setTimeout(() => window.location.reload(), 2000);
-  })
-  
-  .catch(error => {
-    console.error('Error en el envío:', error);
-    alert('Ocurrió un error al enviar la venta.');
-    // reactiva botón y oculta overlay
-    newConfirmButton.disabled = false;
-    newConfirmButton.textContent = 'Apostar';
-    overlay.style.display = 'none';
-  });
-});
+        newConfirmButton.addEventListener('click', function() {
+          setProcessingState('loading');
+          newConfirmButton.disabled = true;
+          newConfirmButton.textContent = 'Enviando...';
 
+          const formData = new FormData(form);
+          fetch(form.action || window.location.href, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': formData.get('csrfmiddlewaretoken') },
+            body: formData
+          })
+          .then(async response => {
+            const raw = await response.text();
+            let data = null;
+
+            try {
+              data = raw ? JSON.parse(raw) : {};
+            } catch (e) {
+              throw new Error(`Respuesta no valida del servidor (HTTP ${response.status}).`);
+            }
+
+            if (!response.ok && data && !data.success) {
+              throw new Error(data.error || `HTTP ${response.status}`);
+            }
+
+            return data;
+          })
+          .then(data => {
+            if (!data.success) {
+              showFormMessage(data.error || 'No fue posible registrar la venta.', 'danger');
+              newConfirmButton.disabled = false;
+              newConfirmButton.textContent = 'Apostar';
+              setProcessingState('idle');
+              return;
+            }
+
+            saleDetailModal.hide();
+            new bootstrap.Toast(document.getElementById('toastSuccess'), { delay: 2000 }).show();
+            clearFormMessage();
+            setProcessingState('success');
+
+            if (data.resumen_venta) {
+              const mensaje = construirMensajeWhatsapp(data.resumen_venta);
+              const btnWhatsApp = document.getElementById('btnCompartirWhatsApp');
+              btnWhatsApp.href = `https://wa.me/?text=${mensaje}`;
+              btnWhatsApp.classList.remove('d-none');
+            }
+
+            setTimeout(() => {
+              setProcessingState('idle');
+              window.location.reload();
+            }, 2200);
+          })
+          .catch(error => {
+            console.error('Error en el envio:', error);
+            showFormMessage(error?.message || 'Ocurrio un error al enviar la venta.', 'danger');
+            newConfirmButton.disabled = false;
+            newConfirmButton.textContent = 'Apostar';
+            setProcessingState('idle');
+          });
+        });
       });
     })();
   </script>
   
 {% endblock %}
-
-
-
-

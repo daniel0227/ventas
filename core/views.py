@@ -1,11 +1,13 @@
 from django.shortcuts import render, HttpResponse, redirect, get_object_or_404
+from django.conf import settings
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.utils import timezone
 from decimal import Decimal, ROUND_HALF_UP
 from django.utils.dateparse import parse_date
 from django.http import Http404, JsonResponse
 from django.contrib.auth.views import LoginView
-from .models import Loteria, Dia, Venta, Resultado
+from django.core.exceptions import ValidationError
+from .models import Loteria, Dia, Venta, Resultado, VentaAuditLog, _safe_create_venta_audit_log
 from django.db import transaction, IntegrityError
 from core.utils import importar_resultados  # ← añade esta línea
 from django.contrib import messages
@@ -22,6 +24,32 @@ from datetime import date, timedelta, datetime
 from django.db.models.functions import TruncDate
 from django.db.models.functions import Cast, Coalesce,Trim  
 import os
+
+VENTA_CIERRE_BUFFER_SEGUNDOS = int(getattr(settings, "VENTA_CIERRE_BUFFER_SEGUNDOS", 30))
+
+
+def _client_ip(request):
+    forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR", "")
+    if forwarded_for:
+        return forwarded_for.split(",")[0].strip()
+    return request.META.get("REMOTE_ADDR")
+
+
+def _audit_sale_event(request, event_type, status, message="", venta=None, payload=None, actor=None):
+    _safe_create_venta_audit_log(
+        event_type=event_type,
+        status=status,
+        venta=venta,
+        actor=actor or getattr(request, "user", None),
+        message=message,
+        payload=payload or {},
+        ip_address=_client_ip(request),
+        user_agent=request.META.get("HTTP_USER_AGENT", ""),
+    )
+
+
+def _loteria_esta_abierta_para_venta(loteria, ahora_local):
+    return loteria.esta_disponible_en(ahora_local, cierre_buffer_segundos=VENTA_CIERRE_BUFFER_SEGUNDOS)
 
 # Vista Home
 @login_required
@@ -166,9 +194,25 @@ def crear_venta(request):
         numeros      = request.POST.getlist('numero')
         montos       = request.POST.getlist('monto')
         combis       = request.POST.getlist('combi')
+        loterias_ids = list(dict.fromkeys(loterias_ids))
+
+        _audit_sale_event(
+            request,
+            VentaAuditLog.EVENT_CREATE_ATTEMPT,
+            VentaAuditLog.STATUS_INFO,
+            message="Intento de creacion de venta recibido.",
+            payload={"loterias_ids": loterias_ids, "rows_count": len(numeros)}
+        )
 
         # --- Validaciones de longitud ---
         if not (len(numeros) == len(montos) == len(combis)):
+            _audit_sale_event(
+                request,
+                VentaAuditLog.EVENT_CREATE_REJECTED,
+                VentaAuditLog.STATUS_REJECTED,
+                message="Longitudes inconsistentes entre numero, monto y combi.",
+                payload={"numero": len(numeros), "monto": len(montos), "combi": len(combis)}
+            )
             return JsonResponse(
                 {'success': False,
                  'error': 'Los números, montos y combis no coinciden.'},
@@ -178,6 +222,13 @@ def crear_venta(request):
         # --- Loterías seleccionadas ---
         loterias_seleccionadas = Loteria.objects.filter(id__in=loterias_ids)
         if not loterias_seleccionadas.exists():
+            _audit_sale_event(
+                request,
+                VentaAuditLog.EVENT_CREATE_REJECTED,
+                VentaAuditLog.STATUS_REJECTED,
+                message="Loterias no validas.",
+                payload={"loterias_ids": loterias_ids}
+            )
             return JsonResponse(
                 {'success': False, 'error': 'Loterías no válidas.'},
                 status=400
@@ -185,7 +236,21 @@ def crear_venta(request):
 
         # --- Horario de cada lotería ---
         for lot in loterias_seleccionadas:
-            if not (lot.hora_inicio <= ahora.time() <= lot.hora_fin):
+            if not _loteria_esta_abierta_para_venta(lot, ahora):
+                _audit_sale_event(
+                    request,
+                    VentaAuditLog.EVENT_CREATE_CLOSED,
+                    VentaAuditLog.STATUS_REJECTED,
+                    message=f"Intento fuera de horario para {lot.nombre}.",
+                    payload={
+                        "loteria_id": lot.id,
+                        "loteria": lot.nombre,
+                        "server_time": ahora.isoformat(),
+                        "hora_inicio": str(lot.hora_inicio),
+                        "hora_fin": str(lot.hora_fin),
+                        "buffer_segundos": VENTA_CIERRE_BUFFER_SEGUNDOS,
+                    }
+                )
                 return JsonResponse(
                     {'success': False,
                      'error': f'La hora de juego para {lot.nombre} ha finalizado.'},
@@ -200,7 +265,30 @@ def crear_venta(request):
             monto  = monto.strip()
 
             # Monto obligatorio y > 0
-            if monto == '' or float(monto) <= 0:
+            try:
+                monto_val = float(monto) if monto != '' else 0
+            except (TypeError, ValueError):
+                _audit_sale_event(
+                    request,
+                    VentaAuditLog.EVENT_CREATE_REJECTED,
+                    VentaAuditLog.STATUS_REJECTED,
+                    message=f"Fila {idx}: monto invalido.",
+                    payload={"fila": idx, "monto": monto}
+                )
+                return JsonResponse(
+                    {'success': False,
+                     'error': f'Fila {idx}: el monto debe ser numerico.'},
+                    status=400
+                )
+
+            if monto == '' or monto_val <= 0:
+                _audit_sale_event(
+                    request,
+                    VentaAuditLog.EVENT_CREATE_REJECTED,
+                    VentaAuditLog.STATUS_REJECTED,
+                    message=f"Fila {idx}: monto faltante o no positivo.",
+                    payload={"fila": idx, "monto": monto}
+                )
                 return JsonResponse(
                     {'success': False,
                      'error': f'Fila {idx}: el monto es obligatorio y debe ser mayor que 0.'},
@@ -209,6 +297,13 @@ def crear_venta(request):
 
             # Debe existir numero o combi
             if numero == '' and combi == '':
+                _audit_sale_event(
+                    request,
+                    VentaAuditLog.EVENT_CREATE_REJECTED,
+                    VentaAuditLog.STATUS_REJECTED,
+                    message=f"Fila {idx}: numero y combi vacios.",
+                    payload={"fila": idx}
+                )
                 return JsonResponse(
                     {'success': False,
                      'error': f'Fila {idx}: ingrese Número o Combi.'},
@@ -218,6 +313,49 @@ def crear_venta(request):
         # --- Crear ventas dentro de una transacción ---
         try:
             with transaction.atomic():
+                # Revalidacion critica con hora del servidor dentro de la transaccion
+                ahora_tx = timezone.localtime(timezone.now())
+                loterias_seleccionadas = list(
+                    Loteria.objects.select_for_update()
+                    .filter(id__in=loterias_ids, dias_juego=dia_actual)
+                )
+                loterias_count = len(loterias_seleccionadas)
+
+                if loterias_count != len(loterias_ids):
+                    _audit_sale_event(
+                        request,
+                        VentaAuditLog.EVENT_CREATE_REJECTED,
+                        VentaAuditLog.STATUS_REJECTED,
+                        message="Loterias invalidas o fuera del dia actual en revalidacion.",
+                        payload={"loterias_ids": loterias_ids, "dia": dia_actual_nombre_es}
+                    )
+                    return JsonResponse(
+                        {'success': False, 'error': 'Loterias no validas para el dia actual.'},
+                        status=400
+                    )
+
+                for lot in loterias_seleccionadas:
+                    if not _loteria_esta_abierta_para_venta(lot, ahora_tx):
+                        _audit_sale_event(
+                            request,
+                            VentaAuditLog.EVENT_CREATE_CLOSED,
+                            VentaAuditLog.STATUS_REJECTED,
+                            message=f"Rechazada en revalidacion final por cierre de {lot.nombre}.",
+                            payload={
+                                "loteria_id": lot.id,
+                                "loteria": lot.nombre,
+                                "server_time": ahora_tx.isoformat(),
+                                "hora_inicio": str(lot.hora_inicio),
+                                "hora_fin": str(lot.hora_fin),
+                                "buffer_segundos": VENTA_CIERRE_BUFFER_SEGUNDOS,
+                            }
+                        )
+                        return JsonResponse(
+                            {'success': False,
+                             'error': f'La hora de juego para {lot.nombre} ha finalizado.'},
+                            status=400
+                        )
+
                 ventas_creadas = []
 
                 for numero, monto, combi in zip(numeros, montos, combis):
@@ -225,9 +363,10 @@ def crear_venta(request):
                         vendedor=request.user,
                         numero=numero.strip(),
                         monto=int(monto),
-                        fecha_venta=ahora,
+                        fecha_venta=ahora_tx,
                         combi=int(combi) if combi.strip() else None
                     )
+                    venta._allow_loterias_assignment = True
                     venta.loterias.set(loterias_seleccionadas)
                     ventas_creadas.append(venta)
 
@@ -235,8 +374,40 @@ def crear_venta(request):
                 codigo_venta = ventas_creadas[0].id if ventas_creadas else None
 
         except IntegrityError as exc:   # Ej. unique constraint si la añades
+            _audit_sale_event(
+                request,
+                VentaAuditLog.EVENT_CREATE_REJECTED,
+                VentaAuditLog.STATUS_ERROR,
+                message="Error de integridad al crear venta.",
+                payload={"error": str(exc)}
+            )
             return JsonResponse(
                 {'success': False, 'error': f'Error BD: {exc}'}, status=400
+            )
+
+        except ValidationError as exc:
+            _audit_sale_event(
+                request,
+                VentaAuditLog.EVENT_CREATE_REJECTED,
+                VentaAuditLog.STATUS_BLOCKED,
+                message="Validacion bloqueada al crear venta.",
+                payload={"error": str(exc)}
+            )
+            return JsonResponse(
+                {'success': False, 'error': str(exc)}, status=400
+            )
+
+        except Exception as exc:
+            _audit_sale_event(
+                request,
+                VentaAuditLog.EVENT_CREATE_REJECTED,
+                VentaAuditLog.STATUS_ERROR,
+                message="Error no controlado al crear venta.",
+                payload={"error": str(exc)}
+            )
+            return JsonResponse(
+                {'success': False, 'error': 'Error interno al procesar la venta.'},
+                status=500
             )
 
         # Todo OK
@@ -254,8 +425,23 @@ def crear_venta(request):
             'vendedor': request.user.username,
             'loterias': [lot.nombre for lot in loterias_seleccionadas],
             'jugadas': jugadas_resumen,
-            'total': sum(int(m) for m in montos) * loterias_seleccionadas.count()
+            'total': sum(int(m) for m in montos) * loterias_count
         }
+
+        _audit_sale_event(
+            request,
+            VentaAuditLog.EVENT_CREATE_SUCCESS,
+            VentaAuditLog.STATUS_SUCCESS,
+            message="Venta creada correctamente.",
+            venta=ventas_creadas[0] if ventas_creadas else None,
+            payload={
+                "venta_referencia_id": codigo_venta,
+                "ventas_ids": [v.id for v in ventas_creadas],
+                "loterias_ids": [lot.id for lot in loterias_seleccionadas],
+                "jugadas_count": len(ventas_creadas),
+                "total": sum(v.monto for v in ventas_creadas) * loterias_count,
+            }
+        )
 
         return JsonResponse({
     'success': True,
@@ -268,10 +454,9 @@ def crear_venta(request):
             'combi': v.combi,
             'monto': v.monto
         } for v in ventas_creadas],
-        'total': sum(v.monto for v in ventas_creadas) * loterias_seleccionadas.count()
-    }
-}, status=201)
-
+        'total': sum(v.monto for v in ventas_creadas) * loterias_count
+     }
+ }, status=201)
 
     # ======================= GET ==========================
     return render(
