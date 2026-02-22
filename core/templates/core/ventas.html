@@ -988,6 +988,17 @@
         feedbackEl.classList.remove('d-none');
       }
 
+      function focusFormMessage() {
+        if (!feedbackEl || feedbackEl.classList.contains('d-none')) return;
+        feedbackEl.setAttribute('tabindex', '-1');
+        setTimeout(() => {
+          feedbackEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          if (typeof feedbackEl.focus === 'function') {
+            feedbackEl.focus({ preventScroll: true });
+          }
+        }, 60);
+      }
+
       function setProcessingState(state) {
         if (!overlay || !loaderContainer || !successContainer) return;
 
@@ -1379,7 +1390,9 @@
           })
           .then(data => {
             if (!data.success) {
+              saleDetailModal.hide();
               showFormMessage(data.error || 'No fue posible registrar la venta.', 'danger');
+              focusFormMessage();
               newConfirmButton.disabled = false;
               newConfirmButton.textContent = 'Apostar';
               setProcessingState('idle');
@@ -1405,7 +1418,9 @@
           })
           .catch(error => {
             console.error('Error en el envio:', error);
+            saleDetailModal.hide();
             showFormMessage(error?.message || 'Ocurrio un error al enviar la venta.', 'danger');
+            focusFormMessage();
             newConfirmButton.disabled = false;
             newConfirmButton.textContent = 'Apostar';
             setProcessingState('idle');
