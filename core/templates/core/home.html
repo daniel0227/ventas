@@ -53,6 +53,19 @@
       </a>
     </div>
 
+    {% if user.is_superuser %}
+      <div class="col-12 col-sm-6 col-xl-3">
+        <a href="{% url 'premios_reporte_rango' %}" class="menu-link">
+          <article class="card menu-card menu-card-prizes-report h-100">
+            <div class="card-body menu-item">
+              <img src="{% static 'core/img/report.png' %}" alt="" class="menu-icon" aria-hidden="true">
+              <h3 class="menu-label">Reporte de Premios</h3>
+            </div>
+          </article>
+        </a>
+      </div>
+    {% endif %}
+
     <div class="col-12 col-sm-6 col-xl-3">
       <a href="{% url 'resultados' %}" class="menu-link">
         <article class="card menu-card menu-card-results h-100">
@@ -169,6 +182,7 @@
   .menu-card-lotteries { background-color: #ffdce5; }
   .menu-card-sales-report { background-color: #deebff; }
   .menu-card-prizes { background-color: #e8e7ff; }
+  .menu-card-prizes-report { background-color: #ede9fe; }
   .menu-card-results { background-color: #dcfce7; }
   .menu-card-register { background-color: #fef3c7; }
   .menu-card-downloads { background-color: #e0f2fe; }

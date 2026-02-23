@@ -14,6 +14,7 @@ urlpatterns = [
     path('ventas_list/', views.ventas_list, name='ventas_list'),  # Aquí agregas la URL para la lista de ventas
     path('historico-ventas/', views.historico_ventas, name='historico_ventas'),
     path('premios/', views.premios, name='premios'),
+    path('premios/reporte-rango/', views.premios_reporte_rango, name='premios_reporte_rango'),
     path('registro-resultados/', views.registro_resultados, name='registro_resultados'),
     path('resultados/', views.resultados, name='resultados'),
     path('reporte-descargas/', views.reporte_descargas, name='reporte_descargas'),

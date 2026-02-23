@@ -1,0 +1,622 @@
+{% extends "core/base.html" %}
+{% load format_filters %}
+
+{% block content %}
+<main class="container px-3 py-4 premios-range-report">
+  <header class="report-header mb-3">
+    <div>
+      <p class="eyebrow mb-1">Reporte de premios</p>
+      <h1 class="h4 mb-1">Premios por rango de fechas</h1>
+      <p class="text-muted mb-0">
+        {{ fecha_inicio|date:"Y-m-d" }} a {{ fecha_fin|date:"Y-m-d" }} ({{ rango_dias }} dia{{ rango_dias|pluralize }})
+      </p>
+    </div>
+  </header>
+
+  <section class="filter-panel mb-3" aria-label="Filtros del reporte">
+    <form method="get" class="row g-2 align-items-end">
+      <div class="col-12 col-sm-6 col-lg-4">
+        <label for="fecha_inicio" class="form-label small mb-1">Fecha inicio</label>
+        <input type="date" id="fecha_inicio" name="fecha_inicio" class="form-control"
+               value="{{ fecha_inicio|date:'Y-m-d' }}" max="{{ fecha_max|date:'Y-m-d' }}">
+      </div>
+      <div class="col-12 col-sm-6 col-lg-4">
+        <label for="fecha_fin" class="form-label small mb-1">Fecha fin</label>
+        <input type="date" id="fecha_fin" name="fecha_fin" class="form-control"
+               value="{{ fecha_fin|date:'Y-m-d' }}" max="{{ fecha_max|date:'Y-m-d' }}">
+      </div>
+      <div class="col-12 col-lg-4 d-grid d-sm-flex gap-2">
+        <button type="submit" class="btn btn-primary flex-sm-grow-1">Generar reporte</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="row g-2 mb-3" aria-label="Resumen general">
+    <div class="col-12 col-sm-6 col-lg-4">
+      <div class="summary-card">
+        <span class="summary-label">Total premios</span>
+        <strong class="summary-value">${{ totales.total_premios|default:0|format_colombian }}</strong>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-lg-4">
+      <div class="summary-card">
+        <span class="summary-label">Premios registrados</span>
+        <strong class="summary-value">{{ totales.cantidad_premios|default:0 }}</strong>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-lg-4">
+      <div class="summary-card">
+        <span class="summary-label">Vendedores</span>
+        <strong class="summary-value">{{ totales.vendedores|default:0 }}</strong>
+      </div>
+    </div>
+  </section>
+
+  <section class="chart-panel mb-3" aria-label="Grafica de barras de premios por vendedor">
+    <div class="panel-head">
+      <h2 class="h6 mb-0">Premios por vendedor</h2>
+      <span class="text-muted small">Ordenado por total de premios</span>
+    </div>
+    {% if rows %}
+      <div id="premiosRangeChart" class="chart-box"></div>
+    {% else %}
+      <div class="empty-box">
+        <p class="mb-0 text-muted">No hay premios en el rango seleccionado.</p>
+      </div>
+    {% endif %}
+  </section>
+
+  <section class="table-panel" aria-label="Tabla agrupada por vendedor">
+    <div class="panel-head mb-2">
+      <h2 class="h6 mb-0">Tabla agrupada por vendedor</h2>
+      <span class="text-muted small">{{ rows|length }} registro{{ rows|pluralize }}</span>
+    </div>
+
+    {% if rows %}
+      <div class="d-md-none mobile-vendor-list">
+        {% for row in rows %}
+          <article class="vendor-mobile-card">
+            <div class="vendor-mobile-top">
+              <div class="vendor-mobile-head">
+                <span class="vendor-mobile-rank">#{{ forloop.counter }}</span>
+                <div class="vendor-mobile-name-wrap">
+                  <div class="vendor-mobile-name">{{ row.vendedor_nombre|title }}</div>
+                  <div class="vendor-mobile-user">@{{ row.username }}</div>
+                </div>
+              </div>
+              <div class="vendor-mobile-total">
+                <span class="vendor-mobile-total-label">Total premio</span>
+                <strong class="vendor-mobile-total-value">${{ row.total_premio|format_colombian }}</strong>
+              </div>
+            </div>
+
+            <div class="vendor-mobile-metrics">
+              <div class="vendor-metric">
+                <span class="metric-label">Premios</span>
+                <span class="metric-value">{{ row.cantidad_premios }}</span>
+              </div>
+              <div class="vendor-metric">
+                <span class="metric-label">Loterias</span>
+                <span class="metric-value">{{ row.loterias_distintas }}</span>
+              </div>
+            </div>
+          </article>
+        {% endfor %}
+
+        <article class="vendor-mobile-card vendor-mobile-total-card">
+          <div class="vendor-mobile-top">
+            <div class="vendor-mobile-head">
+              <div class="vendor-mobile-name-wrap">
+                <div class="vendor-mobile-name">Totales del rango</div>
+                <div class="vendor-mobile-user">{{ rows|length }} vendedor{{ rows|pluralize }}</div>
+              </div>
+            </div>
+            <div class="vendor-mobile-total">
+              <span class="vendor-mobile-total-label">Total premio</span>
+              <strong class="vendor-mobile-total-value">${{ totales.total_premios|default:0|format_colombian }}</strong>
+            </div>
+          </div>
+          <div class="vendor-mobile-metrics">
+            <div class="vendor-metric">
+              <span class="metric-label">Premios</span>
+              <span class="metric-value">{{ totales.cantidad_premios|default:0 }}</span>
+            </div>
+            <div class="vendor-metric">
+              <span class="metric-label">Loterias</span>
+              <span class="metric-value">{{ totales.loterias|default:0 }}</span>
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <div class="d-none d-md-block table-responsive report-table-wrap">
+        <table class="table table-sm align-middle report-table mb-0">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Vendedor</th>
+              <th>Usuario</th>
+              <th class="text-end">Premios</th>
+              <th class="text-end">Dias</th>
+              <th class="text-end">Loterias</th>
+              <th class="text-end">Apostado</th>
+              <th class="text-end">Total premio</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in rows %}
+              <tr>
+                <td class="rank-cell">{{ forloop.counter }}</td>
+                <td>
+                  <div class="vendor-name">{{ row.vendedor_nombre|title }}</div>
+                </td>
+                <td class="text-muted">@{{ row.username }}</td>
+                <td class="text-end">{{ row.cantidad_premios }}</td>
+                <td class="text-end">{{ row.dias_con_premios }}</td>
+                <td class="text-end">{{ row.loterias_distintas }}</td>
+                <td class="text-end num-cell">${{ row.total_apostado|format_colombian }}</td>
+                <td class="text-end num-cell fw-semibold">${{ row.total_premio|format_colombian }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot>
+            <tr>
+              <th colspan="3">Totales</th>
+              <th class="text-end">{{ totales.cantidad_premios|default:0 }}</th>
+              <th class="text-end">-</th>
+              <th class="text-end">{{ totales.loterias|default:0 }}</th>
+              <th class="text-end num-cell">${{ totales.total_apostado|default:0|format_colombian }}</th>
+              <th class="text-end num-cell">${{ totales.total_premios|default:0|format_colombian }}</th>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    {% else %}
+      <div class="alert alert-info mb-0">No se encontraron premios para este rango.</div>
+    {% endif %}
+  </section>
+</main>
+
+{{ chart_categories|json_script:"premios-range-chart-categories" }}
+{{ chart_total_premios|json_script:"premios-range-chart-premios" }}
+
+<style>
+  .premios-range-report {
+    --panel-bg: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+    --panel-border: #dfe7f1;
+    --panel-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+    --accent: #1f4b99;
+    --accent-soft: #e9f1ff;
+  }
+
+  .report-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .eyebrow {
+    color: var(--accent);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .filter-panel,
+  .chart-panel,
+  .table-panel {
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    box-shadow: var(--panel-shadow);
+    padding: 0.9rem;
+  }
+
+  .summary-card {
+    height: 100%;
+    border: 1px solid var(--panel-border);
+    background: #fff;
+    border-radius: 12px;
+    padding: 0.75rem 0.85rem;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.03);
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+
+  .summary-label {
+    color: #64748b;
+    font-size: 0.76rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  .summary-value {
+    font-size: 1.05rem;
+    line-height: 1.15;
+    color: #0f172a;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 0.65rem;
+  }
+
+  .chart-box {
+    width: 100%;
+    min-height: 340px;
+  }
+
+  .empty-box {
+    min-height: 180px;
+    display: grid;
+    place-items: center;
+    border: 1px dashed var(--panel-border);
+    border-radius: 12px;
+    background: #fff;
+  }
+
+  .report-table-wrap {
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    background: #fff;
+  }
+
+  .report-table thead th {
+    position: sticky;
+    top: 0;
+    background: #f7faff;
+    color: #334155;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    border-bottom: 1px solid #dbe6f3;
+    white-space: nowrap;
+  }
+
+  .report-table tbody td {
+    white-space: nowrap;
+    border-color: #eef3f8;
+  }
+
+  .report-table tbody tr:hover {
+    background: #fbfdff;
+  }
+
+  .vendor-name {
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 600;
+  }
+
+  .rank-cell {
+    width: 42px;
+    color: #64748b;
+    font-weight: 700;
+  }
+
+  .num-cell {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .report-table tfoot th {
+    background: #f8fbff;
+    border-top: 2px solid #dbe6f3;
+  }
+
+  .mobile-vendor-list {
+    display: grid;
+    gap: 0.65rem;
+  }
+
+  .vendor-mobile-card {
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.03);
+    padding: 0.7rem;
+  }
+
+  .vendor-mobile-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.6rem;
+    margin-bottom: 0.55rem;
+  }
+
+  .vendor-mobile-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .vendor-mobile-rank {
+    min-width: 34px;
+    height: 26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: #eef4ff;
+    color: var(--accent);
+    font-weight: 700;
+    font-size: 0.78rem;
+    border: 1px solid #dbe6f3;
+  }
+
+  .vendor-mobile-name-wrap {
+    min-width: 0;
+  }
+
+  .vendor-mobile-name {
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+  }
+
+  .vendor-mobile-user {
+    margin-top: 0.1rem;
+    color: #64748b;
+    font-size: 0.78rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .vendor-mobile-total {
+    text-align: right;
+    min-width: 0;
+  }
+
+  .vendor-mobile-total-label {
+    display: block;
+    color: #64748b;
+    font-size: 0.67rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  .vendor-mobile-total-value {
+    display: block;
+    color: #0f172a;
+    font-size: 0.94rem;
+    line-height: 1.15;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .vendor-mobile-metrics {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.45rem;
+  }
+
+  .vendor-metric {
+    border: 1px solid #edf2f7;
+    background: #fafcff;
+    border-radius: 10px;
+    padding: 0.45rem 0.55rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.08rem;
+    min-width: 0;
+  }
+
+  .metric-label {
+    color: #64748b;
+    font-size: 0.66rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    line-height: 1.1;
+  }
+
+  .metric-value {
+    color: #0f172a;
+    font-weight: 600;
+    line-height: 1.15;
+    font-size: 0.88rem;
+    white-space: nowrap;
+  }
+
+  .metric-money {
+    font-variant-numeric: tabular-nums;
+    font-size: 0.82rem;
+  }
+
+  .metric-span-2 {
+    grid-column: span 2;
+  }
+
+  .vendor-mobile-total-card {
+    border-color: #dbe6f3;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  }
+
+  @media (max-width: 767.98px) {
+    .premios-range-report {
+      padding-bottom: 1.25rem;
+    }
+
+    .report-header {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .report-header .btn {
+      align-self: flex-start;
+    }
+
+    .filter-panel,
+    .chart-panel,
+    .table-panel {
+      border-radius: 12px;
+      padding: 0.75rem;
+    }
+
+    .chart-box {
+      min-height: 300px;
+    }
+
+    .panel-head {
+      align-items: flex-start;
+      flex-direction: column;
+      margin-bottom: 0.5rem;
+    }
+
+    .vendor-mobile-card {
+      padding: 0.65rem;
+      border-radius: 11px;
+    }
+
+    .vendor-mobile-top {
+      align-items: stretch;
+      gap: 0.5rem;
+    }
+
+    .vendor-mobile-total-value {
+      font-size: 0.9rem;
+    }
+
+    .metric-value {
+      font-size: 0.84rem;
+    }
+
+    .metric-money {
+      font-size: 0.79rem;
+    }
+  }
+</style>
+
+<script src="https://code.highcharts.com/highcharts.js"></script>
+<script>
+  (function () {
+    const chartEl = document.getElementById('premiosRangeChart');
+    if (!chartEl || !window.Highcharts) return;
+    const isMobile = window.matchMedia('(max-width: 767.98px)').matches;
+
+    function compactCopAxis(value) {
+      const n = Number(value || 0);
+      const abs = Math.abs(n);
+      if (abs >= 1000000000) return '$ ' + Highcharts.numberFormat(n / 1000000000, 1, ',', '.') + 'B';
+      if (abs >= 1000000) return '$ ' + Highcharts.numberFormat(n / 1000000, 1, ',', '.') + 'M';
+      if (abs >= 1000) return '$ ' + Highcharts.numberFormat(n / 1000, 0, ',', '.') + 'k';
+      return '$ ' + Highcharts.numberFormat(n, 0, ',', '.');
+    }
+
+    const categories = JSON.parse(document.getElementById('premios-range-chart-categories')?.textContent || '[]');
+    const premios = JSON.parse(document.getElementById('premios-range-chart-premios')?.textContent || '[]');
+
+    Highcharts.chart('premiosRangeChart', {
+      chart: {
+        type: 'column',
+        backgroundColor: 'transparent',
+        height: isMobile ? 340 : 400,
+        spacingLeft: isMobile ? 2 : 8,
+        spacingRight: isMobile ? 10 : 14
+      },
+      title: {
+        text: 'Premios por Vendedor'
+      },
+      credits: { enabled: false },
+      legend: {
+        align: 'center',
+        verticalAlign: 'top',
+        itemStyle: { fontSize: '12px' }
+      },
+      xAxis: {
+        categories: categories,
+        title: { text: 'Vendedores' },
+        lineColor: '#dbe6f3',
+        tickColor: '#dbe6f3',
+        labels: {
+          rotation: categories.length > (isMobile ? 3 : 5) ? (isMobile ? -55 : -35) : 0,
+          formatter: function () {
+            const label = String(this.value || '');
+            if (!isMobile) return label;
+            return label.length > 10 ? (label.slice(0, 10) + '...') : label;
+          },
+          style: { color: '#334155', fontSize: isMobile ? '10px' : '12px' }
+        }
+      },
+      yAxis: {
+        min: 0,
+        title: { text: isMobile ? null : 'Valor (COP)' },
+        gridLineColor: '#edf2f7',
+        labels: {
+          x: isMobile ? -2 : 0,
+          reserveSpace: true,
+          formatter: function () {
+            return compactCopAxis(this.value);
+          },
+          style: { fontSize: isMobile ? '10px' : '11px' }
+        }
+      },
+      tooltip: {
+        shared: true,
+        valuePrefix: '$ ',
+        valueDecimals: 0
+      },
+      plotOptions: {
+        column: {
+          borderRadius: 4,
+          pointPadding: isMobile ? 0.08 : 0.12,
+          groupPadding: isMobile ? 0.1 : 0.12
+        },
+        series: {
+          dataLabels: { enabled: false }
+        }
+      },
+      series: [
+        {
+          name: 'Total premios',
+          data: premios,
+          color: '#1f4b99'
+        }
+      ],
+      responsive: {
+        rules: [{
+          condition: { maxWidth: 576 },
+          chartOptions: {
+            chart: {
+              height: 340
+            },
+            legend: {
+              layout: 'horizontal',
+              align: 'center',
+              verticalAlign: 'bottom'
+            },
+            xAxis: {
+              labels: {
+                rotation: -45,
+                formatter: function () {
+                  const label = String(this.value || '');
+                  return label.length > 10 ? (label.slice(0, 10) + '...') : label;
+                },
+                style: { fontSize: '10px' }
+              }
+            }
+          }
+        }]
+      }
+    });
+  })();
+</script>
+{% endblock %}

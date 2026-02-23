@@ -7,7 +7,7 @@ from django.utils.dateparse import parse_date
 from django.http import Http404, JsonResponse
 from django.contrib.auth.views import LoginView
 from django.core.exceptions import ValidationError
-from .models import Loteria, Dia, Venta, Resultado, VentaAuditLog, _safe_create_venta_audit_log
+from .models import Loteria, Dia, Venta, Resultado, Premio, VentaAuditLog, _safe_create_venta_audit_log
 from django.db import transaction, IntegrityError
 from core.utils import importar_resultados  # ← añade esta línea
 from django.contrib import messages
@@ -698,6 +698,100 @@ def premios(request):
     'es_admin': request.user.is_staff,
 }
     return render(request, 'core/premios.html', context)
+
+
+@user_passes_test(lambda u: u.is_superuser)
+@login_required
+def premios_reporte_rango(request):
+    """
+    Reporte de premios por rango de fechas, agrupado por vendedor.
+    No altera el modulo existente de premios por fecha puntual.
+    """
+    hoy = timezone.localdate()
+
+    fecha_inicio_raw = request.GET.get('fecha_inicio')
+    fecha_fin_raw = request.GET.get('fecha_fin')
+
+    fecha_fin = parse_date(fecha_fin_raw) if fecha_fin_raw else hoy
+    fecha_inicio = parse_date(fecha_inicio_raw) if fecha_inicio_raw else (fecha_fin - timedelta(days=6))
+
+    # Sanitizar rango para evitar errores de usuario o fechas futuras
+    if not fecha_fin:
+        fecha_fin = hoy
+    if not fecha_inicio:
+        fecha_inicio = fecha_fin - timedelta(days=6)
+
+    if fecha_fin > hoy:
+        fecha_fin = hoy
+    if fecha_inicio > hoy:
+        fecha_inicio = hoy
+
+    if fecha_inicio > fecha_fin:
+        fecha_inicio, fecha_fin = fecha_fin, fecha_inicio
+
+    premios_qs = Premio.objects.filter(
+        fecha__range=(fecha_inicio, fecha_fin)
+    )
+
+    if not request.user.is_staff:
+        premios_qs = premios_qs.filter(vendedor=request.user)
+
+    resumen_vendedores_qs = (
+        premios_qs
+        .values(
+            'vendedor_id',
+            'vendedor__username',
+            'vendedor__first_name',
+            'vendedor__last_name',
+        )
+        .annotate(
+            total_premio=Coalesce(Sum('premio'), 0, output_field=IntegerField()),
+            total_apostado=Coalesce(Sum('valor'), 0, output_field=IntegerField()),
+            cantidad_premios=Count('id'),
+            loterias_distintas=Count('loteria', distinct=True),
+            dias_con_premios=Count('fecha', distinct=True),
+        )
+        .order_by('-total_premio', 'vendedor__username')
+    )
+
+    rows = []
+    for item in resumen_vendedores_qs:
+        full_name = f"{(item.get('vendedor__first_name') or '').strip()} {(item.get('vendedor__last_name') or '').strip()}".strip()
+        vendedor_nombre = full_name or (item.get('vendedor__username') or f"Vendedor {item.get('vendedor_id')}")
+        rows.append({
+            'vendedor_id': item.get('vendedor_id'),
+            'vendedor_nombre': vendedor_nombre,
+            'username': item.get('vendedor__username') or '',
+            'total_premio': int(item.get('total_premio') or 0),
+            'total_apostado': int(item.get('total_apostado') or 0),
+            'cantidad_premios': int(item.get('cantidad_premios') or 0),
+            'loterias_distintas': int(item.get('loterias_distintas') or 0),
+            'dias_con_premios': int(item.get('dias_con_premios') or 0),
+        })
+
+    totales = premios_qs.aggregate(
+        total_premios=Coalesce(Sum('premio'), 0, output_field=IntegerField()),
+        total_apostado=Coalesce(Sum('valor'), 0, output_field=IntegerField()),
+        cantidad_premios=Count('id'),
+        vendedores=Count('vendedor', distinct=True),
+        loterias=Count('loteria', distinct=True),
+    )
+    totales = {k: int(v or 0) for k, v in totales.items()}
+
+    chart_categories = [row['vendedor_nombre'] for row in rows]
+    chart_total_premios = [row['total_premio'] for row in rows]
+    context = {
+        'fecha_inicio': fecha_inicio,
+        'fecha_fin': fecha_fin,
+        'rows': rows,
+        'totales': totales,
+        'chart_categories': chart_categories,
+        'chart_total_premios': chart_total_premios,
+        'es_admin': request.user.is_staff,
+        'rango_dias': (fecha_fin - fecha_inicio).days + 1,
+        'fecha_max': hoy,
+    }
+    return render(request, 'core/premios_reporte_rango.html', context)
 
 
 @user_passes_test(lambda u: u.is_superuser)
