@@ -1,0 +1,504 @@
+{% extends "core/base.html" %}
+{% load format_filters %}
+
+{% block content %}
+<main class="container px-3 py-4 reporte-vvp">
+  <header class="mb-3">
+    <p class="vvp-eyebrow mb-1">Comparativo Liquidacion vs Premios</p>
+  </header>
+
+  <section class="vvp-panel mb-3" aria-label="Filtro de fechas">
+    <form method="get" class="row g-2 align-items-end">
+      <div class="col-12 col-sm-6 col-lg-4">
+        <label for="start_date" class="form-label small mb-1">Fecha inicio</label>
+        <input type="date" id="start_date" name="start_date" class="form-control"
+               value="{{ start_date }}" max="{{ fecha_max|date:'Y-m-d' }}">
+      </div>
+      <div class="col-12 col-sm-6 col-lg-4">
+        <label for="end_date" class="form-label small mb-1">Fecha fin</label>
+        <input type="date" id="end_date" name="end_date" class="form-control"
+               value="{{ end_date }}" max="{{ fecha_max|date:'Y-m-d' }}">
+      </div>
+      <div class="col-12 col-lg-4 d-grid">
+        <button type="submit" class="btn btn-primary">Generar reporte</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="row g-2 mb-3" aria-label="Resumen">
+    <div class="col-12 col-sm-6 col-lg-3">
+      <div class="vvp-summary">
+        <span class="vvp-summary-label">Venta neta (-10%)</span>
+        <strong class="vvp-summary-value">${{ total_neta|default:0|format_colombian }}</strong>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-lg-3">
+      <div class="vvp-summary">
+        <span class="vvp-summary-label">Liquidacion (65%)</span>
+        <strong class="vvp-summary-value">${{ total_liquidacion|default:0|format_colombian }}</strong>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-lg-3">
+      <div class="vvp-summary">
+        <span class="vvp-summary-label">Premios</span>
+        <strong class="vvp-summary-value">${{ total_premios|default:0|format_colombian }}</strong>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-lg-3">
+      <div class="vvp-summary {% if total_diferencia < 0 %}is-negative{% else %}is-positive{% endif %}">
+        <span class="vvp-summary-label">Diferencia liquidacion - premios</span>
+        <strong class="vvp-summary-value">
+          ${{ total_diferencia|default:0|format_colombian }}
+        </strong>
+      </div>
+    </div>
+  </section>
+
+  <section class="vvp-panel mb-3" aria-label="Grafica comparativa">
+    <div class="vvp-panel-head">
+      <h2 class="h6 mb-0">Comparativo por vendedor</h2>
+      <span class="text-muted small">{{ rows|length }} vendedor{{ rows|pluralize }}</span>
+    </div>
+    {% if rows %}
+      <div id="ventasPremiosChart" class="vvp-chart"></div>
+    {% else %}
+      <div class="alert alert-info mb-0">No hay datos para el rango seleccionado.</div>
+    {% endif %}
+  </section>
+
+  <section class="vvp-panel" aria-label="Tabla comparativa por vendedor">
+    <div class="vvp-panel-head mb-2">
+      <h2 class="h6 mb-0">Detalle por vendedor</h2>
+      <span class="text-muted small">Ordenado por mayor valor</span>
+    </div>
+
+    {% if rows %}
+      <div class="d-md-none vvp-mobile-list">
+        {% for row in rows %}
+          <article class="vvp-mobile-card">
+            <div class="vvp-mobile-top">
+              <div class="vvp-mobile-title-wrap">
+                <div class="vvp-mobile-rank">#{{ forloop.counter }}</div>
+                <div>
+                  <div class="vvp-mobile-title">{{ row.vendedor|title }}</div>
+                  <div class="vvp-mobile-user">@{{ row.username }}</div>
+                </div>
+              </div>
+              <div class="vvp-mobile-balance {% if row.diferencia < 0 %}is-negative{% else %}is-positive{% endif %}">
+                <span>Dif.</span>
+                <strong>${{ row.diferencia|format_colombian }}</strong>
+              </div>
+            </div>
+            <div class="vvp-mobile-grid">
+              <div class="vvp-kpi">
+                <span class="kpi-label">Venta neta</span>
+                <span class="kpi-value">${{ row.venta_neta|format_colombian }}</span>
+              </div>
+              <div class="vvp-kpi">
+                <span class="kpi-label">Premios</span>
+                <span class="kpi-value">${{ row.premios|format_colombian }}</span>
+              </div>
+              <div class="vvp-kpi">
+                <span class="kpi-label">Liquidacion</span>
+                <span class="kpi-value">${{ row.liquidacion|format_colombian }}</span>
+              </div>
+              <div class="vvp-kpi">
+                <span class="kpi-label">Premios (cant.)</span>
+                <span class="kpi-value">{{ row.cantidad_premios }}</span>
+              </div>
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+
+      <div class="d-none d-md-block table-responsive vvp-table-wrap">
+        <table class="table table-sm align-middle vvp-table mb-0">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Vendedor</th>
+              <th>Usuario</th>
+              <th class="text-end">Venta neta (-10%)</th>
+              <th class="text-end">Liquidacion</th>
+              <th class="text-end">Premios</th>
+              <th class="text-end">Cant. premios</th>
+              <th class="text-end">Diferencia</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in rows %}
+              <tr>
+                <td>{{ forloop.counter }}</td>
+                <td class="fw-semibold">{{ row.vendedor|title }}</td>
+                <td class="text-muted">@{{ row.username }}</td>
+                <td class="text-end vvp-num">${{ row.venta_neta|format_colombian }}</td>
+                <td class="text-end vvp-num">${{ row.liquidacion|format_colombian }}</td>
+                <td class="text-end vvp-num">${{ row.premios|format_colombian }}</td>
+                <td class="text-end">{{ row.cantidad_premios }}</td>
+                <td class="text-end vvp-num fw-semibold {% if row.diferencia < 0 %}text-danger{% else %}text-success{% endif %}">
+                  ${{ row.diferencia|format_colombian }}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot>
+            <tr>
+              <th colspan="3">Totales</th>
+              <th class="text-end vvp-num">${{ total_neta|default:0|format_colombian }}</th>
+              <th class="text-end vvp-num">${{ total_liquidacion|default:0|format_colombian }}</th>
+              <th class="text-end vvp-num">${{ total_premios|default:0|format_colombian }}</th>
+              <th class="text-end">-</th>
+              <th class="text-end vvp-num {% if total_diferencia < 0 %}text-danger{% else %}text-success{% endif %}">
+                ${{ total_diferencia|default:0|format_colombian }}
+              </th>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    {% else %}
+      <div class="alert alert-info mb-0">No hay ventas ni premios en el rango seleccionado.</div>
+    {% endif %}
+  </section>
+</main>
+
+{{ chart_labels|json_script:"vvp-chart-labels" }}
+{{ chart_liquidaciones|json_script:"vvp-chart-liquidaciones" }}
+{{ chart_premios|json_script:"vvp-chart-premios" }}
+
+<style>
+  .reporte-vvp {
+    --vvp-border: #dfe7f1;
+    --vvp-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+    --vvp-panel-bg: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+    --vvp-primary: #1f4b99;
+    --vvp-win: #0f766e;
+    --vvp-loss: #b42318;
+  }
+
+  .vvp-eyebrow {
+    color: var(--vvp-primary);
+    font-size: .78rem;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+
+  .vvp-panel {
+    border: 1px solid var(--vvp-border);
+    border-radius: 14px;
+    background: var(--vvp-panel-bg);
+    box-shadow: var(--vvp-shadow);
+    padding: .9rem;
+  }
+
+  .vvp-panel-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: .5rem;
+    margin-bottom: .65rem;
+  }
+
+  .vvp-summary {
+    height: 100%;
+    border: 1px solid var(--vvp-border);
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, .03);
+    padding: .75rem .85rem;
+    display: flex;
+    flex-direction: column;
+    gap: .15rem;
+  }
+
+  .vvp-summary.is-positive { border-color: #cce8de; }
+  .vvp-summary.is-negative { border-color: #f4c7c3; }
+
+  .vvp-summary-label {
+    color: #64748b;
+    font-size: .74rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .02em;
+    line-height: 1.1;
+  }
+
+  .vvp-summary-value {
+    color: #0f172a;
+    font-size: 1rem;
+    line-height: 1.15;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .vvp-chart { min-height: 360px; }
+
+  .vvp-table-wrap {
+    border: 1px solid var(--vvp-border);
+    border-radius: 12px;
+    background: #fff;
+  }
+
+  .vvp-table thead th {
+    background: #f7faff;
+    color: #334155;
+    white-space: nowrap;
+    border-bottom: 1px solid #dbe6f3;
+    font-size: .78rem;
+    text-transform: uppercase;
+    letter-spacing: .02em;
+  }
+
+  .vvp-table tbody td { white-space: nowrap; border-color: #eef3f8; }
+  .vvp-table tbody tr:hover { background: #fbfdff; }
+  .vvp-table tfoot th { background: #f8fbff; border-top: 2px solid #dbe6f3; }
+  .vvp-num { font-variant-numeric: tabular-nums; }
+
+  .vvp-mobile-list {
+    display: grid;
+    gap: .65rem;
+  }
+
+  .vvp-mobile-card {
+    background: #fff;
+    border: 1px solid var(--vvp-border);
+    border-radius: 12px;
+    padding: .7rem;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, .03);
+  }
+
+  .vvp-mobile-top {
+    display: flex;
+    justify-content: space-between;
+    gap: .5rem;
+    margin-bottom: .55rem;
+  }
+
+  .vvp-mobile-title-wrap {
+    min-width: 0;
+    display: flex;
+    gap: .45rem;
+    align-items: flex-start;
+  }
+
+  .vvp-mobile-rank {
+    min-width: 34px;
+    height: 25px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: #eef4ff;
+    border: 1px solid #dbe6f3;
+    color: var(--vvp-primary);
+    font-weight: 700;
+    font-size: .78rem;
+  }
+
+  .vvp-mobile-title {
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.15;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 42vw;
+  }
+
+  .vvp-mobile-user {
+    color: #64748b;
+    font-size: .78rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 42vw;
+  }
+
+  .vvp-mobile-balance {
+    text-align: right;
+    border-radius: 10px;
+    padding: .3rem .5rem;
+    min-width: 0;
+    line-height: 1.1;
+  }
+
+  .vvp-mobile-balance span {
+    display: block;
+    font-size: .65rem;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    font-weight: 700;
+  }
+
+  .vvp-mobile-balance strong {
+    font-size: .84rem;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .vvp-mobile-balance.is-positive {
+    background: #ecfdf5;
+    color: #065f46;
+    border: 1px solid #cce8de;
+  }
+
+  .vvp-mobile-balance.is-negative {
+    background: #fef2f2;
+    color: #991b1b;
+    border: 1px solid #f4c7c3;
+  }
+
+  .vvp-mobile-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: .45rem;
+  }
+
+  .vvp-kpi {
+    border: 1px solid #edf2f7;
+    border-radius: 10px;
+    background: #fafcff;
+    padding: .45rem .55rem;
+    min-width: 0;
+  }
+
+  .kpi-label {
+    display: block;
+    color: #64748b;
+    font-size: .65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    line-height: 1.1;
+    margin-bottom: .1rem;
+  }
+
+  .kpi-value {
+    color: #0f172a;
+    font-size: .84rem;
+    font-weight: 600;
+    line-height: 1.15;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  @media (max-width: 767.98px) {
+    .reporte-vvp { padding-bottom: 1.2rem; }
+    .vvp-panel { border-radius: 12px; padding: .75rem; }
+    .vvp-panel-head { align-items: flex-start; flex-direction: column; margin-bottom: .5rem; }
+    .vvp-chart { min-height: 320px; }
+    .vvp-mobile-title { max-width: 38vw; }
+    .vvp-mobile-user { max-width: 38vw; }
+  }
+</style>
+
+<script src="https://code.highcharts.com/highcharts.js"></script>
+<script>
+  (function () {
+    const chartEl = document.getElementById('ventasPremiosChart');
+    if (!chartEl || !window.Highcharts) return;
+
+    const isMobile = window.matchMedia('(max-width: 767.98px)').matches;
+    const labels = JSON.parse(document.getElementById('vvp-chart-labels')?.textContent || '[]');
+    const liquidaciones = JSON.parse(document.getElementById('vvp-chart-liquidaciones')?.textContent || '[]');
+    const premios = JSON.parse(document.getElementById('vvp-chart-premios')?.textContent || '[]');
+
+    function compactCop(value) {
+      const n = Number(value || 0);
+      const abs = Math.abs(n);
+      if (abs >= 1000000000) return '$ ' + Highcharts.numberFormat(n / 1000000000, 1, ',', '.') + 'B';
+      if (abs >= 1000000) return '$ ' + Highcharts.numberFormat(n / 1000000, 1, ',', '.') + 'M';
+      if (abs >= 1000) return '$ ' + Highcharts.numberFormat(n / 1000, 0, ',', '.') + 'k';
+      return '$ ' + Highcharts.numberFormat(n, 0, ',', '.');
+    }
+
+    Highcharts.chart('ventasPremiosChart', {
+      chart: {
+        type: 'column',
+        backgroundColor: 'transparent',
+        height: isMobile ? 340 : 400,
+        spacingLeft: isMobile ? 2 : 8,
+        spacingRight: isMobile ? 10 : 14
+      },
+      title: { text: 'Liquidacion vs Premios por Vendedor' },
+      credits: { enabled: false },
+      legend: {
+        align: 'center',
+        verticalAlign: 'top',
+        itemStyle: { fontSize: '12px' }
+      },
+      xAxis: {
+        categories: labels,
+        title: { text: 'Vendedores' },
+        lineColor: '#dbe6f3',
+        tickColor: '#dbe6f3',
+        labels: {
+          rotation: labels.length > (isMobile ? 3 : 5) ? (isMobile ? -55 : -35) : 0,
+          formatter: function () {
+            const label = String(this.value || '');
+            if (!isMobile) return label;
+            return label.length > 10 ? (label.slice(0, 10) + '...') : label;
+          },
+          style: { color: '#334155', fontSize: isMobile ? '10px' : '12px' }
+        }
+      },
+      yAxis: {
+        min: 0,
+        title: { text: isMobile ? null : 'Valor (COP)' },
+        gridLineColor: '#edf2f7',
+        labels: {
+          formatter: function () { return compactCop(this.value); },
+          style: { fontSize: isMobile ? '10px' : '11px' }
+        }
+      },
+      tooltip: {
+        shared: true,
+        formatter: function () {
+          const parts = [`<strong>${this.x}</strong>`];
+          this.points.forEach(p => {
+            parts.push(`${p.series.name}: <b>$ ${Highcharts.numberFormat(p.y, 0, ',', '.')}</b>`);
+          });
+          return parts.join('<br>');
+        }
+      },
+      plotOptions: {
+        column: {
+          borderRadius: 4,
+          pointPadding: isMobile ? 0.08 : 0.12,
+          groupPadding: isMobile ? 0.10 : 0.12
+        }
+      },
+      series: [
+        {
+          name: 'Liquidacion',
+          data: liquidaciones,
+          color: '#1f4b99'
+        },
+        {
+          name: 'Premios',
+          data: premios,
+          color: '#e11d48'
+        }
+      ],
+      responsive: {
+        rules: [{
+          condition: { maxWidth: 576 },
+          chartOptions: {
+            chart: { height: 340 },
+            legend: {
+              layout: 'horizontal',
+              align: 'center',
+              verticalAlign: 'bottom'
+            },
+            xAxis: {
+              labels: {
+                rotation: -45,
+                style: { fontSize: '10px' }
+              }
+            }
+          }
+        }]
+      }
+    });
+  })();
+</script>
+{% endblock %}

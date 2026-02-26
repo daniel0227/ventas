@@ -1050,7 +1050,7 @@ def _round_cop(n) -> int:
         n = Decimal(n)
     return int(n.quantize(Decimal('1'), rounding=ROUND_HALF_UP))
 
-@user_passes_test(lambda u: u.is_staff)
+@user_passes_test(lambda u: u.is_superuser)
 def reportes(request):
     # --- fechas robustas ---
     start_date = request.GET.get('start_date')
@@ -1124,4 +1124,176 @@ def reportes(request):
         'total_general_liquidacion': total_general_liquidacion,
         'start_date': start_date,
         'end_date': end_date,
+    })
+
+
+@user_passes_test(lambda u: u.is_superuser)
+@login_required
+def reporte_ventas_vs_premios(request):
+    """
+    Reporte comparativo por vendedor:
+    - Venta bruta
+    - Venta neta (bruta - 10%)
+    - Liquidacion (venta neta - 35%)
+    - Premios pagados en el mismo rango
+    """
+    hoy = timezone.localdate()
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+
+    try:
+        if start_date and end_date:
+            start = parse_date(start_date)
+            end = parse_date(end_date)
+            if not start or not end:
+                raise ValueError("fechas invalidas")
+        else:
+            raise ValueError("faltan fechas")
+    except Exception:
+        end = hoy
+        start = hoy - timedelta(days=6)
+        start_date = str(start)
+        end_date = str(end)
+
+    if start > end:
+        start, end = end, start
+        start_date, end_date = str(start), str(end)
+
+    if end > hoy:
+        end = hoy
+        end_date = str(end)
+        if start > end:
+            start = end
+            start_date = str(start)
+
+    # --- Ventas por vendedor (monto x # loterias) ---
+    ventas_qs = (
+        Venta.objects
+        .annotate(fecha=TruncDate('fecha_venta'))
+        .filter(fecha__range=(start, end))
+        .select_related('vendedor')
+        .prefetch_related('loterias')
+        .annotate(count_loterias=Count('loterias', distinct=True))
+        .annotate(
+            total_bruta=ExpressionWrapper(
+                F('monto') * F('count_loterias'),
+                output_field=IntegerField()
+            )
+        )
+        .values(
+            'vendedor_id',
+            'vendedor__username',
+            'vendedor__first_name',
+            'vendedor__last_name',
+            'total_bruta',
+        )
+    )
+
+    ventas_por_vendedor = {}
+    for v in ventas_qs:
+        vendedor_id = v.get('vendedor_id')
+        if not vendedor_id:
+            continue
+
+        item = ventas_por_vendedor.setdefault(vendedor_id, {
+            'vendedor_id': vendedor_id,
+            'username': v.get('vendedor__username') or '',
+            'first_name': (v.get('vendedor__first_name') or '').strip(),
+            'last_name': (v.get('vendedor__last_name') or '').strip(),
+            'venta_bruta': 0,
+        })
+        item['venta_bruta'] += int(v.get('total_bruta') or 0)
+
+    # --- Premios por vendedor (mismo rango) ---
+    premios_qs = (
+        Premio.objects
+        .filter(fecha__range=(start, end))
+        .values(
+            'vendedor_id',
+            'vendedor__username',
+            'vendedor__first_name',
+            'vendedor__last_name',
+        )
+        .annotate(
+            total_premios=Coalesce(Sum('premio'), 0, output_field=IntegerField()),
+            cantidad_premios=Count('id'),
+        )
+    )
+
+    premios_por_vendedor = {}
+    for p in premios_qs:
+        vendedor_id = p.get('vendedor_id')
+        if not vendedor_id:
+            continue
+
+        premios_por_vendedor[vendedor_id] = {
+            'vendedor_id': vendedor_id,
+            'username': p.get('vendedor__username') or '',
+            'first_name': (p.get('vendedor__first_name') or '').strip(),
+            'last_name': (p.get('vendedor__last_name') or '').strip(),
+            'total_premios': int(p.get('total_premios') or 0),
+            'cantidad_premios': int(p.get('cantidad_premios') or 0),
+        }
+
+    # --- Merge de vendedores (con ventas y/o con premios) ---
+    all_vendor_ids = set(ventas_por_vendedor.keys()) | set(premios_por_vendedor.keys())
+
+    rows = []
+    total_bruta = total_neta = total_liquidacion = total_premios = total_diferencia = 0
+
+    for vendor_id in all_vendor_ids:
+        venta_data = ventas_por_vendedor.get(vendor_id, {})
+        premio_data = premios_por_vendedor.get(vendor_id, {})
+
+        username = venta_data.get('username') or premio_data.get('username') or ''
+        first_name = venta_data.get('first_name') or premio_data.get('first_name') or ''
+        last_name = venta_data.get('last_name') or premio_data.get('last_name') or ''
+        full_name = f"{first_name} {last_name}".strip()
+        vendedor_nombre = full_name or username or f"Vendedor {vendor_id}"
+
+        bruta = int(venta_data.get('venta_bruta') or 0)
+        neta = _round_cop(Decimal(bruta) * (Decimal('1') - RETENCION_PCT))
+        comision = _round_cop(Decimal(neta) * COMISION_PCT)
+        liquidacion = neta - comision
+        premios_total = int(premio_data.get('total_premios') or 0)
+        diferencia = liquidacion - premios_total
+        cantidad_premios = int(premio_data.get('cantidad_premios') or 0)
+
+        rows.append({
+            'vendedor_id': vendor_id,
+            'vendedor': vendedor_nombre,
+            'username': username,
+            'venta_bruta': bruta,
+            'venta_neta': neta,
+            'liquidacion': liquidacion,
+            'premios': premios_total,
+            'cantidad_premios': cantidad_premios,
+            'diferencia': diferencia,
+        })
+
+        total_bruta += bruta
+        total_neta += neta
+        total_liquidacion += liquidacion
+        total_premios += premios_total
+        total_diferencia += diferencia
+
+    rows.sort(key=lambda r: max(r['liquidacion'], r['premios']), reverse=True)
+
+    chart_labels = [r['vendedor'] for r in rows]
+    chart_liquidaciones = [r['liquidacion'] for r in rows]
+    chart_premios = [r['premios'] for r in rows]
+
+    return render(request, 'core/reporte_ventas_vs_premios.html', {
+        'start_date': str(start),
+        'end_date': str(end),
+        'fecha_max': hoy,
+        'rows': rows,
+        'chart_labels': chart_labels,
+        'chart_liquidaciones': chart_liquidaciones,
+        'chart_premios': chart_premios,
+        'total_bruta': total_bruta,
+        'total_neta': total_neta,
+        'total_liquidacion': total_liquidacion,
+        'total_premios': total_premios,
+        'total_diferencia': total_diferencia,
     })

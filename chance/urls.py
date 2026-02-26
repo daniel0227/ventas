@@ -19,6 +19,7 @@ urlpatterns = [
     path('resultados/', views.resultados, name='resultados'),
     path('reporte-descargas/', views.reporte_descargas, name='reporte_descargas'),
     path('reportes/', views.reportes, name='reportes'),
+    path('reportes/ventas-vs-premios/', views.reporte_ventas_vs_premios, name='reporte_ventas_vs_premios'),
     path('admin/', admin.site.urls),
     path('login/', CustomLoginView.as_view(), name='login'),
     path('logout/', LogoutView.as_view(), name='logout'),

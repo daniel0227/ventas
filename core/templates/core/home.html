@@ -53,19 +53,6 @@
       </a>
     </div>
 
-    {% if user.is_superuser %}
-      <div class="col-12 col-sm-6 col-xl-3">
-        <a href="{% url 'premios_reporte_rango' %}" class="menu-link">
-          <article class="card menu-card menu-card-prizes-report h-100">
-            <div class="card-body menu-item">
-              <img src="{% static 'core/img/report.png' %}" alt="" class="menu-icon" aria-hidden="true">
-              <h3 class="menu-label">Reporte de Premios</h3>
-            </div>
-          </article>
-        </a>
-      </div>
-    {% endif %}
-
     <div class="col-12 col-sm-6 col-xl-3">
       <a href="{% url 'resultados' %}" class="menu-link">
         <article class="card menu-card menu-card-results h-100">
@@ -100,16 +87,41 @@
         </a>
       </div>
 
-      <div class="col-12 col-sm-6 col-xl-3">
-        <a href="{% url 'reportes' %}" class="menu-link">
-          <article class="card menu-card menu-card-management h-100">
-            <div class="card-body menu-item">
-              <img src="{% static 'core/img/sales.png' %}" alt="" class="menu-icon" aria-hidden="true">
-              <h3 class="menu-label">Reportes Gerenciales</h3>
+      {% if user.is_superuser %}
+        <div class="col-12 col-sm-6 col-xl-3">
+          <article class="card menu-card menu-card-reports-group h-100">
+            <button
+              type="button"
+              class="card-body menu-item menu-collapse-toggle"
+              data-bs-toggle="collapse"
+              data-bs-target="#homeReportsCollapse"
+              aria-expanded="false"
+              aria-controls="homeReportsCollapse">
+              <span class="menu-collapse-main">
+                <img src="{% static 'core/img/report.png' %}" alt="" class="menu-icon" aria-hidden="true">
+                <h3 class="menu-label">Reportes</h3>
+              </span>
+              <span class="menu-collapse-chevron" aria-hidden="true">&#9662;</span>
+            </button>
+            <div class="collapse menu-collapse-panel" id="homeReportsCollapse">
+              <div class="menu-collapse-list">
+                <a href="{% url 'reportes' %}" class="menu-collapse-link">
+                  <span class="menu-collapse-dot"></span>
+                  <span>Reporte Gerencial</span>
+                </a>
+                <a href="{% url 'premios_reporte_rango' %}" class="menu-collapse-link">
+                  <span class="menu-collapse-dot"></span>
+                  <span>Reporte de Premios</span>
+                </a>
+                <a href="{% url 'reporte_ventas_vs_premios' %}" class="menu-collapse-link">
+                  <span class="menu-collapse-dot"></span>
+                  <span>Ventas vs Premios</span>
+                </a>
+              </div>
             </div>
           </article>
-        </a>
-      </div>
+        </div>
+      {% endif %}
     {% endif %}
   </div>
 </section>
@@ -187,6 +199,79 @@
   .menu-card-register { background-color: #fef3c7; }
   .menu-card-downloads { background-color: #e0f2fe; }
   .menu-card-management { background-color: #dbeafe; }
+  .menu-card-reports-group { background-color: #e8f1ff; overflow: hidden; }
+
+  .menu-collapse-toggle {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    text-align: left;
+    justify-content: space-between;
+    cursor: pointer;
+  }
+
+  .menu-collapse-main {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    min-width: 0;
+  }
+
+  .menu-collapse-chevron {
+    color: #1f2937;
+    font-size: 1rem;
+    line-height: 1;
+    flex: 0 0 auto;
+    margin-left: 0.4rem;
+    transition: transform 0.2s ease;
+  }
+
+  .menu-collapse-toggle[aria-expanded="true"] .menu-collapse-chevron {
+    transform: rotate(180deg);
+  }
+
+  .menu-collapse-panel {
+    border-top: 1px solid rgba(31, 41, 55, 0.08);
+    background: rgba(255, 255, 255, 0.45);
+  }
+
+  .menu-collapse-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    padding: 0.6rem 0.75rem 0.75rem;
+  }
+
+  .menu-collapse-link {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-decoration: none;
+    color: #1f2937;
+    font-size: 0.92rem;
+    font-weight: 600;
+    padding: 0.5rem 0.55rem;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.7);
+    border: 1px solid rgba(31, 41, 55, 0.06);
+    transition: background-color 0.18s ease, transform 0.18s ease;
+  }
+
+  .menu-collapse-link:hover,
+  .menu-collapse-link:focus-visible {
+    background: rgba(255, 255, 255, 0.95);
+    color: #111827;
+    transform: translateY(-1px);
+    outline: none;
+  }
+
+  .menu-collapse-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #2563eb;
+    flex: 0 0 auto;
+  }
 
   @media (max-width: 575.98px) {
     .home-menu {
@@ -216,6 +301,21 @@
     .menu-label {
       font-size: 0.86rem;
       line-height: 1.15;
+    }
+
+    .menu-collapse-main {
+      gap: 0.45rem;
+    }
+
+    .menu-collapse-list {
+      gap: 0.22rem;
+      padding: 0.4rem 0.55rem 0.55rem;
+    }
+
+    .menu-collapse-link {
+      font-size: 0.8rem;
+      padding: 0.36rem 0.45rem;
+      border-radius: 8px;
     }
   }
 </style>
