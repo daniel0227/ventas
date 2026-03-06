@@ -51,7 +51,31 @@ class Loteria(models.Model):
         buffer_segundos = max(int(cierre_buffer_segundos or 0), 0)
         fin_efectivo = fin_dt - timedelta(seconds=buffer_segundos)
         return inicio_dt <= fecha_hora_local <= fin_efectivo
-    
+     
+
+class ConfiguracionVenta(models.Model):
+    CLAVE_GLOBAL = "global"
+
+    clave = models.CharField(max_length=20, unique=True, default=CLAVE_GLOBAL, editable=False)
+    limite_apuesta_por_numero = models.PositiveIntegerField(
+        default=0,
+        help_text="Tope por numero y loteria para un dia. 0 desactiva el limite.",
+    )
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Configuracion de venta"
+        verbose_name_plural = "Configuracion de ventas"
+
+    def save(self, *args, **kwargs):
+        self.clave = self.CLAVE_GLOBAL
+        return super().save(*args, **kwargs)
+
+    def __str__(self):
+        if not self.limite_apuesta_por_numero:
+            return "Configuracion de ventas (sin limite)"
+        return f"Configuracion de ventas (limite {self.limite_apuesta_por_numero})"
+
 
 class VentaQuerySet(models.QuerySet):
     def update(self, **kwargs):

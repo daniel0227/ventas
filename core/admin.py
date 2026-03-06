@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth import get_user_model
-from .models import Loteria, Venta, Dia, Resultado, Premio, VentaAuditLog
+from .models import Loteria, Venta, Dia, Resultado, Premio, VentaAuditLog, ConfiguracionVenta
 
 User = get_user_model()
 
@@ -129,6 +129,19 @@ class VentaAuditLogAdmin(admin.ModelAdmin):
     def has_change_permission(self, request, obj=None):
         # Permite abrir el detalle en modo solo lectura.
         return True
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(ConfiguracionVenta)
+class ConfiguracionVentaAdmin(admin.ModelAdmin):
+    list_display = ("limite_apuesta_por_numero", "actualizado_en")
+    fields = ("limite_apuesta_por_numero", "actualizado_en")
+    readonly_fields = ("actualizado_en",)
+
+    def has_add_permission(self, request):
+        return not ConfiguracionVenta.objects.exists()
 
     def has_delete_permission(self, request, obj=None):
         return False
