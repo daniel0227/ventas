@@ -13,17 +13,34 @@
   <!-- Filtro de fecha (sticky + input-group alineado) -->
   <div class="position-sticky top-0 bg-body z-3 py-2 mb-3 border-bottom sticky-filter">
     <form method="get" class="mb-0" role="search" aria-label="Filtrar por fecha">
-      <label for="fecha" class="form-label mb-1">Seleccionar fecha</label>
-      <div class="input-group filter-group">
-        <input
-          type="date"
-          id="fecha"
-          name="fecha"
-          class="form-control"
-          value="{{ fecha_actual|date:'Y-m-d'|default:'' }}"
-          max="{{ fecha_actual|date:'Y-m-d' }}"
-          aria-label="Seleccionar fecha">
-        <button type="submit" class="btn btn-outline-secondary">Filtrar</button>
+      <div class="row g-2 align-items-end">
+        <div class="{% if es_admin %}col-12 col-md-4{% else %}col-12 col-md-6{% endif %}">
+          <label for="fecha" class="form-label mb-1">Seleccionar fecha</label>
+          <input
+            type="date"
+            id="fecha"
+            name="fecha"
+            class="form-control"
+            value="{{ fecha|date:'Y-m-d'|default:'' }}"
+            max="{{ fecha_actual|date:'Y-m-d' }}"
+            aria-label="Seleccionar fecha">
+        </div>
+        {% if es_admin %}
+          <div class="col-12 col-md-5">
+            <label for="vendedor" class="form-label mb-1">Usuario</label>
+            <select id="vendedor" name="vendedor" class="form-select">
+              <option value="">Todos</option>
+              {% for usuario in usuarios_premios %}
+                <option value="{{ usuario.id }}" {% if vendedor_id == usuario.id|stringformat:'s' %}selected{% endif %}>
+                  {{ usuario.get_full_name|default:usuario.username|title }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+        {% endif %}
+        <div class="{% if es_admin %}col-12 col-md-3{% else %}col-12 col-md-6{% endif %} d-grid">
+          <button type="submit" class="btn btn-outline-secondary">Filtrar</button>
+        </div>
       </div>
     </form>
   </div>

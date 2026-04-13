@@ -1,0 +1,234 @@
+{% extends "core/base.html" %}
+{% load format_filters %}
+
+{% block content %}
+<style>
+  .filter-bar {
+    position: sticky;
+    top: calc(var(--bs-navbar-height, 56px) + 0px);
+    z-index: 1030;
+    background: var(--bs-body-bg);
+    backdrop-filter: saturate(1.1) blur(6px);
+    border-bottom: 1px solid var(--bs-border-color);
+  }
+  .input-group-text { background: var(--bs-body-bg); }
+  .tap { min-height: 44px; }
+  .card-rounded, .table, .form-control, .form-select, .btn { border-radius: 1rem; }
+  .fs-total { font-size: clamp(1.6rem, 3vw, 2rem); }
+  @media (max-width: 575.98px) {
+    .table-wrapper { display: none; }
+  }
+  @media (min-width: 576px) {
+    .cards-wrapper { display: none; }
+  }
+  @media (min-width: 576px) {
+    thead.thead-light th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: var(--bs-light);
+    }
+  }
+  .form-control:focus, .form-select:focus, .btn:focus {
+    box-shadow: 0 0 0 .2rem rgba(var(--bs-primary-rgb), .2);
+  }
+</style>
+
+<div class="py-3">
+  <div class="d-flex justify-content-between align-items-center flex-wrap">
+    <h1 class="h4 mb-0">Mis Descargues</h1>
+  </div>
+</div>
+
+<section class="filter-bar py-2">
+  <form method="GET" class="container-fluid px-0">
+    <div class="row g-2 align-items-stretch">
+      <div class="col-12">
+        <div class="input-group">
+          <span class="input-group-text tap">
+            <i class="bi bi-search" aria-hidden="true"></i>
+            <span class="visually-hidden">Buscar</span>
+          </span>
+          <input
+            type="search"
+            class="form-control tap"
+            name="search"
+            value="{{ search }}"
+            placeholder="Buscar por número"
+            autocomplete="off"
+            inputmode="numeric"
+          >
+          <button class="btn btn-outline-secondary tap d-none d-sm-inline-flex" id="btn-clear" type="button">Limpiar</button>
+        </div>
+      </div>
+
+      <div class="col-12">
+        <div class="input-group">
+          <span class="input-group-text tap">
+            <i class="bi bi-calendar-event" aria-hidden="true"></i>
+            <span class="visually-hidden">Fecha</span>
+          </span>
+          <input
+            type="date"
+            class="form-control tap"
+            name="start_date"
+            id="start_date"
+            value="{{ filter_date }}"
+            max="{% now 'Y-m-d' %}"
+          >
+        </div>
+      </div>
+
+      <div class="col-12">
+        <div class="input-group">
+          <span class="input-group-text tap">
+            <i class="bi bi-ticket-perforated" aria-hidden="true"></i>
+            <span class="visually-hidden">Lotería</span>
+          </span>
+          <select id="loteria" name="loteria" class="form-select tap">
+            <option value="">Todas las loterías</option>
+            {% for loteria in loterias %}
+              <option value="{{ loteria.loteria__id }}" {% if loteria_id == loteria.loteria__id|stringformat:'s' %}selected{% endif %}>
+                {{ loteria.loteria__nombre }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="col-12 d-grid d-sm-flex gap-2 mt-1">
+        <button type="submit" class="btn btn-primary tap">
+          <i class="bi bi-funnel" aria-hidden="true"></i> Filtrar
+        </button>
+      </div>
+    </div>
+  </form>
+</section>
+
+<div class="card border-0 shadow-sm card-rounded mt-3 mb-3">
+  <div class="card-body d-flex justify-content-between align-items-center">
+    <div>
+      <div class="text-muted small">Total Descargues</div>
+      <div class="fw-bold fs-total" aria-live="polite">
+        ${{ total_ventas|format_colombian }} <span class="text-muted fs-6">COP</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm card-rounded mb-4">
+  <div class="card-body">
+    <div class="table-responsive table-wrapper">
+      <table class="table table-hover align-middle mb-0 rounded">
+        <thead class="thead-light">
+          <tr>
+            <th class="border-0">Lotería</th>
+            <th class="border-0">Número</th>
+            <th class="border-0 text-end">Valor</th>
+            <th class="border-0">Fecha de Carga</th>
+            <th class="border-0">Registrado por</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for venta in ventas %}
+            <tr>
+              <td>{{ venta.loteria.nombre }}</td>
+              <td>{{ venta.numero }}</td>
+              <td class="text-end">${{ venta.monto|format_colombian }}</td>
+              <td>{{ venta.fecha_venta }}</td>
+              <td>{{ venta.registrado_por.username|capfirst }}</td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="5" class="text-center py-5">
+                <i class="bi bi-inboxes fs-1 d-block mb-2"></i>
+                <div class="text-muted">No se encontraron descargues.</div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="cards-wrapper">
+      {% for venta in ventas %}
+        <article class="card mb-2 shadow-0 border rounded-3">
+          <div class="card-body p-3">
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <div class="fw-semibold">{{ venta.loteria.nombre }}</div>
+                <div class="text-muted">Cargada por {{ venta.registrado_por.username|capfirst }}</div>
+              </div>
+              <div class="text-end">
+                <div class="fw-bold">${{ venta.monto|format_colombian }}</div>
+                <small class="text-muted">{{ venta.fecha_venta }}</small>
+              </div>
+            </div>
+            <div class="mt-3">
+              <div class="border rounded-3 px-3 py-2 d-inline-block fw-bold bg-light">
+                #{{ venta.numero }}
+              </div>
+              <span class="badge border border-secondary text-secondary ms-2" style="font-size: 1rem;">
+                ID: {{ venta.id }}
+              </span>
+            </div>
+          </div>
+        </article>
+      {% empty %}
+        <div class="text-center text-muted py-5">
+          <i class="bi bi-inboxes fs-1 d-block mb-2"></i>
+          No se encontraron descargues.
+        </div>
+      {% endfor %}
+    </div>
+
+    {% if ventas.paginator.num_pages > 1 %}
+      <nav aria-label="Paginación" class="mt-3">
+        <ul class="pagination justify-content-center flex-wrap">
+          {% if ventas.has_previous %}
+            <li class="page-item">
+              <a class="page-link" href="?page={{ ventas.previous_page_number }}&start_date={{ filter_date }}&search={{ search|urlencode }}&loteria={{ loteria_id }}">« Anterior</a>
+            </li>
+          {% else %}
+            <li class="page-item disabled"><span class="page-link">«</span></li>
+          {% endif %}
+
+          {% for num in ventas.paginator.page_range %}
+            <li class="page-item {% if ventas.number == num %}active{% endif %}">
+              <a class="page-link" href="?page={{ num }}&start_date={{ filter_date }}&search={{ search|urlencode }}&loteria={{ loteria_id }}">{{ num }}</a>
+            </li>
+          {% endfor %}
+
+          {% if ventas.has_next %}
+            <li class="page-item">
+              <a class="page-link" href="?page={{ ventas.next_page_number }}&start_date={{ filter_date }}&search={{ search|urlencode }}&loteria={{ loteria_id }}">Siguiente »</a>
+            </li>
+          {% else %}
+            <li class="page-item disabled"><span class="page-link">»</span></li>
+          {% endif %}
+        </ul>
+      </nav>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+  (() => {
+    const form = document.querySelector('.filter-bar form');
+    const q = form?.querySelector('input[name="search"]');
+    const btnClear = document.getElementById('btn-clear');
+
+    let t;
+    q?.addEventListener('input', () => {
+      if (btnClear) btnClear.classList.toggle('d-none', !q.value);
+      clearTimeout(t);
+      t = setTimeout(() => form.submit(), 350);
+    });
+
+    btnClear?.addEventListener('click', () => {
+      q.value = '';
+      form.submit();
+    });
+  })();
+</script>
+{% endblock %}

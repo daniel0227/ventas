@@ -186,6 +186,39 @@ class Venta(models.Model):
         return super().delete(*args, **kwargs)
 
 
+class VentaDescargue(models.Model):
+    registrado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="ventas_descargue_registradas",
+    )
+    descargue = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="ventas_descargue",
+    )
+    loteria = models.ForeignKey(
+        "Loteria",
+        on_delete=models.PROTECT,
+        related_name="ventas_descargue",
+    )
+    fecha_venta = models.DateTimeField(auto_now_add=True, db_index=True)
+    numero = models.CharField(max_length=50, db_index=True)
+    monto = models.PositiveIntegerField()
+
+    class Meta:
+        ordering = ("-fecha_venta", "-id")
+        verbose_name = "Venta de descargue"
+        verbose_name_plural = "Ventas de descargues"
+
+    def clean(self):
+        if self.descargue_id and self.descargue and self.descargue.is_staff:
+            raise ValidationError("El usuario descargue no puede ser administrador.")
+
+    def __str__(self):
+        return f"{self.descargue} - {self.numero} - {self.loteria} - {self.fecha_venta}"
+
+
 class VentaAuditLog(models.Model):
     STATUS_INFO = "info"
     STATUS_SUCCESS = "success"
@@ -275,6 +308,12 @@ class Premio(models.Model):
         related_name='premios',
         null=True, blank=True
     )
+    venta_descargue = models.ForeignKey(
+        'VentaDescargue',
+        on_delete=models.CASCADE,
+        related_name='premios',
+        null=True, blank=True
+    )
     numero = models.CharField(max_length=10, db_index=True)      # número apostado
     valor = models.PositiveIntegerField()                         # valor apostado (monto)
     cifras = models.PositiveSmallIntegerField()                   # 2, 3 o 4
@@ -290,7 +329,24 @@ class Premio(models.Model):
             models.UniqueConstraint(
                 fields=['venta', 'loteria', 'fecha'],
                 name='uniq_premio_por_venta_loteria_fecha'
-            )
+            ),
+            models.UniqueConstraint(
+                fields=['venta_descargue', 'loteria', 'fecha'],
+                name='uniq_premio_por_descargue_loteria_fecha'
+            ),
+            models.CheckConstraint(
+                condition=(
+                    (
+                        models.Q(venta__isnull=False)
+                        & models.Q(venta_descargue__isnull=True)
+                    )
+                    | (
+                        models.Q(venta__isnull=True)
+                        & models.Q(venta_descargue__isnull=False)
+                    )
+                ),
+                name='premio_con_una_sola_fuente'
+            ),
         ]
 
     def __str__(self):

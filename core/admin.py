@@ -1,6 +1,15 @@
 from django.contrib import admin
 from django.contrib.auth import get_user_model
-from .models import Loteria, Venta, Dia, Resultado, Premio, VentaAuditLog, ConfiguracionVenta
+from .models import (
+    Loteria,
+    Venta,
+    VentaDescargue,
+    Dia,
+    Resultado,
+    Premio,
+    VentaAuditLog,
+    ConfiguracionVenta,
+)
 
 User = get_user_model()
 
@@ -15,7 +24,7 @@ class LoteriaAdmin(admin.ModelAdmin):
 class VentaAdmin(admin.ModelAdmin):
     list_display = ("id", "fecha_venta", "vendedor", "numero", "monto")
     list_filter = ("fecha_venta", )
-    actions = None
+    actions = ["delete_selected"]
     # Muy importante para habilitar el autocomplete desde PremioAdmin
     search_fields = (
         "numero",
@@ -53,13 +62,19 @@ class VentaAdmin(admin.ModelAdmin):
         return False
 
     def has_delete_permission(self, request, obj=None):
-        return False
+        return bool(request.user and request.user.is_superuser)
 
     def has_change_permission(self, request, obj=None):
         return bool(request.user and request.user.is_superuser)
 
     def has_view_permission(self, request, obj=None):
         return bool(request.user and request.user.is_staff)
+
+    def get_actions(self, request):
+        actions = super().get_actions(request)
+        if not (request.user and request.user.is_superuser):
+            return {}
+        return actions
 
     def save_model(self, request, obj, form, change):
         if change and request.user.is_superuser:
@@ -72,6 +87,44 @@ class VentaAdmin(admin.ModelAdmin):
             form.instance._allow_loterias_assignment = True
             self._attach_audit_context(request, form.instance)
         return super().save_related(request, form, formsets, change)
+
+    def delete_model(self, request, obj):
+        if request.user and request.user.is_superuser:
+            obj._allow_delete = True
+            self._attach_audit_context(request, obj)
+        return super().delete_model(request, obj)
+
+    def delete_queryset(self, request, queryset):
+        if not (request.user and request.user.is_superuser):
+            return
+
+        for obj in queryset:
+            obj._allow_delete = True
+            self._attach_audit_context(request, obj)
+            obj.delete()
+
+
+@admin.register(VentaDescargue)
+class VentaDescargueAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "fecha_venta",
+        "descargue",
+        "loteria",
+        "numero",
+        "monto",
+        "registrado_por",
+    )
+    list_filter = ("fecha_venta", "loteria", "descargue")
+    search_fields = (
+        "numero",
+        "descargue__username",
+        "descargue__first_name",
+        "descargue__last_name",
+        "registrado_por__username",
+    )
+    autocomplete_fields = ("descargue", "loteria", "registrado_por")
+    list_select_related = ("descargue", "loteria", "registrado_por")
 
 # --- Dia / Resultado (sin cambios relevantes) ---
 @admin.register(Dia)

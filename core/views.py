@@ -7,7 +7,17 @@ from django.utils.dateparse import parse_date
 from django.http import Http404, JsonResponse
 from django.contrib.auth.views import LoginView
 from django.core.exceptions import ValidationError
-from .models import Loteria, Dia, Venta, Resultado, Premio, VentaAuditLog, ConfiguracionVenta, _safe_create_venta_audit_log
+from .models import (
+    Loteria,
+    Dia,
+    Venta,
+    VentaDescargue,
+    Resultado,
+    Premio,
+    VentaAuditLog,
+    ConfiguracionVenta,
+    _safe_create_venta_audit_log,
+)
 from django.db import transaction, IntegrityError
 from core.utils import importar_resultados  # ← añade esta línea
 from django.contrib import messages
@@ -24,8 +34,14 @@ from datetime import date, timedelta, datetime
 from django.db.models.functions import TruncDate
 from django.db.models.functions import Coalesce, Trim
 import os
+import re
 
 VENTA_CIERRE_BUFFER_SEGUNDOS = int(getattr(settings, "VENTA_CIERRE_BUFFER_SEGUNDOS", 30))
+GRUPO_DESCARGUE = "descargue"
+DESCARGUE_CARGA_MASIVA_MAX_FILAS = 500
+DESCARGUE_CARGA_MASIVA_LINE_RE = re.compile(
+    r"^\s*(?P<numero>\d+)\s*-\s*(?P<monto>[\d\.,\s$]+)\s*$"
+)
 
 
 def _client_ip(request):
@@ -61,6 +77,152 @@ def _obtener_limite_apuesta_por_numero():
     )
     return int(limite or 0)
 
+
+def _es_descargue(user):
+    return bool(
+        user
+        and user.is_authenticated
+        and not user.is_staff
+        and user.groups.filter(name=GRUPO_DESCARGUE).exists()
+    )
+
+
+def _usuarios_descargue_qs():
+    User = get_user_model()
+    return (
+        User.objects
+        .filter(is_active=True, is_staff=False, groups__name=GRUPO_DESCARGUE)
+        .distinct()
+        .order_by("username")
+    )
+
+
+def _parse_descargue_monto(monto_raw):
+    monto_normalizado = re.sub(r"[\s\.,$]", "", str(monto_raw or ""))
+    if not monto_normalizado.isdigit():
+        return None
+
+    monto = int(monto_normalizado)
+    return monto if monto > 0 else None
+
+
+def _parse_descargues_masivos(raw_text):
+    lineas = (raw_text or "").splitlines()
+    lineas_no_vacias = [linea for linea in lineas if linea.strip()]
+
+    if not lineas_no_vacias:
+        return [], ["Pega al menos una jugada con el formato numero - monto."], 0
+
+    if len(lineas_no_vacias) > DESCARGUE_CARGA_MASIVA_MAX_FILAS:
+        return [], [
+            f"Solo se permiten hasta {DESCARGUE_CARGA_MASIVA_MAX_FILAS} jugadas por carga."
+        ], 0
+
+    jugadas = []
+    errores = []
+    total = 0
+
+    for idx, linea in enumerate(lineas, start=1):
+        linea_limpia = linea.strip()
+        if not linea_limpia:
+            continue
+
+        match = DESCARGUE_CARGA_MASIVA_LINE_RE.fullmatch(linea_limpia)
+        if not match:
+            errores.append(f"Línea {idx}: usa el formato numero - monto.")
+            continue
+
+        numero = match.group("numero")
+        monto = _parse_descargue_monto(match.group("monto"))
+        if monto is None:
+            errores.append(f"Línea {idx}: el valor debe ser numérico y mayor que 0.")
+            continue
+
+        jugadas.append({"numero": numero, "monto": monto, "linea": idx})
+        total += monto
+
+    return jugadas, errores, total
+
+
+def _build_descargues_context(
+    *,
+    fecha_filtro,
+    descargue_id="",
+    loteria_id="",
+    page_number=None,
+    bulk_jugadas_raw="",
+    bulk_errors=None,
+):
+    ahora = timezone.localtime(timezone.now())
+    dias_map = {
+        "Monday": "Lunes",
+        "Tuesday": "Martes",
+        "Wednesday": "Miércoles",
+        "Thursday": "Jueves",
+        "Friday": "Viernes",
+        "Saturday": "Sábado",
+        "Sunday": "Domingo",
+    }
+    dia_actual_nombre_es = dias_map.get(ahora.strftime("%A"))
+    dia_actual = Dia.objects.filter(nombre=dia_actual_nombre_es).first()
+
+    loterias_disponibles = []
+    if dia_actual:
+        loterias_del_dia = list(Loteria.objects.filter(dias_juego=dia_actual).order_by("nombre"))
+        loterias_disponibles = [lot for lot in loterias_del_dia if _loteria_esta_abierta_para_venta(lot, ahora)]
+
+    usuarios_descargue_qs = _usuarios_descargue_qs()
+    ventas_qs = (
+        VentaDescargue.objects
+        .filter(fecha_venta__date=fecha_filtro)
+        .select_related("descargue", "loteria", "registrado_por")
+        .order_by("-fecha_venta")
+    )
+    if descargue_id:
+        ventas_qs = ventas_qs.filter(descargue_id=descargue_id)
+    if loteria_id:
+        ventas_qs = ventas_qs.filter(loteria_id=loteria_id)
+
+    total_monto = ventas_qs.aggregate(
+        total=Coalesce(Sum("monto"), 0, output_field=IntegerField())
+    )["total"] or 0
+    paginator = Paginator(ventas_qs, 100)
+    page_obj = paginator.get_page(page_number)
+
+    context = {
+        "fecha_filtro": fecha_filtro,
+        "usuarios_descargue": usuarios_descargue_qs,
+        "loterias_disponibles": loterias_disponibles,
+        "ventas_descargue": page_obj,
+        "total_monto": total_monto,
+        "descargue_id": descargue_id,
+        "loteria_id": loteria_id,
+        "bulk_jugadas_raw": bulk_jugadas_raw,
+        "bulk_errors": bulk_errors or [],
+    }
+    return context, usuarios_descargue_qs, loterias_disponibles, ahora
+
+
+def _resolver_datos_premio(numero_apostado, numero_ganador):
+    numero_limpio = str(numero_apostado or "").strip()
+    if len(numero_limpio) not in (2, 3, 4):
+        return None
+
+    if numero_limpio != numero_ganador[-len(numero_limpio):]:
+        return None
+
+    multiplicadores = {
+        2: 60,
+        3: 550,
+        4: 4500,
+    }
+    cifras = len(numero_limpio)
+    return {
+        "numero": numero_limpio,
+        "cifras": cifras,
+        "multiplicador": multiplicadores[cifras],
+    }
+
 # Vista Home
 @login_required
 def home(request):
@@ -90,6 +252,8 @@ def home(request):
         'promedio_diario': promedio_diario,
         'ventas_por_vendedor': ventas_por_vendedor,
         'ventas_tendencia': ventas_tendencia,
+        'es_descargue': _es_descargue(request.user),
+        'es_admin': request.user.is_staff,
     })
 
 # Vista para mostrar loterías disponibles del día
@@ -159,6 +323,17 @@ def crear_venta(request):
     Además, la venta solo es válida si las loterías seleccionadas
     están abiertas en la hora actual.
     """
+    if _es_descargue(request.user):
+        if request.method == "POST":
+            return JsonResponse(
+                {
+                    "success": False,
+                    "error": "El perfil descargue no puede registrar ventas directas.",
+                },
+                status=403,
+            )
+        return redirect("mis_descargues")
+
     ahora = timezone.localtime(timezone.now())
 
     # -------- Obtener día de la semana (ES) --------
@@ -527,6 +702,161 @@ def crear_venta(request):
     )
 
 # Vista para listar ventas con filtros y paginación
+@user_passes_test(lambda u: u.is_staff)
+@login_required
+@require_http_methods(["GET", "POST"])
+def descargues(request):
+    hoy = timezone.localdate()
+    if request.method == "GET":
+        fecha_param = request.GET.get("fecha", str(hoy))
+        fecha_filtro = parse_date(fecha_param) or hoy
+        descargue_id = request.GET.get("descargue", "")
+        loteria_id = request.GET.get("loteria", "")
+        context, _, _, _ = _build_descargues_context(
+            fecha_filtro=fecha_filtro,
+            descargue_id=descargue_id,
+            loteria_id=loteria_id,
+            page_number=request.GET.get("page"),
+        )
+        return render(request, "core/descargues.html", context)
+
+    accion = (request.POST.get("accion") or "manual").strip().lower()
+    descargue_id_post = (request.POST.get("descargue") or "").strip()
+    loteria_id_post = (request.POST.get("loteria") or "").strip()
+    numero = (request.POST.get("numero") or "").strip()
+    monto_raw = (request.POST.get("monto") or "").strip()
+    jugadas_masivas_raw = request.POST.get("jugadas_masivas") or ""
+    fecha_filtro_post = parse_date(request.POST.get("fecha_filtro") or "") or hoy
+
+    context, usuarios_descargue_qs, loterias_disponibles, ahora = _build_descargues_context(
+        fecha_filtro=fecha_filtro_post,
+        descargue_id=descargue_id_post,
+        loteria_id=loteria_id_post,
+        bulk_jugadas_raw=jugadas_masivas_raw,
+    )
+    descargue = usuarios_descargue_qs.filter(id=descargue_id_post).first()
+    loteria = next((lot for lot in loterias_disponibles if str(lot.id) == loteria_id_post), None)
+
+    if accion == "masiva":
+        if not descargue:
+            messages.error(request, "Selecciona un usuario de tipo descargue válido.")
+            return render(request, "core/descargues.html", context)
+        elif not loteria:
+            messages.error(request, "Selecciona una lotería disponible para registrar la carga.")
+            return render(request, "core/descargues.html", context)
+        elif not _loteria_esta_abierta_para_venta(loteria, ahora):
+            messages.error(request, f"La lotería {loteria.nombre} ya cerró para ventas.")
+            return render(request, "core/descargues.html", context)
+
+        jugadas, errores, total_jugadas = _parse_descargues_masivos(jugadas_masivas_raw)
+        if errores:
+            messages.error(request, "Corrige las líneas inválidas antes de cargar.")
+            context["bulk_errors"] = errores
+            return render(request, "core/descargues.html", context)
+
+        ventas = [
+            VentaDescargue(
+                registrado_por=request.user,
+                descargue=descargue,
+                loteria=loteria,
+                numero=jugada["numero"],
+                monto=jugada["monto"],
+            )
+            for jugada in jugadas
+        ]
+        with transaction.atomic():
+            VentaDescargue.objects.bulk_create(ventas)
+
+        messages.success(
+            request,
+            (
+                f"Se cargaron {len(jugadas)} jugadas para {descargue.username} "
+                f"en {loteria.nombre} por ${total_jugadas:,} COP."
+            ).replace(",", "."),
+        )
+    else:
+        if not descargue:
+            messages.error(request, "Selecciona un usuario de tipo descargue válido.")
+        elif not loteria:
+            messages.error(request, "Selecciona una lotería disponible para registrar la venta.")
+        elif not numero or not numero.isdigit():
+            messages.error(request, "El número es obligatorio y solo debe contener dígitos.")
+        else:
+            try:
+                monto = int(monto_raw)
+            except (TypeError, ValueError):
+                monto = 0
+
+            if monto <= 0:
+                messages.error(request, "El valor debe ser mayor que 0.")
+            elif not _loteria_esta_abierta_para_venta(loteria, ahora):
+                messages.error(request, f"La lotería {loteria.nombre} ya cerró para ventas.")
+            else:
+                VentaDescargue.objects.create(
+                    registrado_por=request.user,
+                    descargue=descargue,
+                    loteria=loteria,
+                    numero=numero,
+                    monto=monto,
+                )
+                messages.success(
+                    request,
+                    f"Venta registrada para {descargue.username} en {loteria.nombre}.",
+                )
+    redirect_url = (
+        f"{request.path}?fecha={fecha_filtro_post.isoformat()}"
+        f"&descargue={descargue_id_post}&loteria={loteria_id_post}"
+    )
+    return redirect(redirect_url)
+
+
+@user_passes_test(_es_descargue)
+@login_required
+def mis_descargues(request):
+    search = request.GET.get("search", "").strip()
+    filter_date = request.GET.get("start_date", str(timezone.localdate()))
+    loteria_id = request.GET.get("loteria", "").strip()
+
+    ventas_qs = (
+        VentaDescargue.objects
+        .filter(descargue=request.user, fecha_venta__date=filter_date)
+        .select_related("loteria", "registrado_por")
+        .order_by("-fecha_venta")
+    )
+    if loteria_id:
+        ventas_qs = ventas_qs.filter(loteria_id=loteria_id)
+    if search:
+        ventas_qs = ventas_qs.filter(numero__icontains=search)
+
+    total_monto = ventas_qs.aggregate(
+        total=Coalesce(Sum("monto"), 0, output_field=IntegerField())
+    )["total"] or 0
+
+    paginator = Paginator(ventas_qs, 100)
+    page_obj = paginator.get_page(request.GET.get("page"))
+
+    loterias_usuario = (
+        VentaDescargue.objects
+        .filter(descargue=request.user)
+        .values("loteria__id", "loteria__nombre")
+        .distinct()
+        .order_by("loteria__nombre")
+    )
+
+    return render(
+        request,
+        "core/mis_descargues.html",
+        {
+            "ventas": page_obj,
+            "total_ventas": total_monto,
+            "search": search,
+            "filter_date": filter_date,
+            "loteria_id": loteria_id,
+            "loterias": loterias_usuario,
+        },
+    )
+
+
 @login_required(login_url='/login-required/')
 def ventas_list(request):
     """
@@ -622,16 +952,9 @@ def premios(request):
       - 4 cifras (coincide exacto):    * 4500
     Si el usuario es admin (staff) ve todas las ventas/premios; de lo contrario, solo los suyos.
     """
-    from datetime import datetime
-    from django.http import Http404
-    from django.utils import timezone
-    from django.db import transaction
-    from django.db.models import Sum
-
-    from core.models import Dia, Loteria, Resultado, Venta, Premio  # ajusta imports a tu estructura
-
     # -------- Fecha filtro --------
     fecha_param = request.GET.get('fecha')
+    vendedor_id = (request.GET.get('vendedor') or '').strip()
     ahora = timezone.localtime(timezone.now())
     if fecha_param:
         try:
@@ -673,53 +996,89 @@ def premios(request):
 
             if request.user.is_staff:
                 ventas_qs = Venta.objects.filter(fecha_venta__date=fecha, loterias=lot)
+                ventas_descargue_qs = VentaDescargue.objects.filter(
+                    fecha_venta__date=fecha,
+                    loteria=lot,
+                )
+            elif _es_descargue(request.user):
+                ventas_qs = Venta.objects.none()
+                ventas_descargue_qs = VentaDescargue.objects.filter(
+                    fecha_venta__date=fecha,
+                    loteria=lot,
+                    descargue=request.user,
+                )
             else:
                 ventas_qs = Venta.objects.filter(
                     fecha_venta__date=fecha,
                     loterias=lot,
                     vendedor=request.user
                 )
+                ventas_descargue_qs = VentaDescargue.objects.none()
 
             for venta in ventas_qs.select_related('vendedor'):
-                # robustez: si numero es int, casteamos
-                sale_number = str(venta.numero or '').strip()
-                if len(sale_number) not in (2, 3, 4):
+                premio_data = _resolver_datos_premio(venta.numero, winning_number)
+                if not premio_data:
                     continue
 
-                # Coincidencia por últimos dígitos
-                if sale_number == winning_number[-len(sale_number):]:
-                    if len(sale_number) == 2:
-                        multiplier = 60
-                    elif len(sale_number) == 3:
-                        multiplier = 550
-                    else:  # 4
-                        multiplier = 4500
+                premio_valor = int(venta.monto) * premio_data["multiplicador"]
 
-                    premio_valor = int(venta.monto) * multiplier
+                Premio.objects.update_or_create(
+                    venta=venta,
+                    loteria=lot,
+                    fecha=fecha,
+                    defaults={
+                        'venta_descargue': None,
+                        'vendedor': venta.vendedor,
+                        'numero': premio_data["numero"],
+                        'valor': int(venta.monto),
+                        'cifras': premio_data["cifras"],
+                        'premio': premio_valor,
+                    }
+                )
 
-                    # Persistir sin duplicar (idempotente por venta/lotería/fecha)
-                    Premio.objects.update_or_create(
-                        venta=venta,
-                        loteria=lot,
-                        fecha=fecha,
-                        defaults={
-                            'vendedor': venta.vendedor,
-                            'numero': sale_number,
-                            'valor': int(venta.monto),  # valor apostado
-                            'cifras': len(sale_number),
-                            'premio': premio_valor,     # payout
-                        }
-                    )
+            for venta_descargue in ventas_descargue_qs.select_related('descargue'):
+                premio_data = _resolver_datos_premio(venta_descargue.numero, winning_number)
+                if not premio_data:
+                    continue
+
+                premio_valor = int(venta_descargue.monto) * premio_data["multiplicador"]
+
+                Premio.objects.update_or_create(
+                    venta_descargue=venta_descargue,
+                    loteria=lot,
+                    fecha=fecha,
+                    defaults={
+                        'venta': None,
+                        'vendedor': venta_descargue.descargue,
+                        'numero': premio_data["numero"],
+                        'valor': int(venta_descargue.monto),
+                        'cifras': premio_data["cifras"],
+                        'premio': premio_valor,
+                    }
+                )
+
+    usuarios_premios_qs = (
+        get_user_model().objects
+        .filter(premios__fecha=fecha, premios__loteria__in=loterias)
+        .distinct()
+        .order_by('username')
+    )
 
     # -------- Consulta para mostrar en el template (desde BD) --------
     if request.user.is_staff:
-        premios_qs = Premio.objects.filter(fecha=fecha, loteria__in=loterias).select_related('loteria', 'vendedor')
+        premios_qs = Premio.objects.filter(
+            fecha=fecha,
+            loteria__in=loterias,
+        ).select_related('loteria', 'vendedor')
+        if vendedor_id:
+            premios_qs = premios_qs.filter(vendedor_id=vendedor_id)
     else:
         premios_qs = Premio.objects.filter(
             fecha=fecha,
             loteria__in=loterias,
             vendedor=request.user
         ).select_related('loteria', 'vendedor')
+    premios_qs = premios_qs.order_by('-actualizado_en', '-id')
 
     # -------- Totales y conteo --------
     total_premios = premios_qs.aggregate(total=Sum('premio'))['total'] or 0
@@ -752,6 +1111,8 @@ def premios(request):
     'fecha': fecha,
     'fecha_actual': timezone.localdate(),# 👈 para el input date
     'es_admin': request.user.is_staff,
+    'usuarios_premios': usuarios_premios_qs,
+    'vendedor_id': vendedor_id,
 }
     return render(request, 'core/premios.html', context)
 
