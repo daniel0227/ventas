@@ -857,7 +857,7 @@ def mis_descargues(request):
     )
 
 
-@login_required(login_url='/login-required/')
+@login_required
 def ventas_list(request):
     """
     Listado paginado de ventas para un día dado.

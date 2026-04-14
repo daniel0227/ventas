@@ -151,7 +151,7 @@ MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-LOGIN_URL = 'login-required/'
+LOGIN_URL = '/login/'
 
 LOGIN_REDIRECT_URL = 'home'   # Página de inicio después de login
 LOGOUT_REDIRECT_URL = 'login'  # Página a la que redirige después de logout

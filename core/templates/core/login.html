@@ -1,99 +1,481 @@
 <!DOCTYPE html>
-<html lang="en">
-    <!-- login.html -->
-    {% load static %}
+<html lang="es">
+{% load static %}
 <head>
-	<title>Login</title>
-	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1">
-<!--===============================================================================================-->	
-<link rel="icon" href="{% static 'core/img/icons/favicon.ico' %}"> 
-<!--===============================================================================================-->
-<link rel="stylesheet" href="{% static 'core/vendor/bootstrap/css/bootstrap.min.css' %}">
-<!--===============================================================================================-->
-<link rel="stylesheet" href="{% static 'core/fonts/font-awesome-4.7.0/css/font-awesome.min.css' %}">
-<!--===============================================================================================-->
-<link rel="stylesheet" href="{% static 'core/fonts/iconic/css/material-design-iconic-font.min.css' %}">
-<!--===============================================================================================-->
-<link rel="stylesheet" href="{% static 'core/vendor/animate/animate.css' %}">
-<!--===============================================================================================-->	
-<link rel="stylesheet" href="{% static 'core/vendor/css-hamburgers/hamburgers.min.css' %}">
-<!--===============================================================================================-->
-<link rel="stylesheet" href="{% static 'core/vendor/animsition/css/animsition.min.css' %}">
-<!--===============================================================================================-->
-<link rel="stylesheet" href="{% static 'core/vendor/select2/select2.min.css' %}">
-<!--===============================================================================================-->	
-<link rel="stylesheet" href="{% static 'core/vendor/daterangepicker/daterangepicker.css' %}">
-<!--===============================================================================================-->
-<link rel="stylesheet" href="{% static 'core/css/util.css' %}">
-<link rel="stylesheet" href="{% static 'core/css/main.css' %}">
-<!--===============================================================================================-->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lottia</title>
+    <link rel="icon" href="{% static 'core/img/icons/favicon.ico' %}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* ── Variables ─────────────────────────────────────────── */
+        :root {
+            --clr-bg-from:   #0d0b1e;
+            --clr-bg-mid:    #1e1b4b;
+            --clr-bg-to:     #0f172a;
+            --clr-primary:   #6366f1;
+            --clr-primary-h: #4f46e5;
+            --clr-accent:    #8b5cf6;
+            --clr-text:      #f1f5f9;
+            --clr-muted:     rgba(241,245,249,.5);
+            --clr-border:    rgba(255,255,255,.1);
+            --clr-surface:   rgba(255,255,255,.06);
+            --clr-surface-h: rgba(255,255,255,.1);
+            --clr-error-bg:  rgba(248,113,113,.1);
+            --clr-error-bd:  rgba(248,113,113,.3);
+            --clr-error-tx:  #fca5a5;
+            --radius-card:   24px;
+            --radius-input:  12px;
+            --shadow-glow:   0 8px 32px rgba(99,102,241,.4);
+            --ease:          cubic-bezier(.4,0,.2,1);
+            --dur:           .25s;
+        }
+
+        /* ── Reset ─────────────────────────────────────────────── */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        /* ── Layout ────────────────────────────────────────────── */
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            min-height: 100dvh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, var(--clr-bg-from), var(--clr-bg-mid), var(--clr-bg-to));
+            overflow: hidden;
+            color: var(--clr-text);
+        }
+
+        /* Orbes de fondo animados */
+        .bg-orb {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(90px);
+            pointer-events: none;
+            will-change: transform;
+        }
+        .bg-orb--a {
+            width: 520px; height: 520px;
+            background: radial-gradient(circle, #6366f1 0%, #8b5cf6 60%, transparent 80%);
+            top: -160px; left: -120px;
+            opacity: .35;
+            animation: drift 10s ease-in-out infinite;
+        }
+        .bg-orb--b {
+            width: 420px; height: 420px;
+            background: radial-gradient(circle, #06b6d4 0%, #3b82f6 60%, transparent 80%);
+            bottom: -120px; right: -100px;
+            opacity: .28;
+            animation: drift 12s ease-in-out infinite reverse;
+            animation-delay: -5s;
+        }
+        .bg-orb--c {
+            width: 300px; height: 300px;
+            background: radial-gradient(circle, #ec4899 0%, #f43f5e 60%, transparent 80%);
+            top: 55%; left: 60%;
+            opacity: .18;
+            animation: drift 9s ease-in-out infinite;
+            animation-delay: -3s;
+        }
+
+        @keyframes drift {
+            0%,100% { transform: translate(0,0) scale(1); }
+            33%      { transform: translate(24px,-24px) scale(1.04); }
+            66%      { transform: translate(-16px,16px) scale(.96); }
+        }
+
+        /* ── Card ──────────────────────────────────────────────── */
+        .login-wrapper {
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            max-width: 440px;
+            padding: 16px;
+            animation: rise .65s var(--ease) both;
+        }
+
+        @keyframes rise {
+            from { opacity: 0; transform: translateY(28px) scale(.98); }
+            to   { opacity: 1; transform: translateY(0)   scale(1);   }
+        }
+
+        .login-card {
+            background: rgba(15, 12, 41, .55);
+            backdrop-filter: blur(28px) saturate(180%);
+            -webkit-backdrop-filter: blur(28px) saturate(180%);
+            border: 1px solid var(--clr-border);
+            border-radius: var(--radius-card);
+            padding: 48px 40px 40px;
+            box-shadow:
+                0 2px 4px rgba(0,0,0,.3),
+                0 24px 64px -12px rgba(0,0,0,.55),
+                inset 0 1px 0 rgba(255,255,255,.08);
+        }
+
+        /* ── Logo / Header ─────────────────────────────────────── */
+        .login-header {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 36px;
+            text-align: center;
+        }
+
+        .logo-icon {
+            width: 68px; height: 68px;
+            background: linear-gradient(135deg, var(--clr-primary), var(--clr-accent));
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow-glow);
+            position: relative;
+        }
+        .logo-icon::after {
+            content: '';
+            position: absolute;
+            inset: -1px;
+            border-radius: inherit;
+            background: linear-gradient(135deg, rgba(255,255,255,.25), transparent 60%);
+            pointer-events: none;
+        }
+        .logo-icon svg {
+            width: 34px; height: 34px;
+            fill: #fff;
+            position: relative;
+            z-index: 1;
+        }
+
+        .login-title {
+            font-size: 26px;
+            font-weight: 700;
+            letter-spacing: -.5px;
+            background: linear-gradient(135deg, #f1f5f9, #c7d2fe);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 6px;
+        }
+
+        .login-subtitle {
+            font-size: 13.5px;
+            color: var(--clr-muted);
+        }
+
+        /* ── Error alert ───────────────────────────────────────── */
+        .alert-error {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            background: var(--clr-error-bg);
+            border: 1px solid var(--clr-error-bd);
+            border-radius: 12px;
+            padding: 13px 16px;
+            margin-bottom: 24px;
+            color: var(--clr-error-tx);
+            font-size: 13.5px;
+            line-height: 1.45;
+            animation: shake .4s var(--ease);
+        }
+        .alert-error svg { flex-shrink: 0; margin-top: 1px; }
+
+        @keyframes shake {
+            0%,100% { transform: translateX(0);  }
+            20%      { transform: translateX(-7px); }
+            40%      { transform: translateX( 7px); }
+            60%      { transform: translateX(-4px); }
+            80%      { transform: translateX( 4px); }
+        }
+
+        /* ── Form ──────────────────────────────────────────────── */
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: rgba(241,245,249,.65);
+            margin-bottom: 8px;
+            letter-spacing: .2px;
+        }
+
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        /* Leading icon */
+        .input-lead-icon {
+            position: absolute;
+            left: 15px;
+            width: 18px; height: 18px;
+            fill: rgba(241,245,249,.35);
+            pointer-events: none;
+            transition: fill var(--dur) var(--ease);
+            z-index: 1;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 13px 14px 13px 46px;
+            background: var(--clr-surface);
+            border: 1px solid var(--clr-border);
+            border-radius: var(--radius-input);
+            color: var(--clr-text);
+            font-size: 15px;
+            font-family: inherit;
+            outline: none;
+            transition:
+                background var(--dur) var(--ease),
+                border-color var(--dur) var(--ease),
+                box-shadow var(--dur) var(--ease);
+        }
+
+        .form-input::placeholder { color: rgba(241,245,249,.25); }
+
+        .form-input:hover {
+            background: var(--clr-surface-h);
+            border-color: rgba(255,255,255,.18);
+        }
+
+        .form-input:focus {
+            background: rgba(99,102,241,.08);
+            border-color: rgba(99,102,241,.65);
+            box-shadow: 0 0 0 3px rgba(99,102,241,.18);
+        }
+
+        .input-wrapper:focus-within .input-lead-icon {
+            fill: #a5b4fc;
+        }
+
+        /* Password toggle button */
+        .btn-eye {
+            position: absolute;
+            right: 12px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 8px;
+            color: rgba(241,245,249,.35);
+            display: flex;
+            transition: color var(--dur) var(--ease), background var(--dur) var(--ease);
+        }
+        .btn-eye:hover {
+            color: rgba(241,245,249,.8);
+            background: rgba(255,255,255,.06);
+        }
+        .btn-eye svg { width: 18px; height: 18px; fill: currentColor; }
+
+        .form-input[type="password"] { padding-right: 46px; }
+        .form-input[type="text"]     { padding-right: 46px; }
+
+        /* ── Submit button ─────────────────────────────────────── */
+        .btn-submit {
+            width: 100%;
+            padding: 14px;
+            margin-top: 10px;
+            background: linear-gradient(135deg, var(--clr-primary), var(--clr-accent));
+            border: none;
+            border-radius: var(--radius-input);
+            color: #fff;
+            font-size: 15px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            letter-spacing: .2px;
+            box-shadow: var(--shadow-glow);
+            transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+        }
+
+        /* Shine overlay */
+        .btn-submit::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,.18) 0%, transparent 55%);
+            opacity: 0;
+            transition: opacity var(--dur) var(--ease);
+        }
+        .btn-submit:hover { transform: translateY(-1px); box-shadow: 0 12px 36px rgba(99,102,241,.55); }
+        .btn-submit:hover::before { opacity: 1; }
+        .btn-submit:active { transform: translateY(0); }
+
+        /* Loading state */
+        .btn-submit.is-loading { pointer-events: none; opacity: .8; }
+        .btn-inner {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 9px;
+        }
+        .spinner {
+            display: none;
+            width: 17px; height: 17px;
+            border: 2px solid rgba(255,255,255,.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin .7s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .btn-submit.is-loading .spinner { display: block; }
+        .btn-submit.is-loading .btn-label { opacity: .75; }
+
+        /* ── Footer ────────────────────────────────────────────── */
+        .login-footer {
+            margin-top: 28px;
+            text-align: center;
+            font-size: 12px;
+            color: rgba(241,245,249,.28);
+        }
+
+        /* ── Responsive ────────────────────────────────────────── */
+        @media (max-width: 480px) {
+            .login-card { padding: 36px 22px 30px; }
+            .login-title { font-size: 22px; }
+        }
+    </style>
 </head>
 <body>
-	
-	<div class="limiter">
-		<div class="container-login100">
-			<div class="wrap-login100">
-					<span class="login100-form-title p-b-26">
-						Iniciar Sesión
-					</span>
-                    {% if form.errors %}
-        <p style="color: red;">Nombre de usuario o contraseña incorrectos.</p>
-    {% endif %}
 
-    <form method="post" action="{% url 'login' %}">
-        {% csrf_token %}
-        <span class="login100-form-title p-b-48">
-            <i class="zmdi zmdi-font"></i>
-        </span>
-    
-        <div class="wrap-input100 validate-input">
-            <input class="input100" type="text" name="username" required>
-            <span class="focus-input100" data-placeholder="Usuario"></span>
-        </div>
-    
-        <div class="wrap-input100 validate-input" data-validate="Enter password">
-            <span class="btn-show-pass">
-                <i class="zmdi zmdi-eye"></i>
-            </span>
-            <input class="input100" type="password" name="password" required>
-            <span class="focus-input100" data-placeholder="Contraseña"></span>
-        </div>
-    
-        <div class="container-login100-form-btn">
-            <div class="wrap-login100-form-btn">
-                <div class="login100-form-bgbtn"></div>
-                <button type="submit" class="login100-form-btn">
-                    Ingresar
-                </button>
+<!-- Orbes decorativos -->
+<div class="bg-orb bg-orb--a" aria-hidden="true"></div>
+<div class="bg-orb bg-orb--b" aria-hidden="true"></div>
+<div class="bg-orb bg-orb--c" aria-hidden="true"></div>
+
+<main class="login-wrapper" role="main">
+    <div class="login-card">
+
+        <!-- Header -->
+        <header class="login-header">
+            <div class="logo-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M12 1 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5L12 1zm0 4 5 2.18V11c0 3.5-2.33 6.79-5 7.93C9.33 17.79 7 14.5 7 11V7.18L12 5z"/></svg>
             </div>
-        </div>
-    </form>
-						</div>
-					</div>
-			</div>
-		</div>
-	</div>
-	
+            <h1 class="login-title">Bienvenido</h1>
+            <p class="login-subtitle">Ingresa tus credenciales para continuar</p>
+        </header>
 
-	<div id="dropDownSelect1"></div>
-	
-<!--===============================================================================================-->
-	<script src="{% static 'core/vendor/jquery/jquery-3.2.1.min.js' %}"></script>
-<!--===============================================================================================-->
-	<script src="{% static 'core/vendor/animsition/js/animsition.min.js' %}"></script>
-<!--===============================================================================================-->
-	<script src="{% static 'core/vendor/bootstrap/js/popper.js' %}"></script>
-	<script src="{% static 'core/vendor/bootstrap/js/bootstrap.min.js' %}"></script>
-<!--===============================================================================================-->
-	<script src="{% static 'core/vendor/select2/select2.min.js' %}"></script>
-<!--===============================================================================================-->
-	<script src="{% static 'core/vendor/daterangepicker/moment.min.js' %}"></script>
-	<script src="{% static 'core/vendor/daterangepicker/daterangepicker.js' %}"></script>
-<!--===============================================================================================-->
-	<script src="{% static 'core/vendor/countdowntime/countdowntime.js' %}"></script>
-<!--===============================================================================================-->
-	<script src="{% static 'core/js/main.js' %}"></script>
+        <!-- Error message -->
+        {% if form.errors %}
+        <div class="alert-error" role="alert" aria-live="assertive">
+            <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+            </svg>
+            Usuario o contraseña incorrectos. Por favor, inténtalo de nuevo.
+        </div>
+        {% endif %}
+
+        <!-- Login form -->
+        <form method="post" action="{% url 'login' %}" id="loginForm" novalidate>
+            {% csrf_token %}
+
+            <!-- Username -->
+            <div class="form-group">
+                <label class="form-label" for="id_username">Usuario</label>
+                <div class="input-wrapper">
+                    <svg class="input-lead-icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/>
+                    </svg>
+                    <input
+                        class="form-input"
+                        type="text"
+                        id="id_username"
+                        name="username"
+                        placeholder="Tu nombre de usuario"
+                        autocomplete="username"
+                        spellcheck="false"
+                        required
+                        autofocus
+                    >
+                </div>
+            </div>
+
+            <!-- Password -->
+            <div class="form-group">
+                <label class="form-label" for="id_password">Contraseña</label>
+                <div class="input-wrapper">
+                    <svg class="input-lead-icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
+                    </svg>
+                    <input
+                        class="form-input"
+                        type="password"
+                        id="id_password"
+                        name="password"
+                        placeholder="Tu contraseña"
+                        autocomplete="current-password"
+                        required
+                    >
+                    <button
+                        type="button"
+                        class="btn-eye"
+                        id="togglePassword"
+                        aria-label="Mostrar contraseña"
+                        title="Mostrar contraseña"
+                    >
+                        <!-- Eye open -->
+                        <svg id="iconEyeOpen" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+                        </svg>
+                        <!-- Eye closed -->
+                        <svg id="iconEyeClosed" viewBox="0 0 24 24" aria-hidden="true" style="display:none">
+                            <path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46A11.8 11.8 0 0 0 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 21 21 19.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78 3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Submit -->
+            <button type="submit" class="btn-submit" id="btnSubmit">
+                <span class="btn-inner">
+                    <span class="spinner" aria-hidden="true"></span>
+                    <span class="btn-label">Ingresar</span>
+                </span>
+            </button>
+        </form>
+
+
+    </div>
+</main>
+
+<script>
+(function () {
+    'use strict';
+
+    /* Password toggle */
+    const input      = document.getElementById('id_password');
+    const btnEye     = document.getElementById('togglePassword');
+    const iconOpen   = document.getElementById('iconEyeOpen');
+    const iconClosed = document.getElementById('iconEyeClosed');
+    let   visible    = false;
+
+    btnEye.addEventListener('click', function () {
+        visible = !visible;
+        input.type = visible ? 'text' : 'password';
+        iconOpen.style.display   = visible ? 'none'  : '';
+        iconClosed.style.display = visible ? ''      : 'none';
+        btnEye.setAttribute('aria-label', visible ? 'Ocultar contraseña' : 'Mostrar contraseña');
+        btnEye.setAttribute('title',      visible ? 'Ocultar contraseña' : 'Mostrar contraseña');
+        /* Restore focus after toggle */
+        input.focus();
+        var len = input.value.length;
+        input.setSelectionRange(len, len);
+    });
+
+    /* Loading state on submit */
+    document.getElementById('loginForm').addEventListener('submit', function () {
+        document.getElementById('btnSubmit').classList.add('is-loading');
+    });
+})();
+</script>
 
 </body>
 </html>
