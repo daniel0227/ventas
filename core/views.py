@@ -868,11 +868,25 @@ def ventas_list(request):
     """
     search       = request.GET.get('search', '')
     default_date = str(timezone.localtime(timezone.now()).date())
-    filter_date  = request.GET.get('start_date', default_date)
+    filter_date  = request.GET.get('start_date', default_date).strip() or default_date
+    end_date     = request.GET.get('end_date', '').strip()
+
+    # Validar que sean fechas reales antes de tocar el ORM
+    if not parse_date(filter_date):
+        filter_date = default_date
+    if end_date and not parse_date(end_date):
+        end_date = ''
+
     vendedor_id  = request.GET.get('vendedor', '')
 
-    # 1. Base queryset (sólo ventas del día filtrado)
-    ventas_qs = Venta.objects.filter(fecha_venta__date=filter_date)
+    # 1. Base queryset: rango si viene end_date válido, día exacto si no
+    if end_date:
+        ventas_qs = Venta.objects.filter(
+            fecha_venta__date__gte=filter_date,
+            fecha_venta__date__lte=end_date,
+        )
+    else:
+        ventas_qs = Venta.objects.filter(fecha_venta__date=filter_date)
 
     # 2. Filtros de usuario
     if not request.user.is_staff:
@@ -917,12 +931,14 @@ def ventas_list(request):
         request,
         'core/ventas_list.html',
         {
-            'ventas':       page_obj,
-            'total_ventas': total_ventas,
-            'search':       search,
-            'filter_date':  filter_date,
-            'vendedores':   vendedores,
-            'vendedor_id':  vendedor_id,
+            'ventas':          page_obj,
+            'total_ventas':    total_ventas,
+            'search':          search,
+            'filter_date':     filter_date,
+            'end_date':        end_date,
+            'vendedores':      vendedores,
+            'vendedor_id':     vendedor_id,
+            'is_week_filter':  bool(end_date),
         }
     )
 
