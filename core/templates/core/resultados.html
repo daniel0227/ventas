@@ -2,47 +2,254 @@
 {% load static %}
 
 {% block content %}
-  <h1 class="text-center mb-4">Resultados de Loterías para {{ fecha_actual }}</h1>
 
-  <!-- Formulario para filtrar por fecha usando input-group -->
-  <form method="get" class="mb-4">
-    <div class="mb-3">
-      <label for="fecha" class="form-label">Seleccionar fecha</label>
-      <div class="input-group">
-        <input type="date" id="fecha" name="fecha" class="form-control" value="{{ fecha_actual }}">
-        <button type="submit" class="btn btn-secondary">Filtrar</button>
-      </div>
+<style>
+  :root {
+    --primary: #4f46e5;
+    --primary-light: #eef2ff;
+    --success: #10b981;
+    --success-light: #ecfdf5;
+    --muted: #6b7280;
+    --border: #e5e7eb;
+    --card-radius: 16px;
+    --shadow: 0 2px 12px rgba(0,0,0,0.07);
+    --shadow-hover: 0 6px 24px rgba(79,70,229,0.13);
+  }
+
+  .results-header {
+    text-align: center;
+    margin-bottom: 1.5rem;
+  }
+
+  .results-header h1 {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: #1f2937;
+    margin-bottom: 0.2rem;
+  }
+
+  .results-header .subtitle {
+    font-size: 0.85rem;
+    color: var(--muted);
+  }
+
+  /* Date filter */
+  .filter-card {
+    background: #fff;
+    border-radius: var(--card-radius);
+    box-shadow: var(--shadow);
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--border);
+  }
+
+  .filter-card label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.4rem;
+    display: block;
+  }
+
+  .filter-card .input-group .form-control {
+    border-radius: 10px 0 0 10px;
+    border: 1.5px solid var(--border);
+    font-size: 0.95rem;
+    padding: 0.55rem 0.85rem;
+    background: #fafafa;
+    transition: border-color 0.2s;
+  }
+
+  .filter-card .input-group .form-control:focus {
+    border-color: var(--primary);
+    box-shadow: none;
+    background: #fff;
+  }
+
+  .filter-card .btn-filter {
+    background: var(--primary);
+    color: #fff;
+    border: none;
+    border-radius: 0 10px 10px 0;
+    padding: 0.55rem 1.1rem;
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: background 0.2s, transform 0.1s;
+  }
+
+  .filter-card .btn-filter:hover {
+    background: #4338ca;
+  }
+
+  .filter-card .btn-filter:active {
+    transform: scale(0.97);
+  }
+
+  /* Grid */
+  .lottery-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.9rem;
+  }
+
+  @media (min-width: 576px) {
+    .lottery-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+  @media (min-width: 992px) {
+    .lottery-grid {
+      grid-template-columns: repeat(4, 1fr);
+    }
+  }
+
+  /* Lottery card */
+  .lottery-card {
+    background: #fff;
+    border-radius: var(--card-radius);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+    padding: 1.1rem 0.85rem 1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    transition: box-shadow 0.2s, transform 0.2s;
+    cursor: default;
+  }
+
+  .lottery-card:hover {
+    box-shadow: var(--shadow-hover);
+    transform: translateY(-2px);
+    border-color: #c7d2fe;
+  }
+
+  .lottery-img-wrap {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--primary-light);
+    margin-bottom: 0.65rem;
+    flex-shrink: 0;
+  }
+
+  .lottery-img-wrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .lottery-name {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #374151;
+    line-height: 1.3;
+    margin-bottom: 0.6rem;
+    flex: 1;
+  }
+
+  .result-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--success-light);
+    color: var(--success);
+    border-radius: 10px;
+    padding: 0.35rem 0.75rem;
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    min-width: 60px;
+  }
+
+  .result-badge.empty {
+    background: #f3f4f6;
+    color: #9ca3af;
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0;
+  }
+
+  /* Empty state */
+  .empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--muted);
+  }
+
+  .empty-state i {
+    font-size: 2.5rem;
+    color: #d1d5db;
+    margin-bottom: 0.75rem;
+  }
+
+  .empty-state p {
+    font-size: 0.95rem;
+    margin: 0;
+  }
+
+  /* Results count */
+  .results-count {
+    font-size: 0.78rem;
+    color: var(--muted);
+    text-align: right;
+    margin-bottom: 0.6rem;
+  }
+</style>
+
+<!-- Header -->
+<div class="results-header">
+  <h1><i class="bi bi-trophy-fill me-2" style="color: var(--primary);"></i>Resultados de Loterías</h1>
+  <div class="subtitle">{{ fecha_actual }}</div>
+</div>
+
+<!-- Date Filter -->
+<div class="filter-card">
+  <form method="get">
+    <label for="fecha"><i class="bi bi-calendar3 me-1"></i>Filtrar por fecha</label>
+    <div class="input-group">
+      <input type="date" id="fecha" name="fecha" class="form-control" value="{{ fecha_actual }}">
+      <button type="submit" class="btn-filter">
+        <i class="bi bi-search me-1"></i>Ver
+      </button>
     </div>
   </form>
+</div>
 
-  <table class="table table-bordered">
-    <thead>
-      <tr>
-        <th>Imagen</th>
-        <th>Lotería</th>
-        <th>Resultado</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for item in loterias_resultados %}
-        <tr>
-          <td>
-            {% if item.loteria.imagen %}
-              <img src="{{ item.loteria.imagen.url }}" alt="{{ item.loteria.nombre }}" style="max-width: 65px;">
-            {% else %}
-              <img src="{% static 'core/img/default-loteria.png' %}" alt="{{ item.loteria.nombre }}" style="max-width: 65px;">
-            {% endif %}
-          </td>
-          <td>{{ item.loteria.nombre }}</td>
-          <td>
-            {% if item.resultado %}
-              {{ item.resultado }}
-            {% else %}
-              Sin resultado
-            {% endif %}
-          </td>
-        </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+<!-- Results -->
+{% if loterias_resultados %}
+  <div class="results-count">{{ loterias_resultados|length }} loterías</div>
+  <div class="lottery-grid">
+    {% for item in loterias_resultados %}
+      <div class="lottery-card">
+        <div class="lottery-img-wrap">
+          {% if item.loteria.imagen %}
+            <img src="{{ item.loteria.imagen.url }}" alt="{{ item.loteria.nombre }}">
+          {% else %}
+            <img src="{% static 'core/img/default-loteria.png' %}" alt="{{ item.loteria.nombre }}">
+          {% endif %}
+        </div>
+        <div class="lottery-name">{{ item.loteria.nombre }}</div>
+        {% if item.resultado %}
+          <div class="result-badge">{{ item.resultado }}</div>
+        {% else %}
+          <div class="result-badge empty"><i class="bi bi-clock me-1"></i>Pendiente</div>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="empty-state">
+    <div><i class="bi bi-inbox"></i></div>
+    <p>No hay resultados para esta fecha.</p>
+  </div>
+{% endif %}
+
 {% endblock %}
