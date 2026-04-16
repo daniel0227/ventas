@@ -3,111 +3,373 @@
 {% load format_filters %}
 
 {% block content %}
-<div class="container my-4 my-md-5">
-  <div class="d-flex flex-column flex-md-row align-items-md-end justify-content-between gap-2 mb-3">
-    <div>
-      <h4 class="mb-1">Reporte de Descargas</h4>
-      <p class="text-muted mb-0">Fecha consultada: <strong>{{ fecha }}</strong></p>
-    </div>
-    {% if report %}
-      <span class="badge text-bg-primary rounded-pill px-3 py-2">
-        {{ report|length }} registro{{ report|length|pluralize }}
-      </span>
-    {% endif %}
+<style>
+  :root {
+    --primary:       #4f46e5;
+    --primary-dark:  #3730a3;
+    --primary-light: #eef2ff;
+    --success:       #10b981;
+    --success-light: #ecfdf5;
+    --amber:         #f59e0b;
+    --amber-light:   #fffbeb;
+    --purple:        #8b5cf6;
+    --purple-light:  #f5f3ff;
+    --border:        #e5e7eb;
+    --muted:         #6b7280;
+    --card-radius:   16px;
+    --shadow:        0 2px 12px rgba(0,0,0,.07);
+  }
+
+  /* ── Header ──────────────────────────────────── */
+  .page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: .6rem;
+    margin-bottom: 1.25rem;
+  }
+  .page-header h1 { font-size: 1.35rem; font-weight: 700; color: #1f2937; margin: 0; }
+  .page-header .subtitle { font-size: .82rem; color: var(--muted); margin-top: .1rem; }
+  .results-badge {
+    display: inline-flex; align-items: center; gap: .3rem;
+    background: var(--primary-light); color: var(--primary);
+    border: 1px solid #c7d2fe; border-radius: 999px;
+    padding: .25rem .75rem; font-size: .78rem; font-weight: 700; white-space: nowrap;
+  }
+
+  /* ── Filter card ──────────────────────────────── */
+  .filter-card {
+    background: #fff;
+    border-radius: var(--card-radius);
+    box-shadow: var(--shadow);
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.25rem;
+    border: 1px solid var(--border);
+  }
+  .filter-label {
+    font-size: .75rem; font-weight: 600; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .05em;
+    margin-bottom: .45rem; display: block;
+  }
+  .filter-card .form-control {
+    border: 1.5px solid var(--border); border-radius: 10px;
+    font-size: .92rem; padding: .52rem .85rem;
+    background: #fafafa; min-height: 44px;
+    transition: border-color .2s, background .2s;
+  }
+  .filter-card .form-control:focus {
+    border-color: var(--primary); box-shadow: none; background: #fff;
+  }
+
+  /* Date chips */
+  .date-chips { display: flex; gap: .45rem; flex-wrap: wrap; margin-top: .55rem; }
+  .chip-date {
+    display: inline-flex; align-items: center; padding: .28rem .7rem;
+    border-radius: 999px; font-size: .75rem; font-weight: 600;
+    background: #f3f4f6; color: #374151; border: 1.5px solid var(--border);
+    cursor: pointer; transition: background .15s, border-color .15s, color .15s;
+    user-select: none; white-space: nowrap;
+  }
+  .chip-date:hover  { background: var(--primary-light); border-color: #c7d2fe; color: var(--primary); }
+  .chip-date.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .chip-date:active { transform: scale(.96); }
+
+  /* Botón limpiar */
+  .btn-limpiar {
+    display: inline-flex; align-items: center; gap: .35rem;
+    padding: .52rem 1rem; border-radius: 10px; font-size: .85rem; font-weight: 600;
+    color: var(--muted); background: #f3f4f6; border: 1.5px solid var(--border);
+    text-decoration: none; min-height: 44px; white-space: nowrap;
+    transition: background .15s, color .15s;
+  }
+  .btn-limpiar:hover { background: #fee2e2; color: #ef4444; border-color: #fca5a5; }
+
+  /* Botón exportar Excel */
+  .btn-excel {
+    display: inline-flex; align-items: center; gap: .45rem;
+    padding: .52rem 1.1rem; border-radius: 10px; font-size: .85rem; font-weight: 700;
+    color: #166534; background: var(--success-light);
+    border: 1.5px solid #6ee7b7; text-decoration: none; min-height: 44px;
+    white-space: nowrap; transition: background .15s, border-color .15s;
+  }
+  .btn-excel:hover { background: #d1fae5; border-color: var(--success); color: #166534; }
+  .btn-excel:active { transform: scale(.97); }
+
+  /* ── Stat cards ───────────────────────────────── */
+  .stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: .75rem; margin-bottom: 1.25rem; }
+  @media (max-width: 480px) { .stat-row { grid-template-columns: 1fr 1fr; } }
+  .stat-card {
+    background: #fff; border: 1px solid var(--border); border-radius: var(--card-radius);
+    box-shadow: var(--shadow); padding: .85rem 1rem;
+    display: flex; flex-direction: column; gap: .1rem;
+  }
+  .stat-icon {
+    width: 32px; height: 32px; border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .95rem; margin-bottom: .35rem;
+  }
+  .s-green  .stat-icon { background: var(--success-light); color: var(--success); }
+  .s-amber  .stat-icon { background: var(--amber-light);   color: var(--amber);   }
+  .s-purple .stat-icon { background: var(--purple-light);  color: var(--purple);  }
+  .stat-lbl { font-size: .68rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .stat-val { font-size: 1.1rem; font-weight: 800; line-height: 1.2; font-variant-numeric: tabular-nums; }
+  .s-green  .stat-val { color: var(--success); }
+  .s-amber  .stat-val { color: var(--amber);   }
+  .s-purple .stat-val { color: var(--purple);  }
+
+  /* ── Tabla desktop ────────────────────────────── */
+  .report-wrap {
+    background: #fff; border: 1px solid var(--border);
+    border-radius: var(--card-radius); box-shadow: var(--shadow); overflow: hidden;
+  }
+  .report-wrap-header {
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: .6rem;
+    padding: .85rem 1.25rem; border-bottom: 1px solid var(--border); background: #fafafa;
+  }
+  .report-wrap-header h2 { font-size: .92rem; font-weight: 700; color: #1f2937; margin: 0; }
+
+  .report-table { width: 100%; border-collapse: collapse; }
+  .report-table thead tr {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+  }
+  .report-table thead th {
+    color: #fff; font-size: .75rem; font-weight: 600;
+    text-transform: uppercase; letter-spacing: .05em;
+    padding: .8rem 1rem; border: none; white-space: nowrap;
+  }
+  .report-table tbody tr { border-bottom: 1px solid var(--border); transition: background .12s; }
+  .report-table tbody tr:last-child { border-bottom: none; }
+  .report-table tbody tr:hover { background: #f9fafb; }
+  .report-table tbody td { padding: .65rem 1rem; font-size: .88rem; color: #374151; border: none; vertical-align: middle; }
+  .report-table .td-num {
+    font-family: monospace; font-weight: 700; font-size: .9rem;
+    background: var(--primary-light); color: var(--primary);
+    border: 1px solid #c7d2fe; border-radius: 999px;
+    padding: .18rem .6rem; display: inline-block; white-space: nowrap;
+  }
+  .report-table .td-veces {
+    text-align: center; font-weight: 700; color: var(--amber);
+    font-variant-numeric: tabular-nums;
+  }
+  .report-table .td-total {
+    text-align: right; font-weight: 800; color: var(--success);
+    font-variant-numeric: tabular-nums; white-space: nowrap;
+  }
+  .report-table tfoot tr { background: #f3f4f6; border-top: 2px solid var(--border); }
+  .report-table tfoot td { padding: .75rem 1rem; border: none; font-weight: 700; font-size: .85rem; }
+  .report-table .tfoot-label { text-align: right; color: var(--muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; }
+  .report-table .tfoot-val   { text-align: right; font-size: 1.05rem; font-weight: 800; color: var(--success); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  /* Lotería group header */
+  .report-table .tr-group-header td {
+    background: var(--primary-light);
+    color: var(--primary);
+    font-size: .76rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .06em;
+    padding: .4rem 1rem;
+  }
+
+  /* ── Mobile cards ─────────────────────────────── */
+  .report-cards { display: flex; flex-direction: column; gap: .65rem; padding: .85rem 1rem; }
+  .report-card {
+    background: #fff; border: 1px solid var(--border); border-left: 4px solid var(--primary);
+    border-radius: var(--card-radius); box-shadow: var(--shadow);
+    padding: .75rem .9rem; display: grid; grid-template-rows: auto auto; gap: .45rem;
+  }
+  .rc-top { display: flex; justify-content: space-between; align-items: flex-start; gap: .5rem; }
+  .rc-lot  { font-size: .88rem; font-weight: 700; color: #1f2937; }
+  .rc-num  {
+    display: inline-block; padding: .18rem .55rem; border-radius: 999px;
+    background: var(--primary-light); color: var(--primary); border: 1px solid #c7d2fe;
+    font-size: .78rem; font-weight: 700; font-family: monospace; margin-top: .15rem;
+  }
+  .rc-total { font-size: 1.05rem; font-weight: 800; color: var(--success); font-variant-numeric: tabular-nums; text-align: right; }
+  .rc-veces { font-size: .72rem; color: var(--muted); text-align: right; margin-top: .1rem; }
+  .rc-bottom { display: flex; align-items: center; gap: .4rem; }
+
+  /* ── Empty state ──────────────────────────────── */
+  .empty-state {
+    background: #fff; border: 1px solid var(--border); border-radius: var(--card-radius);
+    box-shadow: var(--shadow); padding: 3rem 1.5rem; text-align: center;
+  }
+  .empty-icon {
+    width: 62px; height: 62px; background: var(--primary-light); border-radius: 18px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 1.7rem; color: var(--primary); margin-bottom: .9rem;
+  }
+  .empty-state h3 { font-size: .98rem; font-weight: 700; color: #1f2937; margin-bottom: .35rem; }
+  .empty-state p  { font-size: .83rem; color: var(--muted); margin: 0; }
+
+  /* ── Responsive ───────────────────────────────── */
+  @media (max-width: 575.98px) { .desktop-only { display: none !important; } }
+  @media (min-width: 576px)    { .mobile-only  { display: none !important; } }
+</style>
+
+<!-- ══════════ HEADER ══════════════════════════════ -->
+<div class="page-header">
+  <div>
+    <h1><i class="bi bi-bar-chart-line-fill me-2" style="color:var(--primary);"></i>Reporte de Descargas</h1>
+    <div class="subtitle">{{ fecha }}</div>
   </div>
-
-  <form method="get" class="mb-4">
-    <div class="row g-2 align-items-end">
-      <div class="col-md-6">
-        <label for="fecha" class="form-label">Seleccionar fecha</label>
-        <input
-          type="date"
-          id="fecha"
-          name="fecha"
-          class="form-control"
-          value="{{ fecha }}"
-          max="{% now 'Y-m-d' %}"
-          required
-        >
-      </div>
-      <div class="col-md-6 d-flex flex-wrap justify-content-md-end gap-2">
-        <button type="button" id="btnHoy" class="btn btn-outline-secondary">Hoy</button>
-        <a href="{% url 'reporte_descargas' %}" class="btn btn-outline-dark">Limpiar</a>
-        <button type="submit" class="btn btn-secondary">Filtrar</button>
-      </div>
-    </div>
-  </form>
-
   {% if report %}
-    <div class="table-responsive border rounded-3 shadow-sm">
-      <table class="table table-striped table-hover align-middle mb-0">
-        <caption class="px-3 py-2 text-muted">
-          Resumen de descargas agrupadas por lotería y número.
-        </caption>
-        <thead class="table-light reporte-sticky-head">
-          <tr>
-            <th scope="col">Lotería</th>
-            <th scope="col">Número</th>
-            <th scope="col" class="text-end">Veces Apostado</th>
-            <th scope="col" class="text-end">Valor Total</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for row in report %}
-          <tr>
-            <td>{{ row.loterias__nombre }}</td>
-            <td>{{ row.numero_clean }}</td>
-            <td class="text-end reporte-num">{{ row.veces_apostado }}</td>
-            <td class="text-end reporte-num">${{ row.total_ventas|format_colombian }} COP</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  {% else %}
-    <div class="alert alert-info d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2" role="alert">
-      <span>No se encontraron ventas para la fecha <strong>{{ fecha }}</strong>.</span>
-      <button type="button" id="btnHoyEmpty" class="btn btn-sm btn-outline-primary align-self-start align-self-md-auto">
-        Ir a hoy
-      </button>
-    </div>
+    <span class="results-badge">
+      <i class="bi bi-list-ul"></i>{{ report|length }} registro{{ report|length|pluralize }}
+    </span>
   {% endif %}
 </div>
 
-<style>
-  .reporte-sticky-head th {
-    position: sticky;
-    top: 0;
-    z-index: 1;
-  }
+<!-- ══════════ FILTROS ═════════════════════════════ -->
+<div class="filter-card">
+  <form method="get" id="filter-form">
+    <span class="filter-label"><i class="bi bi-calendar3 me-1"></i>Fecha del reporte</span>
+    <div class="d-flex gap-2 align-items-center flex-wrap">
+      <input type="date" id="fecha-input" name="fecha" class="form-control"
+        value="{{ fecha }}" max="{% now 'Y-m-d' %}" style="max-width:220px; flex:1; min-width:150px;">
+      <a href="{% url 'reporte_descargas' %}" class="btn-limpiar">
+        <i class="bi bi-arrow-counterclockwise"></i> Limpiar
+      </a>
+      {% if report %}
+        <a href="?fecha={{ fecha }}&export=csv" class="btn-excel">
+          <i class="bi bi-file-earmark-spreadsheet"></i> Descargar Excel
+        </a>
+      {% endif %}
+    </div>
+    <div class="date-chips">
+      <button type="button" class="chip-date" data-date="today">Hoy</button>
+      <button type="button" class="chip-date" data-date="yesterday">Ayer</button>
+    </div>
+  </form>
+</div>
 
-  .reporte-num {
-    font-variant-numeric: tabular-nums;
-  }
-</style>
+{% if report %}
 
+<!-- ══════════ STAT CARDS ══════════════════════════ -->
+<div class="stat-row">
+  <div class="stat-card s-green">
+    <div class="stat-icon"><i class="bi bi-cash-stack"></i></div>
+    <div class="stat-lbl">Total apostado</div>
+    <div class="stat-val">${{ total_general|format_colombian }}</div>
+  </div>
+  <div class="stat-card s-amber">
+    <div class="stat-icon"><i class="bi bi-ticket-perforated"></i></div>
+    <div class="stat-lbl">Total apuestas</div>
+    <div class="stat-val">{{ total_apuestas }}</div>
+  </div>
+  <div class="stat-card s-purple">
+    <div class="stat-icon"><i class="bi bi-trophy"></i></div>
+    <div class="stat-lbl">Loterías</div>
+    <div class="stat-val">{{ loterias_unicas }}</div>
+  </div>
+</div>
+
+<!-- ══════════ CONTENIDO ═══════════════════════════ -->
+<div class="report-wrap">
+  <div class="report-wrap-header">
+    <h2><i class="bi bi-table me-2" style="color:var(--muted);"></i>Detalle por número</h2>
+    <a href="?fecha={{ fecha }}&export=csv" class="btn-excel" style="padding:.38rem .85rem; font-size:.8rem; min-height:36px;">
+      <i class="bi bi-file-earmark-spreadsheet"></i> Descargar Excel
+    </a>
+  </div>
+
+  <!-- Vista móvil -->
+  <div class="report-cards mobile-only">
+    {% for row in report %}
+      <div class="report-card">
+        <div class="rc-top">
+          <div>
+            <div class="rc-lot">{{ row.loterias__nombre }}</div>
+            <span class="rc-num">{{ row.numero_clean }}</span>
+          </div>
+          <div>
+            <div class="rc-total">${{ row.total_ventas|format_colombian }}</div>
+            <div class="rc-veces">{{ row.veces_apostado }} apuesta{{ row.veces_apostado|pluralize }}</div>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+
+  <!-- Vista desktop -->
+  <div class="desktop-only">
+    <table class="report-table">
+      <thead>
+        <tr>
+          <th>Lotería</th>
+          <th>Número</th>
+          <th style="text-align:center;">Veces apostado</th>
+          <th style="text-align:right;">Valor total</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in report %}
+          <tr>
+            <td style="font-weight:600; color:#1f2937;">{{ row.loterias__nombre }}</td>
+            <td><span class="td-num">{{ row.numero_clean }}</span></td>
+            <td class="td-veces">{{ row.veces_apostado }}</td>
+            <td class="td-total">${{ row.total_ventas|format_colombian }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="2" class="tfoot-label">Total general</td>
+          <td class="td-veces" style="font-size:.95rem; color:var(--amber);">{{ total_apuestas }}</td>
+          <td class="tfoot-val">${{ total_general|format_colombian }}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+
+{% else %}
+
+<!-- ══════════ ESTADO VACÍO ════════════════════════ -->
+<div class="empty-state">
+  <div class="empty-icon"><i class="bi bi-bar-chart-line"></i></div>
+  <h3>Sin datos para esta fecha</h3>
+  <p>No se encontraron ventas para el <strong>{{ fecha }}</strong>.<br>
+  Intenta con otra fecha o haz clic en "Hoy".</p>
+</div>
+
+{% endif %}
+
+<!-- ══════════ JAVASCRIPT ══════════════════════════ -->
 <script>
-  (function () {
-    const fechaInput = document.getElementById('fecha');
-    const btnHoy = document.getElementById('btnHoy');
-    const btnHoyEmpty = document.getElementById('btnHoyEmpty');
+(() => {
+  const form  = document.getElementById('filter-form');
+  const fecha = document.getElementById('fecha-input');
+  const toISO = d => d.toISOString().slice(0, 10);
 
-    function goToToday() {
-      if (!fechaInput) return;
-      const today = new Date();
-      const y = today.getFullYear();
-      const m = String(today.getMonth() + 1).padStart(2, '0');
-      const d = String(today.getDate()).padStart(2, '0');
-      fechaInput.value = `${y}-${m}-${d}`;
-      fechaInput.form.submit();
-    }
+  // Auto-submit al cambiar fecha
+  fecha?.addEventListener('change', () => form.submit());
 
-    if (btnHoy) {
-      btnHoy.addEventListener('click', goToToday);
-    }
-    if (btnHoyEmpty) {
-      btnHoyEmpty.addEventListener('click', goToToday);
-    }
-  })();
+  // Chips de fecha
+  document.querySelectorAll('.chip-date').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const today = new Date(); today.setHours(0,0,0,0);
+      if (btn.dataset.date === 'today') {
+        fecha.value = toISO(today);
+      } else if (btn.dataset.date === 'yesterday') {
+        const d = new Date(today); d.setDate(d.getDate() - 1);
+        fecha.value = toISO(d);
+      }
+      form.submit();
+    });
+  });
+
+  // Marcar chip activo según fecha actual
+  const hoy  = toISO((() => { const d = new Date(); d.setHours(0,0,0,0); return d; })());
+  const ayer = toISO((() => { const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate()-1); return d; })());
+  const val  = fecha?.value;
+  document.querySelectorAll('.chip-date').forEach(btn => {
+    btn.classList.toggle('active',
+      (btn.dataset.date === 'today'     && val === hoy) ||
+      (btn.dataset.date === 'yesterday' && val === ayer)
+    );
+  });
+})();
 </script>
+
 {% endblock %}

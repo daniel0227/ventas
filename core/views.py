@@ -31,6 +31,7 @@ from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import get_user_model
 from datetime import date, timedelta, datetime
+import csv
 from django.db.models.functions import TruncDate
 from django.db.models.functions import Coalesce, Trim
 import os
@@ -1383,7 +1384,6 @@ def resultados(request):
 @user_passes_test(lambda u: u.is_staff)
 @login_required
 def reporte_descargas(request):
-    # Fecha filtro
     fecha_param = request.GET.get('fecha')
     hoy = timezone.localtime(timezone.now()).date()
     try:
@@ -1394,25 +1394,50 @@ def reporte_descargas(request):
     base = (
         Venta.objects
         .filter(fecha_venta__date=fecha)
-        .annotate(
-            numero_clean=Trim('numero'),
-        )
+        .annotate(numero_clean=Trim('numero'))
         .exclude(Q(numero_clean__isnull=True) | Q(numero_clean=''))
         .exclude(loterias__isnull=True)
     )
 
-    report = (
+    report = list(
         base.values('loterias__nombre', 'numero_clean')
             .annotate(
                 veces_apostado=Count('id', distinct=True),
                 total_ventas=Coalesce(Sum('monto'), 0, output_field=IntegerField()),
             )
-            .order_by('-total_ventas')
+            .order_by('loterias__nombre', '-total_ventas')
     )
 
+    # ── Exportar CSV ──────────────────────────────
+    if request.GET.get('export') == 'csv':
+        response = HttpResponse(
+            content_type='text/csv; charset=utf-8-sig',  # utf-8-sig → Excel abre sin problemas de tildes
+        )
+        response['Content-Disposition'] = (
+            f'attachment; filename="reporte_descargas_{fecha}.csv"'
+        )
+        writer = csv.writer(response)
+        writer.writerow(['Lotería', 'Número', 'Veces apostado', 'Valor total (COP)'])
+        for row in report:
+            writer.writerow([
+                row['loterias__nombre'],
+                row['numero_clean'],
+                row['veces_apostado'],
+                row['total_ventas'],
+            ])
+        return response
+
+    # ── Totales resumen ───────────────────────────
+    total_general  = sum(r['total_ventas']   for r in report)
+    total_apuestas = sum(r['veces_apostado'] for r in report)
+    loterias_unicas = len({r['loterias__nombre'] for r in report})
+
     return render(request, 'core/reporte_descargas.html', {
-        'fecha': fecha,
-        'report': report,
+        'fecha':          fecha,
+        'report':         report,
+        'total_general':  total_general,
+        'total_apuestas': total_apuestas,
+        'loterias_unicas': loterias_unicas,
     })
 
 def login_required_view(request):
@@ -1531,6 +1556,22 @@ def reportes(request):
 
     rows.sort(key=lambda r: r['total'], reverse=True)
 
+    # --- Exportar CSV ---
+    if request.GET.get('export') == 'csv':
+        response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
+        response['Content-Disposition'] = (
+            f'attachment; filename="reporte_liquidacion_{start_date}_{end_date}.csv"'
+        )
+        writer = csv.writer(response)
+        writer.writerow(['Vendedor', 'Total bruto (COP)', 'Venta neta (COP)', 'Comisión (COP)', 'Liquidación (COP)'])
+        for r in rows:
+            writer.writerow([r['vendedor'], r['total'], r['venta_neta'], r['comision'], r['liquidacion']])
+        writer.writerow([])
+        writer.writerow(['TOTALES', total_general_bruta, total_general_neta, total_general_comision, total_general_liquidacion])
+        return response
+
+    total_vendedores = len(rows)
+
     return render(request, 'core/reportes.html', {
         'labels': labels,
         'data': data,
@@ -1541,6 +1582,7 @@ def reportes(request):
         'total_general_liquidacion': total_general_liquidacion,
         'start_date': start_date,
         'end_date': end_date,
+        'total_vendedores': total_vendedores,
     })
 
 

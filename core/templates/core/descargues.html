@@ -2,69 +2,476 @@
 {% load format_filters %}
 
 {% block content %}
-<div class="container-fluid px-2 px-md-4 py-3 py-md-4">
 
-  <!-- ── Encabezado ────────────────────────────────────────────── -->
-  <div class="d-flex align-items-center gap-3 mb-3 mb-md-4">
-    <div class="rounded-3 d-flex align-items-center justify-content-center flex-shrink-0"
-         style="background:#e8f4fd; width:44px; height:44px;">
-      <i class="bi bi-arrow-down-circle-fill fs-5 text-primary"></i>
-    </div>
-    <div>
-      <h1 class="h5 h4-md fw-bold mb-0">Descargues</h1>
-      <p class="text-muted small mb-0">Registra ventas para usuarios del perfil descargue.</p>
-    </div>
+<style>
+  :root {
+    --primary:       #4f46e5;
+    --primary-dark:  #3730a3;
+    --primary-light: #eef2ff;
+    --success:       #10b981;
+    --success-light: #ecfdf5;
+    --danger:        #ef4444;
+    --danger-light:  #fef2f2;
+    --warning:       #f59e0b;
+    --warning-light: #fffbeb;
+    --amber:         #f59e0b;
+    --amber-light:   #fffbeb;
+    --border:        #e5e7eb;
+    --muted:         #6b7280;
+    --card-radius:   16px;
+    --shadow:        0 2px 12px rgba(0,0,0,.07);
+    --shadow-hover:  0 6px 24px rgba(79,70,229,.13);
+  }
+
+  /* ── Page header ──────────────────────────────── */
+  .page-header {
+    display: flex;
+    align-items: center;
+    gap: .85rem;
+    margin-bottom: 1.25rem;
+  }
+  .page-header-icon {
+    width: 46px; height: 46px;
+    border-radius: 14px;
+    background: var(--primary-light);
+    color: var(--primary);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.25rem;
+    flex-shrink: 0;
+  }
+  .page-header h1 { font-size: 1.35rem; font-weight: 700; color: #1f2937; margin: 0; }
+  .page-header .subtitle { font-size: .82rem; color: var(--muted); margin-top: .1rem; }
+
+  /* ── Toast messages ───────────────────────────── */
+  .toast-stack {
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+    margin-bottom: 1.25rem;
+  }
+  .toast-msg {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    padding: .75rem 1rem;
+    border-radius: var(--card-radius);
+    font-size: .88rem;
+    font-weight: 500;
+    border: 1px solid;
+    animation: slideDown .25s ease;
+  }
+  @keyframes slideDown {
+    from { opacity: 0; transform: translateY(-8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .toast-msg.success { background: var(--success-light); color: #065f46; border-color: #6ee7b7; }
+  .toast-msg.error   { background: var(--danger-light);  color: #991b1b; border-color: #fca5a5; }
+  .toast-msg.warning { background: var(--warning-light); color: #92400e; border-color: #fcd34d; }
+  .toast-msg.info    { background: var(--primary-light); color: #3730a3; border-color: #c7d2fe; }
+  .toast-msg .toast-icon { font-size: 1rem; flex-shrink: 0; }
+  .toast-msg .toast-close {
+    margin-left: auto;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: inherit;
+    opacity: .6;
+    padding: 0;
+    line-height: 1;
+    font-size: .85rem;
+  }
+  .toast-msg .toast-close:hover { opacity: 1; }
+
+  /* ── Filter card ──────────────────────────────── */
+  .filter-card {
+    background: #fff;
+    border-radius: var(--card-radius);
+    box-shadow: var(--shadow);
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.25rem;
+    border: 1px solid var(--border);
+  }
+  .filter-label {
+    font-size: .75rem;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    margin-bottom: .4rem;
+    display: block;
+  }
+  .filter-card .form-control,
+  .filter-card .form-select {
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    font-size: .9rem;
+    padding: .5rem .85rem;
+    background: #fafafa;
+    min-height: 44px;
+    transition: border-color .2s, background .2s;
+  }
+  .filter-card .form-control:focus,
+  .filter-card .form-select:focus {
+    border-color: var(--primary);
+    box-shadow: none;
+    background: #fff;
+  }
+  .btn-limpiar {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    padding: .5rem 1rem;
+    border-radius: 10px;
+    font-size: .85rem;
+    font-weight: 600;
+    color: var(--muted);
+    background: #f3f4f6;
+    border: 1.5px solid var(--border);
+    text-decoration: none;
+    min-height: 44px;
+    white-space: nowrap;
+    transition: background .15s, color .15s;
+  }
+  .btn-limpiar:hover { background: var(--danger-light); color: var(--danger); border-color: #fca5a5; }
+
+  /* ── Stat card ────────────────────────────────── */
+  .stat-row { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; margin-bottom: 1.25rem; }
+  .stat-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--card-radius);
+    box-shadow: var(--shadow);
+    padding: .9rem 1rem;
+    display: flex; flex-direction: column; gap: .1rem;
+  }
+  .stat-icon {
+    width: 34px; height: 34px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem; margin-bottom: .4rem;
+  }
+  .stat-green .stat-icon { background: var(--success-light); color: var(--success); }
+  .stat-amber .stat-icon { background: var(--amber-light);   color: var(--amber);   }
+  .stat-lbl {
+    font-size: .7rem; font-weight: 600; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .04em;
+  }
+  .stat-val {
+    font-size: 1.15rem; font-weight: 800; line-height: 1.15;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat-green .stat-val { color: var(--success); }
+  .stat-amber .stat-val { color: var(--amber);   }
+
+  /* ── Section cards (Registro + Masiva) ───────── */
+  .section-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--card-radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    height: 100%;
+  }
+  .section-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    padding: .85rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+    background: #fafafa;
+    flex-wrap: wrap;
+  }
+  .section-card-header .hdr-left { display: flex; align-items: center; gap: .55rem; }
+  .section-card-header .hdr-icon {
+    width: 30px; height: 30px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .9rem; flex-shrink: 0;
+  }
+  .hdr-icon.green { background: var(--success-light); color: var(--success); }
+  .hdr-icon.blue  { background: var(--primary-light); color: var(--primary); }
+  .section-card-header h2 { font-size: .92rem; font-weight: 700; color: #1f2937; margin: 0; }
+  .section-card-header .hdr-sub { font-size: .75rem; color: var(--muted); margin: .1rem 0 0; }
+  .section-card-body { padding: 1.1rem 1.25rem; }
+
+  /* Form inputs dentro de section cards */
+  .section-card .form-control,
+  .section-card .form-select {
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    font-size: .9rem;
+    padding: .5rem .85rem;
+    background: #fafafa;
+    min-height: 42px;
+    transition: border-color .2s, background .2s;
+  }
+  .section-card .form-control:focus,
+  .section-card .form-select:focus {
+    border-color: var(--primary);
+    box-shadow: none;
+    background: #fff;
+  }
+  .section-card .form-label {
+    font-size: .78rem; font-weight: 600; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .04em;
+    margin-bottom: .3rem;
+  }
+  .btn-guardar {
+    display: inline-flex; align-items: center; gap: .4rem;
+    padding: .55rem 1.25rem; border-radius: 10px;
+    font-size: .88rem; font-weight: 700;
+    background: linear-gradient(135deg, var(--success) 0%, #059669 100%);
+    color: #fff; border: none; cursor: pointer; min-height: 44px;
+    transition: opacity .15s, transform .1s;
+  }
+  .btn-guardar:hover  { opacity: .9; }
+  .btn-guardar:active { transform: scale(.97); }
+
+  /* Hint ejemplo */
+  .hint-box {
+    display: flex; flex-wrap: wrap; align-items: center; gap: .5rem;
+    background: var(--warning-light);
+    border: 1px dashed #fcd34d;
+    border-radius: 10px;
+    padding: .6rem .85rem;
+    font-size: .8rem;
+  }
+  .hint-box code {
+    background: rgba(0,0,0,.06); border-radius: 4px;
+    padding: .1rem .35rem; font-size: .78rem;
+  }
+
+  /* Textarea jugadas */
+  .jugadas-wrap { position: relative; }
+  .jugadas-counter {
+    position: absolute; bottom: .5rem; right: .75rem;
+    font-size: .72rem; font-weight: 600;
+    color: var(--muted); pointer-events: none;
+  }
+  .jugadas-counter.near-limit { color: var(--warning); }
+  .jugadas-counter.at-limit   { color: var(--danger);  }
+  textarea.form-control { resize: vertical; }
+
+  /* Bulk errors */
+  .bulk-errors {
+    background: var(--danger-light);
+    border: 1px solid #fca5a5;
+    border-radius: 10px;
+    padding: .75rem 1rem;
+    margin-bottom: .85rem;
+  }
+  .bulk-errors .err-title {
+    font-size: .82rem; font-weight: 700; color: #991b1b;
+    margin-bottom: .4rem; display: flex; align-items: center; gap: .4rem;
+  }
+  .bulk-errors ul { margin: 0; padding-left: 1.1rem; }
+  .bulk-errors li { font-size: .8rem; color: #991b1b; }
+
+  /* No loterías warning */
+  .no-lot-warn {
+    display: flex; align-items: center; gap: .6rem;
+    background: var(--warning-light);
+    border: 1px solid #fcd34d;
+    border-radius: 10px;
+    padding: .65rem .9rem;
+    font-size: .82rem; color: #92400e;
+    margin-top: .75rem;
+  }
+
+  /* ── Tabla desktop ventas ─────────────────────── */
+  .ventas-wrap {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--card-radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    margin-top: 1.25rem;
+  }
+  .ventas-wrap-header {
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: .6rem;
+    padding: .85rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+    background: #fafafa;
+  }
+  .ventas-wrap-header h2 {
+    font-size: .92rem; font-weight: 700; color: #1f2937; margin: 0;
+    display: flex; align-items: center; gap: .5rem;
+  }
+  .count-badge {
+    display: inline-flex; align-items: center; gap: .3rem;
+    background: var(--primary-light); color: var(--primary);
+    border: 1px solid #c7d2fe;
+    border-radius: 999px; padding: .2rem .65rem;
+    font-size: .75rem; font-weight: 700;
+  }
+
+  .ventas-table { width: 100%; border-collapse: collapse; }
+  .ventas-table thead tr {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+  }
+  .ventas-table thead th {
+    color: #fff; font-size: .75rem; font-weight: 600;
+    text-transform: uppercase; letter-spacing: .05em;
+    padding: .8rem 1rem; border: none; white-space: nowrap;
+  }
+  .ventas-table tbody tr { border-bottom: 1px solid var(--border); transition: background .12s; }
+  .ventas-table tbody tr:last-child { border-bottom: none; }
+  .ventas-table tbody tr:hover { background: #f9fafb; }
+  .ventas-table tbody td { padding: .65rem 1rem; font-size: .87rem; color: #374151; border: none; vertical-align: middle; }
+  .ventas-table .td-monto { text-align: right; font-weight: 800; color: var(--success); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .chip-num {
+    display: inline-block; padding: .18rem .55rem; border-radius: 999px;
+    background: var(--primary-light); color: var(--primary);
+    border: 1px solid #c7d2fe; font-size: .78rem; font-weight: 700;
+    font-family: monospace; letter-spacing: .02em;
+  }
+  .chip-lot {
+    display: inline-block; padding: .18rem .55rem; border-radius: 999px;
+    background: #f3f4f6; color: #374151;
+    border: 1px solid var(--border); font-size: .75rem; font-weight: 500;
+  }
+
+  /* ── Mobile cards ventas ──────────────────────── */
+  .venta-cards { display: flex; flex-direction: column; gap: .65rem; padding: .85rem 1rem; }
+  .venta-c {
+    background: #fff;
+    border: 1px solid var(--border); border-left: 4px solid var(--primary);
+    border-radius: var(--card-radius); box-shadow: var(--shadow);
+    padding: .75rem .9rem;
+    display: grid; grid-template-rows: auto auto; gap: .45rem;
+  }
+  .venta-c-top { display: flex; justify-content: space-between; align-items: flex-start; gap: .5rem; }
+  .venta-c-name  { font-size: .9rem; font-weight: 700; color: #1f2937; }
+  .venta-c-sub   { font-size: .75rem; color: var(--muted); margin-top: .1rem; }
+  .venta-c-monto { font-size: 1.05rem; font-weight: 800; color: var(--success); font-variant-numeric: tabular-nums; text-align: right; }
+  .venta-c-date  { font-size: .7rem; color: var(--muted); text-align: right; margin-top: .05rem; }
+  .venta-c-bottom { display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; }
+
+  /* ── Paginación ───────────────────────────────── */
+  .pagination-wrap {
+    padding: .85rem 1.25rem;
+    border-top: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    gap: .75rem; flex-wrap: wrap;
+  }
+  .page-info { font-size: .82rem; color: var(--muted); font-weight: 500; white-space: nowrap; }
+  .page-info strong { color: #1f2937; }
+  .page-btn {
+    display: inline-flex; align-items: center; gap: .35rem;
+    padding: .42rem .95rem; border-radius: 10px; font-size: .85rem; font-weight: 600;
+    color: var(--primary); background: var(--primary-light);
+    border: 1.5px solid #c7d2fe; text-decoration: none;
+    transition: background .15s; white-space: nowrap;
+  }
+  .page-btn:hover { background: #e0e7ff; color: var(--primary); }
+  .page-btn.disabled { pointer-events: none; opacity: .4; color: var(--muted); background: #f3f4f6; border-color: var(--border); }
+  .page-numbers { display: none; align-items: center; gap: .3rem; }
+  @media (min-width: 576px) { .page-numbers { display: flex; } }
+  .page-num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 34px; height: 34px; border-radius: 9px; font-size: .82rem; font-weight: 600;
+    color: #374151; text-decoration: none;
+    border: 1.5px solid var(--border); background: #fff;
+    transition: background .12s, border-color .12s, color .12s;
+  }
+  .page-num:hover  { background: var(--primary-light); border-color: #c7d2fe; color: var(--primary); }
+  .page-num.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+  /* ── Empty state ──────────────────────────────── */
+  .empty-state {
+    padding: 3rem 1.5rem; text-align: center;
+  }
+  .empty-icon {
+    width: 60px; height: 60px; background: var(--primary-light); border-radius: 18px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 1.6rem; color: var(--primary); margin-bottom: .9rem;
+  }
+  .empty-state h3 { font-size: .95rem; font-weight: 700; color: #1f2937; margin-bottom: .3rem; }
+  .empty-state p  { font-size: .82rem; color: var(--muted); margin: 0; }
+
+  /* ── Responsive helpers ───────────────────────── */
+  @media (max-width: 575.98px) { .desktop-only { display: none !important; } }
+  @media (min-width: 576px)    { .mobile-only  { display: none !important; } }
+  @media (max-width: 767.98px) { .d-md-none-force { display: none !important; } }
+</style>
+
+<!-- ══════════════════════════════════════════════
+     HEADER
+══════════════════════════════════════════════ -->
+<div class="page-header">
+  <div class="page-header-icon">
+    <i class="bi bi-arrow-down-circle-fill"></i>
   </div>
+  <div>
+    <h1>Descargues</h1>
+    <div class="subtitle">Registra ventas para usuarios del perfil descargue.</div>
+  </div>
+</div>
 
-  <!-- ── Mensajes del sistema ──────────────────────────────────── -->
-  {% if messages %}
-    {% for message in messages %}
-      <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible d-flex align-items-center gap-2 py-2 mb-3" role="alert">
-        <i class="bi bi-{% if message.tags == 'success' %}check-circle-fill{% elif message.tags == 'error' or message.tags == 'danger' %}x-circle-fill{% else %}info-circle-fill{% endif %} flex-shrink-0"></i>
-        <div>{{ message }}</div>
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+<!-- ══════════════════════════════════════════════
+     MENSAJES
+══════════════════════════════════════════════ -->
+{% if messages %}
+<div class="toast-stack" id="toast-stack">
+  {% for message in messages %}
+    {% if message.tags == 'success' %}
+      <div class="toast-msg success">
+        <i class="bi bi-check-circle-fill toast-icon"></i>
+        <span>{{ message }}</span>
+        <button class="toast-close" aria-label="Cerrar"><i class="bi bi-x-lg"></i></button>
       </div>
-    {% endfor %}
-  {% endif %}
+    {% elif message.tags == 'error' or message.tags == 'danger' %}
+      <div class="toast-msg error">
+        <i class="bi bi-x-circle-fill toast-icon"></i>
+        <span>{{ message }}</span>
+        <button class="toast-close" aria-label="Cerrar"><i class="bi bi-x-lg"></i></button>
+      </div>
+    {% elif message.tags == 'warning' %}
+      <div class="toast-msg warning">
+        <i class="bi bi-exclamation-triangle-fill toast-icon"></i>
+        <span>{{ message }}</span>
+        <button class="toast-close" aria-label="Cerrar"><i class="bi bi-x-lg"></i></button>
+      </div>
+    {% else %}
+      <div class="toast-msg info">
+        <i class="bi bi-info-circle-fill toast-icon"></i>
+        <span>{{ message }}</span>
+        <button class="toast-close" aria-label="Cerrar"><i class="bi bi-x-lg"></i></button>
+      </div>
+    {% endif %}
+  {% endfor %}
+</div>
+{% endif %}
 
-  <!-- ── Filtros ───────────────────────────────────────────────── -->
-  <div class="card border-0 shadow-sm mb-4">
-    <div class="card-header bg-white border-bottom py-3 px-3 px-md-4 d-flex align-items-center gap-2">
-      <i class="bi bi-funnel-fill text-primary"></i>
-      <span class="fw-semibold">Filtros de consulta</span>
-    </div>
-    <div class="card-body px-3 px-md-4 py-3">
-      <form method="get" class="row g-3 align-items-end">
-        <div class="col-12 col-md-4">
-          <label class="form-label fw-medium small mb-1" for="fecha">
-            <i class="bi bi-calendar3 me-1 text-muted"></i>Fecha
-          </label>
-          <input
-            type="date"
-            id="fecha"
-            name="fecha"
-            class="form-control"
-            value="{{ fecha_filtro|date:'Y-m-d' }}"
-            max="{% now 'Y-m-d' %}"
-          >
-        </div>
-        <div class="col-12 col-md-4">
-          <label class="form-label fw-medium small mb-1" for="descargue">
-            <i class="bi bi-person me-1 text-muted"></i>Usuario descargue
-          </label>
-          <select id="descargue" name="descargue" class="form-select">
-            <option value="">Todos</option>
-            {% for usuario in usuarios_descargue %}
-              <option value="{{ usuario.id }}" {% if descargue_id == usuario.id|stringformat:'s' %}selected{% endif %}>
-                {{ usuario.get_full_name|default:usuario.username|title }}
-              </option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="col-12 col-md-4">
-          <label class="form-label fw-medium small mb-1" for="loteria">
-            <i class="bi bi-ticket-perforated me-1 text-muted"></i>Lotería
-          </label>
+<!-- ══════════════════════════════════════════════
+     FILTROS
+══════════════════════════════════════════════ -->
+<div class="filter-card">
+  <form method="get" id="filter-form">
+    <span class="filter-label"><i class="bi bi-sliders me-1"></i>Filtrar descargues</span>
+    <div class="row g-2 align-items-end">
+
+      <div class="col-12 col-md-4">
+        <label class="filter-label" for="fecha">Fecha</label>
+        <input type="date" id="fecha-filtro" name="fecha" class="form-control"
+          value="{{ fecha_filtro|date:'Y-m-d' }}" max="{% now 'Y-m-d' %}">
+      </div>
+
+      <div class="col-12 col-md-4">
+        <label class="filter-label" for="descargue">Usuario descargue</label>
+        <select id="descargue" name="descargue" class="form-select">
+          <option value="">Todos</option>
+          {% for usuario in usuarios_descargue %}
+            <option value="{{ usuario.id }}" {% if descargue_id == usuario.id|stringformat:'s' %}selected{% endif %}>
+              {{ usuario.get_full_name|default:usuario.username|title }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="col-12 col-md-4">
+        <label class="filter-label" for="loteria">Lotería</label>
+        <div class="d-flex gap-2">
           <select id="loteria" name="loteria" class="form-select">
             <option value="">Todas</option>
             {% for loteria in loterias_disponibles %}
@@ -73,355 +480,387 @@
               </option>
             {% endfor %}
           </select>
-        </div>
-        <div class="col-12 d-flex flex-wrap gap-2">
-          <button type="submit" class="btn btn-primary d-flex align-items-center gap-1">
-            <i class="bi bi-search"></i> Filtrar
-          </button>
-          <a href="{% url 'descargues' %}" class="btn btn-outline-secondary d-flex align-items-center gap-1">
-            <i class="bi bi-arrow-counterclockwise"></i> Limpiar
+          <a href="{% url 'descargues' %}" class="btn-limpiar" title="Limpiar filtros">
+            <i class="bi bi-arrow-counterclockwise"></i>
           </a>
         </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- ── Registrar venta + Carga masiva (lado a lado en pantallas grandes) ── -->
-  <div class="row g-4 mb-4">
-
-    <!-- Registrar venta -->
-    <div class="col-12 col-xl-6">
-      <div class="card border-0 shadow-sm h-100">
-        <div class="card-header bg-white border-bottom py-3 px-3 px-md-4 d-flex align-items-center gap-2">
-          <i class="bi bi-plus-circle-fill text-success"></i>
-          <span class="fw-semibold">Registrar venta</span>
-        </div>
-        <div class="card-body px-3 px-md-4 py-3">
-          <form method="post" class="row g-2 g-md-3 align-items-end">
-            {% csrf_token %}
-            <input type="hidden" name="accion" value="manual">
-            <input type="hidden" name="fecha_filtro" value="{{ fecha_filtro|date:'Y-m-d' }}">
-
-            <div class="col-12 col-sm-6">
-              <label class="form-label fw-medium small mb-1" for="descargue_post">
-                <i class="bi bi-person me-1 text-muted"></i>Usuario descargue
-              </label>
-              <select id="descargue_post" name="descargue" class="form-select form-select-sm" required>
-                <option value="">Selecciona un usuario</option>
-                {% for usuario in usuarios_descargue %}
-                  <option value="{{ usuario.id }}" {% if descargue_id == usuario.id|stringformat:'s' %}selected{% endif %}>
-                    {{ usuario.get_full_name|default:usuario.username|title }}
-                  </option>
-                {% endfor %}
-              </select>
-            </div>
-
-            <div class="col-12 col-sm-6">
-              <label class="form-label fw-medium small mb-1" for="loteria_post">
-                <i class="bi bi-ticket-perforated me-1 text-muted"></i>Lotería disponible
-              </label>
-              <select id="loteria_post" name="loteria" class="form-select form-select-sm" required>
-                <option value="">Selecciona lotería</option>
-                {% for loteria in loterias_disponibles %}
-                  <option value="{{ loteria.id }}" {% if loteria_id == loteria.id|stringformat:'s' %}selected{% endif %}>
-                    {{ loteria.nombre }}
-                  </option>
-                {% endfor %}
-              </select>
-            </div>
-
-            <div class="col-6 col-sm-4">
-              <label class="form-label fw-medium small mb-1" for="numero">
-                <i class="bi bi-hash me-1 text-muted"></i>Número
-              </label>
-              <input
-                type="text"
-                id="numero"
-                name="numero"
-                class="form-control form-control-sm font-monospace"
-                inputmode="numeric"
-                placeholder="ej. 1016"
-                required
-              >
-            </div>
-
-            <div class="col-6 col-sm-4">
-              <label class="form-label fw-medium small mb-1" for="monto">
-                <i class="bi bi-cash me-1 text-muted"></i>Valor
-              </label>
-              <input
-                type="number"
-                id="monto"
-                name="monto"
-                class="form-control form-control-sm"
-                min="1"
-                step="1"
-                placeholder="ej. 1500"
-                required
-              >
-            </div>
-
-            <div class="col-12 col-sm-4 d-grid">
-              <button type="submit" class="btn btn-success btn-sm d-flex align-items-center justify-content-center gap-1">
-                <i class="bi bi-floppy"></i> Guardar
-              </button>
-            </div>
-          </form>
-
-          {% if not loterias_disponibles %}
-            <div class="alert alert-warning d-flex align-items-center gap-2 mt-3 mb-0 py-2">
-              <i class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
-              No hay loterías disponibles en este momento para registrar descargues.
-            </div>
-          {% endif %}
-        </div>
       </div>
-    </div>
 
-    <!-- Carga masiva -->
-    <div class="col-12 col-xl-6">
-      <div class="card border-0 shadow-sm h-100">
-        <div class="card-header bg-white border-bottom py-3 px-3 px-md-4">
-          <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
-            <div class="d-flex align-items-center gap-2">
-              <i class="bi bi-upload text-info"></i>
-              <span class="fw-semibold">Carga masiva</span>
-            </div>
-            <span class="badge bg-light text-dark border small">Máx. 500 líneas</span>
+    </div>
+  </form>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     STATS
+══════════════════════════════════════════════ -->
+{% if ventas_descargue %}
+<div class="stat-row">
+  <div class="stat-card stat-green">
+    <div class="stat-icon"><i class="bi bi-cash-stack"></i></div>
+    <div class="stat-lbl">Total descargues</div>
+    <div class="stat-val">${{ total_monto|format_colombian }}</div>
+  </div>
+  <div class="stat-card stat-amber">
+    <div class="stat-icon"><i class="bi bi-receipt"></i></div>
+    <div class="stat-lbl">Registros</div>
+    <div class="stat-val">{{ ventas_descargue.paginator.count }}</div>
+  </div>
+</div>
+{% endif %}
+
+<!-- ══════════════════════════════════════════════
+     REGISTRAR VENTA + CARGA MASIVA
+══════════════════════════════════════════════ -->
+<div class="row g-3 mb-0" style="margin-bottom:1.25rem!important;">
+
+  <!-- Registrar venta manual -->
+  <div class="col-12 col-xl-6">
+    <div class="section-card">
+      <div class="section-card-header">
+        <div class="hdr-left">
+          <div class="hdr-icon green"><i class="bi bi-plus-lg"></i></div>
+          <div>
+            <h2>Registrar venta</h2>
           </div>
-          <p class="text-muted small mb-0 mt-1">
-            Pega una jugada por línea: <code>numero - monto</code>.
-          </p>
-        </div>
-        <div class="card-body px-3 px-md-4 py-3">
-
-          {% if bulk_errors %}
-            <div class="alert alert-danger py-2" role="alert">
-              <div class="fw-semibold mb-1">
-                <i class="bi bi-x-octagon-fill me-1"></i>Errores en la carga:
-              </div>
-              <ul class="mb-0 ps-3 small">
-                {% for error in bulk_errors %}
-                  <li>{{ error }}</li>
-                {% endfor %}
-              </ul>
-            </div>
-          {% endif %}
-
-          <form method="post" class="row g-3">
-            {% csrf_token %}
-            <input type="hidden" name="accion" value="masiva">
-            <input type="hidden" name="fecha_filtro" value="{{ fecha_filtro|date:'Y-m-d' }}">
-
-            <div class="col-12 col-sm-6">
-              <label class="form-label fw-medium small mb-1" for="descargue_bulk">
-                <i class="bi bi-person me-1 text-muted"></i>Usuario descargue
-              </label>
-              <select id="descargue_bulk" name="descargue" class="form-select" required>
-                <option value="">Selecciona un usuario</option>
-                {% for usuario in usuarios_descargue %}
-                  <option value="{{ usuario.id }}" {% if descargue_id == usuario.id|stringformat:'s' %}selected{% endif %}>
-                    {{ usuario.get_full_name|default:usuario.username|title }}
-                  </option>
-                {% endfor %}
-              </select>
-            </div>
-
-            <div class="col-12 col-sm-6">
-              <label class="form-label fw-medium small mb-1" for="loteria_bulk">
-                <i class="bi bi-ticket-perforated me-1 text-muted"></i>Lotería disponible
-              </label>
-              <select id="loteria_bulk" name="loteria" class="form-select" required>
-                <option value="">Selecciona lotería</option>
-                {% for loteria in loterias_disponibles %}
-                  <option value="{{ loteria.id }}" {% if loteria_id == loteria.id|stringformat:'s' %}selected{% endif %}>
-                    {{ loteria.nombre }}
-                  </option>
-                {% endfor %}
-              </select>
-            </div>
-
-            <!-- Ejemplos válidos -->
-            <div class="col-12">
-              <div class="d-flex flex-wrap align-items-center gap-2 rounded-2 px-3 py-2 small"
-                   style="background:#fffbeb; border:1px dashed #fcd34d;">
-                <i class="bi bi-lightbulb-fill text-warning flex-shrink-0"></i>
-                <span class="text-muted">Ejemplos:</span>
-                <code>1016 - 1500</code>
-                <span class="text-muted">/</span>
-                <code>016 - 3500</code>
-                <span class="text-muted">/</span>
-                <code>0914 - 1500</code>
-              </div>
-            </div>
-
-            <div class="col-12">
-              <label class="form-label fw-medium small mb-1" for="jugadas_masivas">
-                <i class="bi bi-list-ul me-1 text-muted"></i>Jugadas
-              </label>
-              <textarea
-                id="jugadas_masivas"
-                name="jugadas_masivas"
-                class="form-control font-monospace"
-                rows="7"
-                spellcheck="false"
-                required
-              >{{ bulk_jugadas_raw }}</textarea>
-            </div>
-
-            <div class="col-12 d-flex flex-wrap gap-2">
-              <button type="submit" class="btn btn-success d-flex align-items-center gap-1">
-                <i class="bi bi-upload"></i> Cargar jugadas
-              </button>
-              <button type="button" class="btn btn-outline-secondary d-flex align-items-center gap-1" id="limpiarCargaMasiva">
-                <i class="bi bi-x-lg"></i> Limpiar
-              </button>
-            </div>
-          </form>
         </div>
       </div>
-    </div>
-  </div>
+      <div class="section-card-body">
+        <form method="post" class="row g-2" id="form-manual">
+          {% csrf_token %}
+          <input type="hidden" name="accion" value="manual">
+          <input type="hidden" name="fecha_filtro" value="{{ fecha_filtro|date:'Y-m-d' }}">
 
-  <!-- ── Ventas registradas ─────────────────────────────────────── -->
-  <div class="card border-0 shadow-sm">
-    <div class="card-header bg-white border-bottom py-3 px-3 px-md-4 d-flex align-items-center justify-content-between flex-wrap gap-2">
-      <div class="d-flex align-items-center gap-2">
-        <i class="bi bi-table text-secondary"></i>
-        <span class="fw-semibold">Ventas registradas</span>
-      </div>
-      <span class="badge bg-primary px-3 py-2" style="font-size:.8rem; white-space:nowrap;">
-        Total: ${{ total_monto|format_colombian }} COP
-      </span>
-    </div>
-
-    <div class="p-0">
-      <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
-          <thead style="background:#f8f9fa;">
-            <tr>
-              <th class="px-2 px-md-4 py-3 small fw-semibold text-uppercase text-muted" style="letter-spacing:.04em; white-space:nowrap;">Fecha</th>
-              <th class="py-3 small fw-semibold text-uppercase text-muted" style="letter-spacing:.04em;">Descargue</th>
-              <th class="py-3 small fw-semibold text-uppercase text-muted d-none d-sm-table-cell" style="letter-spacing:.04em;">Lotería</th>
-              <th class="py-3 small fw-semibold text-uppercase text-muted" style="letter-spacing:.04em;">Núm.</th>
-              <th class="py-3 small fw-semibold text-uppercase text-muted text-end" style="letter-spacing:.04em;">Valor</th>
-              <th class="pe-2 pe-md-4 py-3 small fw-semibold text-uppercase text-muted d-none d-md-table-cell" style="letter-spacing:.04em;">Registrado por</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for venta in ventas_descargue %}
-              <tr>
-                <td class="px-2 px-md-4 py-2 small text-muted" style="white-space:nowrap;">
-                  {{ venta.fecha_venta }}
-                </td>
-                <td class="py-2 small">
-                  {{ venta.descargue.get_full_name|default:venta.descargue.username|title }}
-                </td>
-                <td class="py-2 d-none d-sm-table-cell">
-                  <span class="badge bg-light text-dark border fw-normal small">{{ venta.loteria.nombre }}</span>
-                </td>
-                <td class="py-2">
-                  <code class="px-1 px-md-2 py-1 rounded small" style="background:#f1f3f5; color:#495057;">{{ venta.numero }}</code>
-                </td>
-                <td class="py-2 text-end fw-semibold text-success pe-2 pe-md-3 small">${{ venta.monto|format_colombian }}</td>
-                <td class="py-2 pe-2 pe-md-4 text-muted small d-none d-md-table-cell">
-                  {{ venta.registrado_por.username }}
-                </td>
-              </tr>
-            {% empty %}
-              <tr>
-                <td colspan="6" class="text-center py-5 text-muted">
-                  <i class="bi bi-inbox fs-2 d-block mb-2 opacity-50"></i>
-                  No hay ventas de descargue para los filtros seleccionados.
-                </td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-
-      {% if ventas_descargue.paginator.num_pages > 1 %}
-        <div class="px-2 px-md-4 py-3 border-top">
-          <nav aria-label="Paginación de descargues">
-            <ul class="pagination pagination-sm justify-content-center flex-wrap mb-0">
-              {% if ventas_descargue.has_previous %}
-                <li class="page-item">
-                  <a class="page-link" href="?page={{ ventas_descargue.previous_page_number }}&fecha={{ fecha_filtro|date:'Y-m-d' }}&descargue={{ descargue_id }}&loteria={{ loteria_id }}">
-                    <i class="bi bi-chevron-left"></i>
-                  </a>
-                </li>
-              {% else %}
-                <li class="page-item disabled">
-                  <span class="page-link"><i class="bi bi-chevron-left"></i></span>
-                </li>
-              {% endif %}
-
-              {% for num in ventas_descargue.paginator.page_range %}
-                <li class="page-item {% if ventas_descargue.number == num %}active{% endif %}">
-                  <a class="page-link" href="?page={{ num }}&fecha={{ fecha_filtro|date:'Y-m-d' }}&descargue={{ descargue_id }}&loteria={{ loteria_id }}">{{ num }}</a>
-                </li>
+          <div class="col-12 col-sm-6">
+            <label class="form-label" for="descargue_post">Usuario descargue</label>
+            <select id="descargue_post" name="descargue" class="form-select" required>
+              <option value="">Selecciona un usuario</option>
+              {% for usuario in usuarios_descargue %}
+                <option value="{{ usuario.id }}" {% if descargue_id == usuario.id|stringformat:'s' %}selected{% endif %}>
+                  {{ usuario.get_full_name|default:usuario.username|title }}
+                </option>
               {% endfor %}
+            </select>
+          </div>
 
-              {% if ventas_descargue.has_next %}
-                <li class="page-item">
-                  <a class="page-link" href="?page={{ ventas_descargue.next_page_number }}&fecha={{ fecha_filtro|date:'Y-m-d' }}&descargue={{ descargue_id }}&loteria={{ loteria_id }}">
-                    <i class="bi bi-chevron-right"></i>
-                  </a>
-                </li>
-              {% else %}
-                <li class="page-item disabled">
-                  <span class="page-link"><i class="bi bi-chevron-right"></i></span>
-                </li>
-              {% endif %}
-            </ul>
-          </nav>
-        </div>
-      {% endif %}
+          <div class="col-12 col-sm-6">
+            <label class="form-label" for="loteria_post">Lotería</label>
+            <select id="loteria_post" name="loteria" class="form-select" required>
+              <option value="">Selecciona lotería</option>
+              {% for loteria in loterias_disponibles %}
+                <option value="{{ loteria.id }}" {% if loteria_id == loteria.id|stringformat:'s' %}selected{% endif %}>
+                  {{ loteria.nombre }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="col-6">
+            <label class="form-label" for="numero">Número</label>
+            <input type="text" id="numero" name="numero"
+              class="form-control" style="font-family:monospace; font-weight:700;"
+              inputmode="numeric" placeholder="ej. 1016" required>
+          </div>
+
+          <div class="col-6">
+            <label class="form-label" for="monto">Valor</label>
+            <input type="number" id="monto" name="monto"
+              class="form-control" min="1" step="1" placeholder="ej. 1500" required>
+          </div>
+
+          <div class="col-12 mt-1">
+            <button type="submit" class="btn-guardar w-100">
+              <i class="bi bi-floppy"></i> Guardar venta
+            </button>
+          </div>
+        </form>
+
+        {% if not loterias_disponibles %}
+          <div class="no-lot-warn mt-2">
+            <i class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
+            No hay loterías disponibles en este momento.
+          </div>
+        {% endif %}
+      </div>
     </div>
   </div>
+
+  <!-- Carga masiva -->
+  <div class="col-12 col-xl-6">
+    <div class="section-card">
+      <div class="section-card-header">
+        <div class="hdr-left">
+          <div class="hdr-icon blue"><i class="bi bi-upload"></i></div>
+          <div>
+            <h2>Carga masiva</h2>
+            <div class="hdr-sub">Pega una jugada por línea: <code style="font-size:.73rem;">numero - monto</code></div>
+          </div>
+        </div>
+        <span style="font-size:.72rem; font-weight:600; color:var(--muted); background:#f3f4f6; border:1px solid var(--border); border-radius:999px; padding:.2rem .65rem;">
+          Máx. 500 líneas
+        </span>
+      </div>
+      <div class="section-card-body">
+
+        {% if bulk_errors %}
+          <div class="bulk-errors">
+            <div class="err-title">
+              <i class="bi bi-x-octagon-fill"></i> Errores en la carga
+            </div>
+            <ul>
+              {% for error in bulk_errors %}
+                <li>{{ error }}</li>
+              {% endfor %}
+            </ul>
+          </div>
+        {% endif %}
+
+        <form method="post" class="row g-2" id="form-masiva">
+          {% csrf_token %}
+          <input type="hidden" name="accion" value="masiva">
+          <input type="hidden" name="fecha_filtro" value="{{ fecha_filtro|date:'Y-m-d' }}">
+
+          <div class="col-12 col-sm-6">
+            <label class="form-label" for="descargue_bulk">Usuario descargue</label>
+            <select id="descargue_bulk" name="descargue" class="form-select" required>
+              <option value="">Selecciona un usuario</option>
+              {% for usuario in usuarios_descargue %}
+                <option value="{{ usuario.id }}" {% if descargue_id == usuario.id|stringformat:'s' %}selected{% endif %}>
+                  {{ usuario.get_full_name|default:usuario.username|title }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="col-12 col-sm-6">
+            <label class="form-label" for="loteria_bulk">Lotería</label>
+            <select id="loteria_bulk" name="loteria" class="form-select" required>
+              <option value="">Selecciona lotería</option>
+              {% for loteria in loterias_disponibles %}
+                <option value="{{ loteria.id }}" {% if loteria_id == loteria.id|stringformat:'s' %}selected{% endif %}>
+                  {{ loteria.nombre }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="col-12">
+            <div class="hint-box mb-2">
+              <i class="bi bi-lightbulb-fill" style="color:var(--warning); flex-shrink:0;"></i>
+              <span style="color:var(--muted);">Ejemplos:</span>
+              <code>1016 - 1500</code>
+              <span style="color:var(--muted);">/</span>
+              <code>016 - 3500</code>
+              <span style="color:var(--muted);">/</span>
+              <code>0914 - 1500</code>
+            </div>
+          </div>
+
+          <div class="col-12">
+            <div class="d-flex align-items-center justify-content-between mb-1">
+              <label class="form-label mb-0" for="jugadas_masivas">Jugadas</label>
+              <span class="jugadas-counter" id="jugadas-counter">0 / 500</span>
+            </div>
+            <div class="jugadas-wrap">
+              <textarea id="jugadas_masivas" name="jugadas_masivas"
+                class="form-control" style="font-family:monospace; font-size:.85rem; min-height:148px;"
+                rows="7" spellcheck="false" required>{{ bulk_jugadas_raw }}</textarea>
+            </div>
+          </div>
+
+          <div class="col-12 d-flex gap-2 mt-1">
+            <button type="submit" class="btn-guardar flex-grow-1">
+              <i class="bi bi-upload"></i> Cargar jugadas
+            </button>
+            <button type="button" id="btn-limpiar-masiva"
+              style="display:inline-flex;align-items:center;gap:.35rem;padding:.55rem .9rem;border-radius:10px;font-size:.85rem;font-weight:600;color:var(--muted);background:#f3f4f6;border:1.5px solid var(--border);cursor:pointer;min-height:44px;transition:background .15s;"
+              onmouseover="this.style.background='var(--danger-light)';this.style.color='var(--danger)';"
+              onmouseout="this.style.background='#f3f4f6';this.style.color='var(--muted)';">
+              <i class="bi bi-x-lg"></i>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     VENTAS REGISTRADAS
+══════════════════════════════════════════════ -->
+<div class="ventas-wrap">
+  <div class="ventas-wrap-header">
+    <h2>
+      <i class="bi bi-table" style="color:var(--muted);"></i>
+      Ventas registradas
+    </h2>
+    {% if ventas_descargue %}
+      <span class="count-badge">
+        <i class="bi bi-list-ul"></i>
+        {{ ventas_descargue.paginator.count }} registro{{ ventas_descargue.paginator.count|pluralize:"s" }}
+      </span>
+    {% endif %}
+  </div>
+
+  {% if ventas_descargue %}
+
+    <!-- Vista móvil -->
+    <div class="venta-cards mobile-only">
+      {% for venta in ventas_descargue %}
+        <div class="venta-c">
+          <div class="venta-c-top">
+            <div>
+              <div class="venta-c-name">{{ venta.descargue.get_full_name|default:venta.descargue.username|title }}</div>
+              <div class="venta-c-sub">{{ venta.loteria.nombre }}</div>
+            </div>
+            <div>
+              <div class="venta-c-monto">${{ venta.monto|format_colombian }}</div>
+              <div class="venta-c-date">{{ venta.fecha_venta }}</div>
+            </div>
+          </div>
+          <div class="venta-c-bottom">
+            <span class="chip-num">{{ venta.numero }}</span>
+            <span class="chip-lot" style="background:var(--success-light);color:#065f46;border-color:#6ee7b7;">
+              {{ venta.registrado_por.username|capfirst }}
+            </span>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+
+    <!-- Vista desktop -->
+    <div class="desktop-only">
+      <table class="ventas-table">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Descargue</th>
+            <th>Lotería</th>
+            <th>Número</th>
+            <th style="text-align:right;">Valor</th>
+            <th>Registrado por</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for venta in ventas_descargue %}
+            <tr>
+              <td style="color:var(--muted); font-size:.82rem; white-space:nowrap;">{{ venta.fecha_venta }}</td>
+              <td style="font-weight:600; color:#1f2937;">{{ venta.descargue.get_full_name|default:venta.descargue.username|title }}</td>
+              <td><span class="chip-lot">{{ venta.loteria.nombre }}</span></td>
+              <td><span class="chip-num">{{ venta.numero }}</span></td>
+              <td class="td-monto">${{ venta.monto|format_colombian }}</td>
+              <td style="color:var(--muted); font-size:.82rem;">{{ venta.registrado_por.username|capfirst }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Paginación -->
+    {% if ventas_descargue.paginator.num_pages > 1 %}
+    <div class="pagination-wrap">
+
+      {% if ventas_descargue.has_previous %}
+        <a class="page-btn" href="?page={{ ventas_descargue.previous_page_number }}&fecha={{ fecha_filtro|date:'Y-m-d' }}&descargue={{ descargue_id }}&loteria={{ loteria_id }}">
+          <i class="bi bi-arrow-left"></i> Anterior
+        </a>
+      {% else %}
+        <span class="page-btn disabled"><i class="bi bi-arrow-left"></i> Anterior</span>
+      {% endif %}
+
+      <span class="page-info">
+        Pág. <strong>{{ ventas_descargue.number }}</strong> de <strong>{{ ventas_descargue.paginator.num_pages }}</strong>
+      </span>
+
+      <div class="page-numbers">
+        {% for num in ventas_descargue.paginator.page_range %}
+          {% if ventas_descargue.number == num %}
+            <span class="page-num active">{{ num }}</span>
+          {% elif num == 1 or num == ventas_descargue.paginator.num_pages or num >= ventas_descargue.number|add:"-2" and num <= ventas_descargue.number|add:"2" %}
+            <a class="page-num" href="?page={{ num }}&fecha={{ fecha_filtro|date:'Y-m-d' }}&descargue={{ descargue_id }}&loteria={{ loteria_id }}">{{ num }}</a>
+          {% elif num == ventas_descargue.number|add:"-3" or num == ventas_descargue.number|add:"3" %}
+            <span class="page-num" style="border:none;background:none;color:var(--muted);">…</span>
+          {% endif %}
+        {% endfor %}
+      </div>
+
+      {% if ventas_descargue.has_next %}
+        <a class="page-btn" href="?page={{ ventas_descargue.next_page_number }}&fecha={{ fecha_filtro|date:'Y-m-d' }}&descargue={{ descargue_id }}&loteria={{ loteria_id }}">
+          Siguiente <i class="bi bi-arrow-right"></i>
+        </a>
+      {% else %}
+        <span class="page-btn disabled">Siguiente <i class="bi bi-arrow-right"></i></span>
+      {% endif %}
+
+    </div>
+    {% endif %}
+
+  {% else %}
+    <div class="empty-state">
+      <div class="empty-icon"><i class="bi bi-inbox"></i></div>
+      <h3>Sin registros</h3>
+      <p>No hay ventas de descargue para los filtros seleccionados.</p>
+    </div>
+  {% endif %}
 
 </div>
 
-<style>
-  /* ── Mobile tweaks ───────────────────────────────────────────── */
-  @media (max-width: 575.98px) {
-    /* Reducir gap entre secciones */
-    .row.g-4 { --bs-gutter-y: 1rem; }
-
-    /* Cards sin borde redondeado extremo en xs */
-    .card { border-radius: .5rem !important; }
-
-    /* Textarea más corta en móvil para no dominar la pantalla */
-    #jugadas_masivas { rows: 5; min-height: 120px; }
-
-    /* Botones de filtro full-width en xs */
-    .col-12.d-flex.flex-wrap.gap-2 > .btn {
-      flex: 1 1 auto;
-      justify-content: center;
-    }
-
-    /* Tabla: fuente más pequeña */
-    .table td, .table th { font-size: .78rem; }
-
-    /* Badge total no se corte */
-    .card-header .badge { font-size: .72rem !important; }
-  }
-
-  @media (max-width: 767.98px) {
-    /* Selects y botones guardar en tamaño normal en sm (form-select-sm puede ser pequeño) */
-    .form-select-sm, .form-control-sm { font-size: .875rem; }
-  }
-</style>
-
+<!-- ══════════════════════════════════════════════
+     JAVASCRIPT
+══════════════════════════════════════════════ -->
 <script>
-  (function () {
-    const limpiarBtn = document.getElementById('limpiarCargaMasiva');
-    const textarea   = document.getElementById('jugadas_masivas');
-    if (!limpiarBtn || !textarea) return;
-    limpiarBtn.addEventListener('click', function () {
-      textarea.value = '';
-      textarea.focus();
+(() => {
+  const filterForm = document.getElementById('filter-form');
+
+  // ── Auto-submit filtros ───────────────────────
+  document.getElementById('fecha-filtro')?.addEventListener('change', () => filterForm.submit());
+  document.getElementById('descargue')?.addEventListener('change', () => filterForm.submit());
+  document.getElementById('loteria')?.addEventListener('change', () => filterForm.submit());
+
+  // ── Cerrar mensajes toast ─────────────────────
+  document.querySelectorAll('.toast-close').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const msg = btn.closest('.toast-msg');
+      msg.style.transition = 'opacity .2s';
+      msg.style.opacity = '0';
+      setTimeout(() => msg.remove(), 200);
     });
-  })();
+  });
+
+  // Auto-descartar mensajes de éxito a los 4s
+  document.querySelectorAll('.toast-msg.success').forEach(msg => {
+    setTimeout(() => {
+      msg.style.transition = 'opacity .4s';
+      msg.style.opacity = '0';
+      setTimeout(() => msg.remove(), 400);
+    }, 4000);
+  });
+
+  // ── Contador de líneas en textarea ───────────
+  const textarea = document.getElementById('jugadas_masivas');
+  const counter  = document.getElementById('jugadas-counter');
+  const MAX      = 500;
+
+  function updateCounter() {
+    const lines = textarea.value.trim() === '' ? 0 : textarea.value.trim().split('\n').length;
+    counter.textContent = lines + ' / ' + MAX;
+    counter.classList.toggle('near-limit', lines >= MAX * .8 && lines < MAX);
+    counter.classList.toggle('at-limit',   lines >= MAX);
+    if (lines >= MAX) {
+      // truncar al máximo
+      const arr = textarea.value.split('\n');
+      if (arr.length > MAX) textarea.value = arr.slice(0, MAX).join('\n');
+    }
+  }
+
+  textarea?.addEventListener('input', updateCounter);
+  updateCounter(); // estado inicial
+
+  // ── Limpiar carga masiva ──────────────────────
+  document.getElementById('btn-limpiar-masiva')?.addEventListener('click', () => {
+    if (textarea) { textarea.value = ''; textarea.focus(); updateCounter(); }
+  });
+
+})();
 </script>
+
 {% endblock %}

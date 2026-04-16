@@ -3,110 +3,663 @@
 {% load static %}
 {% load format_filters %}
 {% block content %}
-<h3 class="text-center mb-4">Reportes</h3>
 
-<form method="get" class="row g-3 mb-4">
-  <div class="col-md-4">
-    <label for="start_date" class="form-label">Fecha inicio</label>
-    <input type="date" class="form-control" name="start_date" ... value="{{ start_date }}">
-  </div>
-  <div class="col-md-4">
-    <label for="end_date" class="form-label">Fecha fin</label>
-    <input type="date" class="form-control" name="end_date" ... value="{{ end_date }}">
-  </div>
-  <div class="col-md-4 d-flex align-items-end">
-    <button type="submit" class="btn btn-primary w-100">Filtrar</button>
-  </div>
-</form>
+<style>
+  :root {
+    --primary:        #4f46e5;
+    --primary-dark:   #3730a3;
+    --primary-light:  #eef2ff;
+    --success:        #10b981;
+    --success-light:  #ecfdf5;
+    --warning:        #f59e0b;
+    --warning-light:  #fffbeb;
+    --danger:         #ef4444;
+    --danger-light:   #fef2f2;
+    --purple:         #8b5cf6;
+    --purple-light:   #f5f3ff;
+    --border:         #e5e7eb;
+    --muted:          #6b7280;
+    --card-radius:    16px;
+    --shadow:         0 2px 12px rgba(0,0,0,.07);
+  }
 
-{% if not data %}
-  <div class="alert alert-info">No hay ventas registradas para el rango seleccionado.</div>
-{% endif %}
+  /* ── Animación entrada ───────────────────────────── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .fade-up { animation: fadeUp .35s ease both; }
+  .fade-up:nth-child(1) { animation-delay: .05s; }
+  .fade-up:nth-child(2) { animation-delay: .1s;  }
+  .fade-up:nth-child(3) { animation-delay: .15s; }
+  .fade-up:nth-child(4) { animation-delay: .2s;  }
 
-<div id="ventasChart" style="height: 400px;"></div>
-<!-- Tabla descriptiva de la gráfica -->
-<div class="card mt-4 border-0 shadow-sm rounded-3">
-  <div class="card-body p-3 p-md-4">
-    <!-- Header responsivo -->
-    <div class="row align-items-center mb-3">
-      <div class="col-12 col-md-8">
-        <h5 class="mb-2 mb-md-0 text-center text-md-start">
-          Detalle de ventas por vendedor
-        </h5>
+  /* ── Header ──────────────────────────────────────── */
+  .page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: .6rem;
+    margin-bottom: 1.25rem;
+  }
+  .page-header h1 {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: #1f2937;
+    margin: 0;
+  }
+  .page-header .subtitle {
+    font-size: .82rem;
+    color: var(--muted);
+    margin-top: .15rem;
+  }
+
+  /* ── Filter card ──────────────────────────────────── */
+  .filter-card {
+    background: #fff;
+    border-radius: var(--card-radius);
+    box-shadow: var(--shadow);
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.25rem;
+    border: 1px solid var(--border);
+  }
+  .filter-label {
+    font-size: .75rem;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    margin-bottom: .4rem;
+    display: block;
+  }
+  .filter-card .form-control {
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    font-size: .92rem;
+    padding: .52rem .85rem;
+    background: #fafafa;
+    transition: border-color .2s, background .2s;
+    min-height: 44px;
+  }
+  .filter-card .form-control:focus {
+    border-color: var(--primary);
+    box-shadow: none;
+    background: #fff;
+  }
+
+  /* ── Date chips ────────────────────────────────────── */
+  .date-chips {
+    display: flex;
+    gap: .4rem;
+    flex-wrap: wrap;
+    margin-bottom: .6rem;
+  }
+  .date-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: .25rem;
+    padding: .28rem .75rem;
+    border-radius: 999px;
+    font-size: .78rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1.5px solid var(--border);
+    background: #f9fafb;
+    color: var(--muted);
+    transition: all .15s;
+    white-space: nowrap;
+    user-select: none;
+  }
+  .date-chip:hover { background: var(--primary-light); color: var(--primary); border-color: #c7d2fe; }
+  .date-chip.active { background: var(--primary-light); color: var(--primary); border-color: var(--primary); }
+
+  /* ── Botón exportar ────────────────────────────────── */
+  .btn-export {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    padding: .5rem 1rem;
+    border-radius: 10px;
+    font-size: .85rem;
+    font-weight: 600;
+    background: var(--success-light);
+    color: #065f46;
+    border: 1.5px solid #6ee7b7;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background .15s, border-color .15s;
+    white-space: nowrap;
+    min-height: 44px;
+  }
+  .btn-export:hover { background: #d1fae5; border-color: var(--success); color: #065f46; }
+  .btn-export:active { transform: scale(.97); }
+
+  /* ── Stat-cards ─────────────────────────────────────── */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: .75rem;
+    margin-bottom: 1.25rem;
+  }
+  .stat-card {
+    background: #fff;
+    border-radius: var(--card-radius);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+    padding: 1rem 1.1rem;
+    display: flex;
+    align-items: flex-start;
+    gap: .75rem;
+  }
+  .stat-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+  }
+  .stat-icon.green  { background: var(--success-light); color: var(--success); }
+  .stat-icon.blue   { background: var(--primary-light); color: var(--primary); }
+  .stat-icon.orange { background: var(--warning-light); color: var(--warning); }
+  .stat-icon.purple { background: var(--purple-light);  color: var(--purple);  }
+  .stat-body {}
+  .stat-label {
+    font-size: .72rem;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    line-height: 1.2;
+  }
+  .stat-value {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #1f2937;
+    line-height: 1.25;
+    margin-top: .1rem;
+  }
+  .stat-value.sm { font-size: .95rem; }
+
+  /* ── Gráfica ────────────────────────────────────────── */
+  .chart-card {
+    background: #fff;
+    border-radius: var(--card-radius);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+    padding: 1.25rem;
+    margin-bottom: 1.25rem;
+  }
+  .chart-title {
+    font-size: .95rem;
+    font-weight: 700;
+    color: #1f2937;
+    margin-bottom: .75rem;
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+  }
+  #ventasChart { height: 320px; }
+  @media (min-width: 768px) { #ventasChart { height: 380px; } }
+
+  /* ── Tabla card ─────────────────────────────────────── */
+  .table-card {
+    background: #fff;
+    border-radius: var(--card-radius);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+    margin-bottom: 1.5rem;
+    overflow: hidden;
+  }
+  .table-card-header {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    color: #fff;
+    padding: .85rem 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: .5rem;
+  }
+  .table-card-header .title {
+    font-size: .95rem;
+    font-weight: 700;
+  }
+
+  /* Desktop table */
+  .desktop-table { display: none; }
+  @media (min-width: 576px) { .desktop-table { display: block; } }
+
+  .desktop-table table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .desktop-table thead tr {
+    background: #f8fafc;
+  }
+  .desktop-table thead th {
+    font-size: .75rem;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    padding: .7rem 1rem;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .desktop-table tbody tr {
+    border-bottom: 1px solid #f3f4f6;
+    transition: background .12s;
+  }
+  .desktop-table tbody tr:last-child { border-bottom: none; }
+  .desktop-table tbody tr:hover { background: #fafbff; }
+  .desktop-table tbody td {
+    padding: .75rem 1rem;
+    font-size: .9rem;
+    color: #374151;
+    vertical-align: middle;
+  }
+  .desktop-table tfoot tr {
+    background: #1f2937;
+  }
+  .desktop-table tfoot td {
+    padding: .75rem 1rem;
+    font-size: .88rem;
+    font-weight: 700;
+    color: #fff;
+  }
+
+  /* Mobile cards */
+  .mobile-cards { display: block; }
+  @media (min-width: 576px) { .mobile-cards { display: none; } }
+
+  .vendor-card {
+    border-bottom: 1px solid var(--border);
+    padding: .85rem 1rem;
+  }
+  .vendor-card:last-child { border-bottom: none; }
+  .vendor-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: .5rem;
+  }
+  .vendor-name {
+    font-size: .9rem;
+    font-weight: 700;
+    color: #1f2937;
+  }
+  .vendor-liquidacion {
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--primary);
+  }
+  .vendor-metrics {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: .3rem .5rem;
+  }
+  .vm-item { display: flex; flex-direction: column; }
+  .vm-label { font-size: .68rem; font-weight: 600; color: var(--muted); text-transform: uppercase; }
+  .vm-value { font-size: .83rem; font-weight: 600; color: #374151; }
+
+  /* Liquidación highlight */
+  .liq-highlight {
+    font-weight: 800;
+    color: var(--primary);
+  }
+
+  /* ── Empty state ────────────────────────────────────── */
+  .empty-state {
+    text-align: center;
+    padding: 3rem 1.5rem;
+    color: var(--muted);
+  }
+  .empty-state i { font-size: 3rem; opacity: .35; margin-bottom: .75rem; display: block; }
+  .empty-state p { font-size: .9rem; margin: 0; }
+</style>
+
+<!-- ── Header ─────────────────────────────────────────── -->
+<div class="page-header fade-up">
+  <div>
+    <h1><i class="bi bi-bar-chart-line me-2" style="color:var(--primary);"></i>Reporte de Liquidación</h1>
+    <div class="subtitle">
+      {% if start_date == end_date %}
+        {{ start_date }}
+      {% else %}
+        {{ start_date }} — {{ end_date }}
+      {% endif %}
+    </div>
+  </div>
+  {% if rows %}
+  <a href="?start_date={{ start_date }}&end_date={{ end_date }}&export=csv" class="btn-export">
+    <i class="bi bi-file-earmark-excel"></i> Descargar Excel
+  </a>
+  {% endif %}
+</div>
+
+<!-- ── Filtro de fechas ────────────────────────────────── -->
+<div class="filter-card fade-up">
+  <form method="get" id="filter-form">
+    <div class="date-chips" id="chips">
+      <span class="date-chip" data-range="today"><i class="bi bi-calendar-day"></i>Hoy</span>
+      <span class="date-chip" data-range="week"><i class="bi bi-calendar-week"></i>Esta semana</span>
+      <span class="date-chip" data-range="month"><i class="bi bi-calendar-month"></i>Este mes</span>
+    </div>
+    <div class="d-flex gap-2 flex-wrap align-items-end">
+      <div style="flex:1; min-width:140px;">
+        <label class="filter-label"><i class="bi bi-calendar3 me-1"></i>Desde</label>
+        <input type="date" name="start_date" id="start_date" class="form-control"
+               value="{{ start_date }}" max="{{ end_date }}">
       </div>
-      <div class="col-12 col-md-4 text-center text-md-end">
-        <span class="badge bg-dark fs-6 px-3 py-2">
-          Total general: ${{ total_general|format_colombian }} COP
-        </span>
+      <div style="flex:1; min-width:140px;">
+        <label class="filter-label"><i class="bi bi-calendar3 me-1"></i>Hasta</label>
+        <input type="date" name="end_date" id="end_date" class="form-control"
+               value="{{ end_date }}" min="{{ start_date }}">
       </div>
     </div>
+  </form>
+</div>
 
-    {% if rows %}
-      <div class="table-responsive">
-        <table class="table table-sm align-middle mb-0">
-    <thead class="table-light">
-      <tr>
-        <th>Vendedor</th>
-        <th class="text-end">Total</th>
-        <th class="text-end">Venta (-10%)</th>
-        <th class="text-end">Comisión (35%)</th>
-        <th class="text-end">Liquidación</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for r in rows %}
-        <tr>
-          <td class="text-truncate" style="max-width: 220px;">{{ r.vendedor }}</td>
-          <td class="text-end">${{ r.total|format_colombian }}</td>
-          <td class="text-end">${{ r.venta_neta|format_colombian }}</td>
-          <td class="text-end">${{ r.comision|format_colombian }}</td>
-          <td class="text-end fw-semibold">${{ r.liquidacion|format_colombian }}</td>
-        </tr>
-      {% endfor %}
-    </tbody>
-    <tfoot>
-  <tr>
-    <th class="text-end" scope="row">Totales</th>
-    <th class="text-end">${{ total_general|format_colombian }}</th>
-    <th class="text-end">${{ total_general_neta|format_colombian }}</th>
-    <th class="text-end">${{ total_general_comision|format_colombian }}</th>
-    <th class="text-end fw-semibold">${{ total_general_liquidacion|format_colombian }}</th>
-  </tr>
-</tfoot>
-  </table>
-      </div>
-    {% else %}
-      <div class="alert alert-info mb-0">No hay datos para el rango seleccionado.</div>
-    {% endif %}
+<!-- ── Stat-cards ──────────────────────────────────────── -->
+<div class="stats-grid">
+  <div class="stat-card fade-up">
+    <div class="stat-icon green"><i class="bi bi-cash-stack"></i></div>
+    <div class="stat-body">
+      <div class="stat-label">Total bruto</div>
+      <div class="stat-value sm">${{ total_general|format_colombian }}</div>
+    </div>
+  </div>
+  <div class="stat-card fade-up">
+    <div class="stat-icon purple"><i class="bi bi-receipt-cutoff"></i></div>
+    <div class="stat-body">
+      <div class="stat-label">Liquidación total</div>
+      <div class="stat-value sm">${{ total_general_liquidacion|format_colombian }}</div>
+    </div>
+  </div>
+  <div class="stat-card fade-up">
+    <div class="stat-icon blue"><i class="bi bi-people"></i></div>
+    <div class="stat-body">
+      <div class="stat-label">Vendedores</div>
+      <div class="stat-value">{{ total_vendedores }}</div>
+    </div>
   </div>
 </div>
 
+{% if rows %}
+
+<!-- ── Gráfica ──────────────────────────────────────────── -->
+<div class="chart-card fade-up">
+  <div class="chart-title">
+    <i class="bi bi-bar-chart-fill" style="color:var(--primary);"></i>
+    Ventas brutas por vendedor
+  </div>
+  <div id="ventasChart"></div>
+</div>
+
+<!-- ── Tabla de detalle ─────────────────────────────────── -->
+<div class="table-card fade-up">
+  <div class="table-card-header">
+    <span class="title"><i class="bi bi-table me-2"></i>Detalle por vendedor</span>
+    <a href="?start_date={{ start_date }}&end_date={{ end_date }}&export=csv" class="btn-export" style="padding:.35rem .85rem; font-size:.78rem; min-height:0;">
+      <i class="bi bi-file-earmark-excel"></i> Excel
+    </a>
+  </div>
+
+  <!-- Mobile -->
+  <div class="mobile-cards">
+    {% for r in rows %}
+    <div class="vendor-card">
+      <div class="vendor-header">
+        <span class="vendor-name">{{ r.vendedor }}</span>
+        <span class="vendor-liquidacion">${{ r.liquidacion|format_colombian }}</span>
+      </div>
+      <div class="vendor-metrics">
+        <div class="vm-item">
+          <span class="vm-label">Total</span>
+          <span class="vm-value">${{ r.total|format_colombian }}</span>
+        </div>
+        <div class="vm-item">
+          <span class="vm-label">Venta neta</span>
+          <span class="vm-value">${{ r.venta_neta|format_colombian }}</span>
+        </div>
+        <div class="vm-item">
+          <span class="vm-label">Comisión</span>
+          <span class="vm-value">${{ r.comision|format_colombian }}</span>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+    <!-- Totales mobile -->
+    <div class="vendor-card" style="background:#1f2937;">
+      <div class="vendor-header">
+        <span class="vendor-name" style="color:#fff;">Totales</span>
+        <span class="vendor-liquidacion" style="color:#a5b4fc;">${{ total_general_liquidacion|format_colombian }}</span>
+      </div>
+      <div class="vendor-metrics">
+        <div class="vm-item">
+          <span class="vm-label" style="color:#9ca3af;">Total</span>
+          <span class="vm-value" style="color:#fff;">${{ total_general|format_colombian }}</span>
+        </div>
+        <div class="vm-item">
+          <span class="vm-label" style="color:#9ca3af;">Neta</span>
+          <span class="vm-value" style="color:#fff;">${{ total_general_neta|format_colombian }}</span>
+        </div>
+        <div class="vm-item">
+          <span class="vm-label" style="color:#9ca3af;">Comisión</span>
+          <span class="vm-value" style="color:#fff;">${{ total_general_comision|format_colombian }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Desktop -->
+  <div class="desktop-table">
+    <table>
+      <thead>
+        <tr>
+          <th>Vendedor</th>
+          <th class="text-end">Total bruto</th>
+          <th class="text-end">Venta neta (-10%)</th>
+          <th class="text-end">Comisión (35%)</th>
+          <th class="text-end">Liquidación</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td style="font-weight:600;">{{ r.vendedor }}</td>
+          <td class="text-end">${{ r.total|format_colombian }}</td>
+          <td class="text-end">${{ r.venta_neta|format_colombian }}</td>
+          <td class="text-end">${{ r.comision|format_colombian }}</td>
+          <td class="text-end liq-highlight">${{ r.liquidacion|format_colombian }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td>Totales</td>
+          <td class="text-end">${{ total_general|format_colombian }}</td>
+          <td class="text-end">${{ total_general_neta|format_colombian }}</td>
+          <td class="text-end">${{ total_general_comision|format_colombian }}</td>
+          <td class="text-end" style="color:#a5b4fc;">${{ total_general_liquidacion|format_colombian }}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+
+{% else %}
+<!-- ── Empty state ────────────────────────────────────── -->
+<div class="table-card fade-up">
+  <div class="empty-state">
+    <i class="bi bi-bar-chart"></i>
+    <p>No hay ventas registradas para el rango seleccionado.</p>
+  </div>
+</div>
+{% endif %}
+
 <script src="https://cdn.jsdelivr.net/npm/highcharts@12.4.0/highcharts.js"></script>
 <script>
-  document.addEventListener('DOMContentLoaded', function () {
-    Highcharts.chart('ventasChart', {
-      chart: {
-        type: 'column'
-      },
-      title: {
-        text: 'Ventas por Vendedor'
-      },
-      xAxis: {
-        categories: {{ labels|safe }},
-        title: { text: 'Vendedores' }
-      },
-      yAxis: {
-        min: 0,
-        title: { text: 'Total Vendido (COP)' }
-      },
-      tooltip: {
-        valuePrefix: '$ '
-      },
-      series: [{
-        name: 'Ventas',
-        data: {{ data|safe }}
-      }]
+(() => {
+  // ── Auto-submit al cambiar fechas ────────────────────
+  const form       = document.getElementById('filter-form');
+  const startInput = document.getElementById('start_date');
+  const endInput   = document.getElementById('end_date');
+
+  function submitForm() { form.submit(); }
+
+  startInput.addEventListener('change', () => {
+    clearChips();
+    if (endInput.value && endInput.value < startInput.value) endInput.value = startInput.value;
+    submitForm();
+  });
+  endInput.addEventListener('change', () => {
+    clearChips();
+    if (startInput.value && startInput.value > endInput.value) startInput.value = endInput.value;
+    submitForm();
+  });
+
+  // ── Date chips ────────────────────────────────────────
+  function toISO(d) {
+    return d.toISOString().split('T')[0];
+  }
+  function clearChips() {
+    document.querySelectorAll('.date-chip').forEach(c => c.classList.remove('active'));
+  }
+
+  const todayStr = toISO(new Date());
+  const s = '{{ start_date }}';
+  const e = '{{ end_date }}';
+
+  // Detectar chip activo al cargar
+  if (s === e && s === todayStr) {
+    document.querySelector('[data-range="today"]')?.classList.add('active');
+  } else {
+    const today  = new Date();
+    const day    = today.getDay();
+    const diff   = (day === 0 ? -6 : 1 - day);
+    const lunes  = new Date(today);
+    lunes.setDate(today.getDate() + diff);
+    if (s === toISO(lunes) && e === todayStr) {
+      document.querySelector('[data-range="week"]')?.classList.add('active');
+    } else {
+      const primeroDia = new Date(today.getFullYear(), today.getMonth(), 1);
+      if (s === toISO(primeroDia) && e === todayStr) {
+        document.querySelector('[data-range="month"]')?.classList.add('active');
+      }
+    }
+  }
+
+  document.querySelectorAll('.date-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const today  = new Date();
+      const range  = chip.dataset.range;
+      let start, end = toISO(today);
+
+      if (range === 'today') {
+        start = toISO(today);
+      } else if (range === 'week') {
+        const day  = today.getDay();
+        const diff = (day === 0 ? -6 : 1 - day);
+        const lunes = new Date(today);
+        lunes.setDate(today.getDate() + diff);
+        start = toISO(lunes);
+      } else if (range === 'month') {
+        start = toISO(new Date(today.getFullYear(), today.getMonth(), 1));
+      }
+
+      startInput.value = start;
+      endInput.value   = end;
+      clearChips();
+      chip.classList.add('active');
+      form.submit();
     });
   });
+
+  {% if rows %}
+  // ── Highcharts ────────────────────────────────────────
+  Highcharts.chart('ventasChart', {
+    chart: {
+      type: 'column',
+      style: { fontFamily: 'inherit' },
+      backgroundColor: 'transparent',
+      animation: { duration: 500 },
+    },
+    title: { text: null },
+    credits: { enabled: false },
+    xAxis: {
+      categories: {{ labels|safe }},
+      labels: { style: { fontSize: '12px', color: '#6b7280' } },
+      lineColor: '#e5e7eb',
+      tickColor: 'transparent',
+    },
+    yAxis: {
+      min: 0,
+      title: { text: null },
+      gridLineColor: '#f3f4f6',
+      labels: {
+        formatter: function() {
+          if (this.value >= 1000000) return '$' + (this.value/1000000).toFixed(1) + 'M';
+          if (this.value >= 1000) return '$' + (this.value/1000).toFixed(0) + 'k';
+          return '$' + this.value;
+        },
+        style: { fontSize: '11px', color: '#6b7280' },
+      },
+    },
+    tooltip: {
+      backgroundColor: '#1f2937',
+      borderColor: 'transparent',
+      borderRadius: 10,
+      style: { color: '#fff', fontSize: '13px' },
+      formatter: function() {
+        const val = this.y;
+        const formatted = '$' + val.toLocaleString('es-CO');
+        return '<b>' + this.x + '</b><br/>Ventas: <b>' + formatted + ' COP</b>';
+      },
+    },
+    plotOptions: {
+      column: {
+        borderRadius: 6,
+        colorByPoint: false,
+        color: {
+          linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 },
+          stops: [
+            [0, '#4f46e5'],
+            [1, '#7c3aed'],
+          ],
+        },
+        dataLabels: {
+          enabled: true,
+          formatter: function() {
+            if (this.y === 0) return null;
+            if (this.y >= 1000000) return '$' + (this.y/1000000).toFixed(1) + 'M';
+            if (this.y >= 1000) return '$' + (this.y/1000).toFixed(0) + 'k';
+            return '$' + this.y;
+          },
+          style: { fontSize: '11px', fontWeight: '600', color: '#374151', textOutline: 'none' },
+        },
+      },
+    },
+    legend: { enabled: false },
+    series: [{
+      name: 'Ventas',
+      data: {{ data|safe }},
+    }],
+    responsive: {
+      rules: [{
+        condition: { maxWidth: 500 },
+        chartOptions: {
+          xAxis: { labels: { rotation: -45, style: { fontSize: '10px' } } },
+        },
+      }],
+    },
+  });
+  {% endif %}
+})();
 </script>
+
 {% endblock %}
