@@ -3,57 +3,427 @@
 {% load dict_extras %}
 
 {% block content %}
-  <h1 class="text-center mb-4">Registrar Resultados para {{ fecha_actual }}</h1>
-  
-  <!-- Formulario para filtrar por fecha en una sola línea -->
-  <form method="get" class="mb-4">
-    <div class="mb-3">
-      <label for="fecha" class="form-label">Seleccionar fecha</label>
-      <div class="input-group">
-        <input type="date" id="fecha" name="fecha" class="form-control" value="{{ fecha_actual }}">
-        <button type="submit" class="btn btn-secondary">Filtrar</button>
-      </div>
-    </div>
-  </form>
 
-  <form method="get" class="d-inline">
-    <input type="hidden" name="fecha" value="{{ fecha_actual|date:'Y-m-d' }}">
-    <button type="submit" name="importar" value="1"
-            class="btn btn-info btn-sm">
+<style>
+  :root {
+    --primary:       #4f46e5;
+    --primary-dark:  #3730a3;
+    --primary-light: #eef2ff;
+    --success:       #10b981;
+    --success-light: #ecfdf5;
+    --warning:       #f59e0b;
+    --warning-light: #fffbeb;
+    --border:        #e5e7eb;
+    --muted:         #6b7280;
+    --card-radius:   16px;
+    --shadow:        0 2px 12px rgba(0,0,0,.07);
+  }
+
+  /* ── Header ──────────────────────────────────── */
+  .page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: .6rem;
+    margin-bottom: 1.25rem;
+  }
+  .page-header h1 {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: #1f2937;
+    margin: 0;
+  }
+  .page-header .subtitle {
+    font-size: .82rem;
+    color: var(--muted);
+    margin-top: .1rem;
+  }
+
+  /* ── Progress badge ───────────────────────────── */
+  .progress-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    padding: .3rem .85rem;
+    border-radius: 999px;
+    font-size: .78rem;
+    font-weight: 700;
+    background: var(--primary-light);
+    color: var(--primary);
+    border: 1px solid #c7d2fe;
+    white-space: nowrap;
+  }
+  .progress-badge.all-done {
+    background: var(--success-light);
+    color: var(--success);
+    border-color: #6ee7b7;
+  }
+
+  /* ── Filter card ──────────────────────────────── */
+  .filter-card {
+    background: #fff;
+    border-radius: var(--card-radius);
+    box-shadow: var(--shadow);
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.25rem;
+    border: 1px solid var(--border);
+  }
+  .filter-label {
+    font-size: .75rem;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    margin-bottom: .5rem;
+    display: block;
+  }
+  .filter-card .form-control {
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    font-size: .92rem;
+    padding: .52rem .85rem;
+    background: #fafafa;
+    transition: border-color .2s, background .2s;
+    min-height: 44px;
+  }
+  .filter-card .form-control:focus {
+    border-color: var(--primary);
+    box-shadow: none;
+    background: #fff;
+  }
+
+  /* ── Botón importar ───────────────────────────── */
+  .btn-import {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    padding: .5rem 1rem;
+    border-radius: 10px;
+    font-size: .85rem;
+    font-weight: 600;
+    background: var(--warning-light);
+    color: #92400e;
+    border: 1.5px solid #fcd34d;
+    cursor: pointer;
+    transition: background .15s, border-color .15s;
+    white-space: nowrap;
+    min-height: 44px;
+  }
+  .btn-import:hover { background: #fef3c7; border-color: #f59e0b; }
+  .btn-import:active { transform: scale(.97); }
+
+  /* ── Progress bar ─────────────────────────────── */
+  .results-progress {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--card-radius);
+    box-shadow: var(--shadow);
+    padding: .85rem 1.25rem;
+    margin-bottom: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .progress-text {
+    font-size: .82rem;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .progress-text strong { color: #1f2937; }
+  .progress-bar-wrap {
+    flex: 1;
+    min-width: 120px;
+    background: #f3f4f6;
+    border-radius: 999px;
+    height: 8px;
+    overflow: hidden;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--primary), var(--success));
+    transition: width .4s ease;
+  }
+
+  /* ── Grid de loterías ─────────────────────────── */
+  .loterias-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: .75rem;
+    margin-bottom: 5rem; /* espacio para el botón flotante */
+  }
+  @media (min-width: 480px) {
+    .loterias-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (min-width: 768px) {
+    .loterias-grid { grid-template-columns: repeat(3, 1fr); }
+  }
+  @media (min-width: 1200px) {
+    .loterias-grid { grid-template-columns: repeat(4, 1fr); }
+  }
+
+  /* ── Card de lotería ──────────────────────────── */
+  .loteria-card {
+    background: #fff;
+    border: 1.5px solid var(--border);
+    border-radius: var(--card-radius);
+    box-shadow: var(--shadow);
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: .6rem;
+    transition: border-color .2s, box-shadow .2s;
+    position: relative;
+  }
+  .loteria-card.has-value {
+    border-color: #6ee7b7;
+    box-shadow: 0 2px 12px rgba(16,185,129,.1);
+  }
+  .loteria-card.has-value::after {
+    content: '✓';
+    position: absolute;
+    top: .5rem;
+    right: .65rem;
+    font-size: .75rem;
+    font-weight: 700;
+    color: var(--success);
+  }
+
+  .lot-img-wrap {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    overflow: hidden;
+    background: var(--primary-light);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .lot-img-wrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .lot-nombre {
+    font-size: .82rem;
+    font-weight: 600;
+    color: #374151;
+    text-align: center;
+    line-height: 1.25;
+  }
+
+  /* Input resultado */
+  .resultado-input {
+    width: 100%;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: .5rem .75rem;
+    font-size: 1.05rem;
+    font-weight: 700;
+    text-align: center;
+    color: #1f2937;
+    background: #fafafa;
+    transition: border-color .2s, background .2s, box-shadow .2s;
+    -moz-appearance: textfield;
+  }
+  .resultado-input::-webkit-inner-spin-button,
+  .resultado-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+  .resultado-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(79,70,229,.12);
+  }
+  .resultado-input.filled {
+    border-color: var(--success);
+    background: var(--success-light);
+    color: var(--success);
+  }
+  .resultado-input.filled:focus {
+    border-color: var(--success);
+    box-shadow: 0 0 0 3px rgba(16,185,129,.15);
+  }
+
+  /* ── Botón guardar flotante ───────────────────── */
+  .save-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1040;
+    background: rgba(255,255,255,.95);
+    backdrop-filter: blur(8px);
+    border-top: 1px solid var(--border);
+    padding: .75rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    box-shadow: 0 -4px 20px rgba(0,0,0,.08);
+  }
+  .save-bar .save-info {
+    font-size: .8rem;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .save-bar .save-info strong { color: #1f2937; }
+  .btn-save {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    padding: .65rem 1.75rem;
+    font-size: .95rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity .15s, transform .1s;
+    white-space: nowrap;
+    min-height: 46px;
+  }
+  .btn-save:hover  { opacity: .92; }
+  .btn-save:active { transform: scale(.97); }
+</style>
+
+<!-- ── Header ─────────────────────────────────────────── -->
+<div class="page-header">
+  <div>
+    <h1><i class="bi bi-pencil-square me-2" style="color:var(--primary);"></i>Registrar Resultados</h1>
+    <div class="subtitle">{{ fecha_actual }}</div>
+  </div>
+  <span class="progress-badge" id="progress-badge">
+    <i class="bi bi-check-circle"></i>
+    <span id="badge-text">cargando…</span>
+  </span>
+</div>
+
+<!-- ── Filtro de fecha + Importar ─────────────────────── -->
+<div class="filter-card">
+  <div class="d-flex gap-2 align-items-end flex-wrap">
+
+    <form method="get" style="flex:1; min-width:160px;">
+      <label for="fecha" class="filter-label" style="margin-bottom:.4rem;">
+        <i class="bi bi-calendar3 me-1"></i>Fecha
+      </label>
+      <input
+        type="date"
+        id="fecha"
+        name="fecha"
+        class="form-control"
+        value="{{ fecha_actual }}">
+    </form>
+
+    <form method="get">
+      <input type="hidden" name="fecha" value="{{ fecha_actual|date:'Y-m-d' }}">
+      <!-- label invisible para alinear verticalmente con el input de fecha -->
+      <div class="filter-label" style="visibility:hidden; margin-bottom:.4rem;">.</div>
+      <button type="submit" name="importar" value="1" class="btn-import">
+        <i class="bi bi-cloud-download"></i>
         Importar desde API
+      </button>
+    </form>
+
+  </div>
+</div>
+
+<!-- ── Barra de progreso ──────────────────────────────── -->
+<div class="results-progress">
+  <span class="progress-text">
+    <strong id="count-filled">0</strong> de <strong>{{ loterias|length }}</strong> resultados ingresados
+  </span>
+  <div class="progress-bar-wrap">
+    <div class="progress-bar-fill" id="progress-fill" style="width:0%"></div>
+  </div>
+</div>
+
+<!-- ── Formulario principal ───────────────────────────── -->
+<form method="post" id="main-form">
+  {% csrf_token %}
+  <input type="hidden" name="fecha" value="{{ fecha_actual }}">
+
+  <div class="loterias-grid" id="loterias-grid">
+    {% for lot in loterias %}
+      {% with val=resultados_dict|get_item:lot.id %}
+      <div class="loteria-card {% if val %}has-value{% endif %}" id="card-{{ lot.id }}">
+        <div class="lot-img-wrap">
+          {% if lot.imagen %}
+            <img src="{{ lot.imagen.url }}" alt="{{ lot.nombre }}" loading="lazy" decoding="async">
+          {% else %}
+            <img src="{% static 'core/img/default-loteria.png' %}" alt="{{ lot.nombre }}" loading="lazy" decoding="async">
+          {% endif %}
+        </div>
+        <div class="lot-nombre">{{ lot.nombre }}</div>
+        <input
+          type="number"
+          name="resultado_{{ lot.id }}"
+          class="resultado-input {% if val %}filled{% endif %}"
+          value="{{ val|default:'' }}"
+          placeholder="—"
+          inputmode="numeric"
+          data-card="card-{{ lot.id }}"
+          autocomplete="off">
+      </div>
+      {% endwith %}
+    {% endfor %}
+  </div>
+
+  <!-- Botón flotante -->
+  <div class="save-bar">
+    <span class="save-info">
+      <strong id="save-count">0</strong> / {{ loterias|length }} completados
+    </span>
+    <button type="submit" class="btn-save">
+      <i class="bi bi-floppy me-1"></i>Guardar resultados
     </button>
+  </div>
 </form>
-  <!-- Formulario para registrar resultados -->
-  <form method="post">
-    {% csrf_token %}
-    <!-- Campo oculto para conservar la fecha filtrada -->
-    <input type="hidden" name="fecha" value="{{ fecha_actual }}">
-    <table class="table table-bordered">
-      <thead>
-        <tr>
-          <th>Lotería</th>
-          <th>Imagen</th>
-          <th>Resultado</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for lot in loterias %}
-          <tr>
-            <td>{{ lot.nombre }}</td>
-            <td>
-              {% if lot.imagen %}
-                <img src="{{ lot.imagen.url }}" alt="{{ lot.nombre }}" style="max-width: 100px;">
-              {% else %}
-                <img src="{% static 'core/img/default-loteria.png' %}" alt="{{ lot.nombre }}" style="max-width: 100px;">
-              {% endif %}
-            </td>
-            <td>
-              <input type="number" name="resultado_{{ lot.id }}" class="form-control" value="{{ resultados_dict|get_item:lot.id|default:'' }}">
-            </td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    <button type="submit" class="btn btn-primary">Guardar Resultados</button>
-  </form>
+
+<script>
+(() => {
+  const inputs   = document.querySelectorAll('.resultado-input');
+  const total    = {{ loterias|length }};
+  const fillBar  = document.getElementById('progress-fill');
+  const countEl  = document.getElementById('count-filled');
+  const saveCount= document.getElementById('save-count');
+  const badge    = document.getElementById('progress-badge');
+  const badgeTxt = document.getElementById('badge-text');
+
+  function update() {
+    let filled = 0;
+    inputs.forEach(inp => {
+      const card = document.getElementById(inp.dataset.card);
+      const has  = inp.value.trim() !== '';
+      inp.classList.toggle('filled', has);
+      card?.classList.toggle('has-value', has);
+      if (has) filled++;
+    });
+
+    const pct = total ? Math.round(filled / total * 100) : 0;
+    fillBar.style.width  = pct + '%';
+    countEl.textContent  = filled;
+    saveCount.textContent = filled;
+
+    if (filled === total && total > 0) {
+      badge.classList.add('all-done');
+      badgeTxt.textContent = '¡Todo completo!';
+    } else {
+      badge.classList.remove('all-done');
+      badgeTxt.textContent = filled + ' / ' + total + ' completados';
+    }
+  }
+
+  inputs.forEach(inp => inp.addEventListener('input', update));
+
+  // Auto-submit al cambiar la fecha
+  document.getElementById('fecha')?.addEventListener('change', e => e.target.form.submit());
+
+  // Estado inicial
+  update();
+})();
+</script>
+
 {% endblock %}
