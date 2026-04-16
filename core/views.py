@@ -21,7 +21,7 @@ from .models import (
 from django.db import transaction, IntegrityError
 from core.utils import importar_resultados  # ← añade esta línea
 from django.contrib import messages
-from django.db.models import Case, When, BooleanField, Sum, Count, F, Q, ExpressionWrapper, IntegerField
+from django.db.models import Case, When, BooleanField, Sum, Count, F, Q, ExpressionWrapper, IntegerField, Value
 from collections import defaultdict
 from django.utils.timezone import localtime, now, make_aware
 from .forms import VentaForm
@@ -289,8 +289,17 @@ def loteria(request):
             When(hora_inicio__lte=ahora.time(), hora_fin__gte=ahora.time(), then=True),
             default=False,
             output_field=BooleanField(),
-        )
-    ).order_by('-disponible')  # Ordena las disponibles primero
+        ),
+        orden=Case(
+            # 0 = abiertas ahora → primero, ordenadas por hora_fin ASC (las que cierran antes al tope)
+            When(hora_inicio__lte=ahora.time(), hora_fin__gte=ahora.time(), then=Value(0)),
+            # 1 = próximas → después, ordenadas por hora_inicio ASC
+            When(hora_inicio__gt=ahora.time(), then=Value(1)),
+            # 2 = cerradas → al final
+            default=Value(2),
+            output_field=IntegerField(),
+        ),
+    ).order_by('orden', 'hora_fin')
 
     current_time = ahora.time()  # Hora actual en formato local
 
