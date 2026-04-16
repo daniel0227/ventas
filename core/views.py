@@ -1214,6 +1214,25 @@ def premios_reporte_rango(request):
 
     chart_categories = [row['vendedor_nombre'] for row in rows]
     chart_total_premios = [row['total_premio'] for row in rows]
+
+    # --- Exportar CSV ---
+    if request.GET.get('export') == 'csv':
+        response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
+        response['Content-Disposition'] = (
+            f'attachment; filename="premios_{fecha_inicio}_{fecha_fin}.csv"'
+        )
+        writer = csv.writer(response)
+        writer.writerow(['Vendedor', 'Usuario', 'Premios', 'Días', 'Loterías', 'Total apostado (COP)', 'Total premio (COP)'])
+        for r in rows:
+            writer.writerow([
+                r['vendedor_nombre'], r['username'], r['cantidad_premios'],
+                r['dias_con_premios'], r['loterias_distintas'],
+                r['total_apostado'], r['total_premio'],
+            ])
+        writer.writerow([])
+        writer.writerow(['TOTALES', '', totales['cantidad_premios'], '', totales['loterias'], totales['total_apostado'], totales['total_premios']])
+        return response
+
     context = {
         'fecha_inicio': fecha_inicio,
         'fecha_fin': fecha_fin,
@@ -1741,6 +1760,20 @@ def reporte_ventas_vs_premios(request):
     chart_labels = [r['vendedor'] for r in rows]
     chart_liquidaciones = [r['liquidacion'] for r in rows]
     chart_premios = [r['premios'] for r in rows]
+
+    # --- Exportar CSV ---
+    if request.GET.get('export') == 'csv':
+        response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
+        response['Content-Disposition'] = (
+            f'attachment; filename="ventas_vs_premios_{start}_{end}.csv"'
+        )
+        writer = csv.writer(response)
+        writer.writerow(['Vendedor', 'Usuario', 'Venta neta (COP)', 'Liquidación (COP)', 'Premios (COP)', 'Cant. premios', 'Diferencia (COP)'])
+        for r in rows:
+            writer.writerow([r['vendedor'], r['username'], r['venta_neta'], r['liquidacion'], r['premios'], r['cantidad_premios'], r['diferencia']])
+        writer.writerow([])
+        writer.writerow(['TOTALES', '', total_neta, total_liquidacion, total_premios, '', total_diferencia])
+        return response
 
     return render(request, 'core/reporte_ventas_vs_premios.html', {
         'start_date': str(start),
