@@ -3,232 +3,437 @@
 
 {% block content %}
 <style>
-  .filter-bar {
-    position: sticky;
-    top: calc(var(--bs-navbar-height, 56px) + 0px);
-    z-index: 1030;
-    background: var(--bs-body-bg);
-    backdrop-filter: saturate(1.1) blur(6px);
-    border-bottom: 1px solid var(--bs-border-color);
+  :root {
+    --primary:       #4f46e5;
+    --primary-dark:  #3730a3;
+    --primary-light: #eef2ff;
+    --success:       #10b981;
+    --success-light: #ecfdf5;
+    --amber:         #f59e0b;
+    --amber-light:   #fffbeb;
+    --purple:        #8b5cf6;
+    --purple-light:  #f5f3ff;
+    --border:        #e5e7eb;
+    --muted:         #6b7280;
+    --card-radius:   16px;
+    --shadow:        0 2px 12px rgba(0,0,0,.07);
   }
-  .input-group-text { background: var(--bs-body-bg); }
-  .tap { min-height: 44px; }
-  .card-rounded, .table, .form-control, .form-select, .btn { border-radius: 1rem; }
-  .fs-total { font-size: clamp(1.6rem, 3vw, 2rem); }
-  @media (max-width: 575.98px) {
-    .table-wrapper { display: none; }
+
+  /* ── Header ──────────────────────────────────── */
+  .page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: .6rem;
+    margin-bottom: 1.25rem;
   }
-  @media (min-width: 576px) {
-    .cards-wrapper { display: none; }
+  .page-header h1 { font-size: 1.35rem; font-weight: 700; color: #1f2937; margin: 0; }
+  .page-header .subtitle { font-size: .82rem; color: var(--muted); margin-top: .1rem; }
+  .results-badge {
+    display: inline-flex; align-items: center; gap: .3rem;
+    background: var(--primary-light); color: var(--primary);
+    border: 1px solid #c7d2fe; border-radius: 999px;
+    padding: .25rem .75rem; font-size: .78rem; font-weight: 700; white-space: nowrap;
   }
-  @media (min-width: 576px) {
-    thead.thead-light th {
-      position: sticky;
-      top: 0;
-      z-index: 2;
-      background: var(--bs-light);
-    }
+
+  /* ── Filter card ──────────────────────────────── */
+  .filter-card {
+    background: #fff;
+    border-radius: var(--card-radius);
+    box-shadow: var(--shadow);
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.25rem;
+    border: 1px solid var(--border);
   }
-  .form-control:focus, .form-select:focus, .btn:focus {
-    box-shadow: 0 0 0 .2rem rgba(var(--bs-primary-rgb), .2);
+  .filter-label {
+    font-size: .75rem; font-weight: 600; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .05em;
+    margin-bottom: .45rem; display: block;
   }
+  .filter-card .form-control,
+  .filter-card .form-select {
+    border: 1.5px solid var(--border); border-radius: 10px;
+    font-size: .92rem; padding: .52rem .85rem;
+    background: #fafafa; min-height: 44px;
+    transition: border-color .2s, background .2s;
+  }
+  .filter-card .form-control:focus,
+  .filter-card .form-select:focus {
+    border-color: var(--primary); box-shadow: none; background: #fff;
+  }
+
+  /* Date chips */
+  .date-chips { display: flex; gap: .45rem; flex-wrap: wrap; margin-top: .55rem; }
+  .chip-date {
+    display: inline-flex; align-items: center; padding: .28rem .7rem;
+    border-radius: 999px; font-size: .75rem; font-weight: 600;
+    background: #f3f4f6; color: #374151; border: 1.5px solid var(--border);
+    cursor: pointer; transition: background .15s, border-color .15s, color .15s;
+    user-select: none; white-space: nowrap;
+  }
+  .chip-date:hover  { background: var(--primary-light); border-color: #c7d2fe; color: var(--primary); }
+  .chip-date.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .chip-date:active { transform: scale(.96); }
+
+  /* Botón limpiar */
+  .btn-limpiar {
+    display: inline-flex; align-items: center; gap: .35rem;
+    padding: .52rem 1rem; border-radius: 10px; font-size: .85rem; font-weight: 600;
+    color: var(--muted); background: #f3f4f6; border: 1.5px solid var(--border);
+    text-decoration: none; min-height: 44px; white-space: nowrap;
+    transition: background .15s, color .15s; cursor: pointer;
+  }
+  .btn-limpiar:hover { background: #fee2e2; color: #ef4444; border-color: #fca5a5; }
+
+  /* Botón filtrar */
+  .btn-filtrar {
+    display: inline-flex; align-items: center; gap: .45rem;
+    padding: .52rem 1.1rem; border-radius: 10px; font-size: .85rem; font-weight: 700;
+    color: #fff; background: var(--primary);
+    border: 1.5px solid var(--primary); text-decoration: none; min-height: 44px;
+    white-space: nowrap; transition: background .15s, border-color .15s; cursor: pointer;
+  }
+  .btn-filtrar:hover { background: var(--primary-dark); border-color: var(--primary-dark); }
+  .btn-filtrar:active { transform: scale(.97); }
+
+  /* ── Stat cards ───────────────────────────────── */
+  .stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: .75rem; margin-bottom: 1.25rem; }
+  @media (max-width: 480px) { .stat-row { grid-template-columns: 1fr 1fr; } }
+  .stat-card {
+    background: #fff; border: 1px solid var(--border); border-radius: var(--card-radius);
+    box-shadow: var(--shadow); padding: .85rem 1rem;
+    display: flex; flex-direction: column; gap: .1rem;
+  }
+  .stat-icon {
+    width: 32px; height: 32px; border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .95rem; margin-bottom: .35rem;
+  }
+  .s-green  .stat-icon { background: var(--success-light); color: var(--success); }
+  .s-amber  .stat-icon { background: var(--amber-light);   color: var(--amber);   }
+  .s-purple .stat-icon { background: var(--purple-light);  color: var(--purple);  }
+  .stat-lbl { font-size: .68rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .stat-val { font-size: 1.1rem; font-weight: 800; line-height: 1.2; font-variant-numeric: tabular-nums; }
+  .s-green  .stat-val { color: var(--success); }
+  .s-amber  .stat-val { color: var(--amber);   }
+  .s-purple .stat-val { color: var(--purple);  }
+
+  /* ── Tabla desktop ────────────────────────────── */
+  .report-wrap {
+    background: #fff; border: 1px solid var(--border);
+    border-radius: var(--card-radius); box-shadow: var(--shadow); overflow: hidden;
+  }
+  .report-wrap-header {
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: .6rem;
+    padding: .85rem 1.25rem; border-bottom: 1px solid var(--border); background: #fafafa;
+  }
+  .report-wrap-header h2 { font-size: .92rem; font-weight: 700; color: #1f2937; margin: 0; }
+
+  .report-table { width: 100%; border-collapse: collapse; }
+  .report-table thead tr {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+  }
+  .report-table thead th {
+    color: #fff; font-size: .75rem; font-weight: 600;
+    text-transform: uppercase; letter-spacing: .05em;
+    padding: .8rem 1rem; border: none; white-space: nowrap;
+  }
+  .report-table tbody tr { border-bottom: 1px solid var(--border); transition: background .12s; }
+  .report-table tbody tr:last-child { border-bottom: none; }
+  .report-table tbody tr:hover { background: #f9fafb; }
+  .report-table tbody td { padding: .65rem 1rem; font-size: .88rem; color: #374151; border: none; vertical-align: middle; }
+  .report-table .td-num {
+    font-family: monospace; font-weight: 700; font-size: .9rem;
+    background: var(--primary-light); color: var(--primary);
+    border: 1px solid #c7d2fe; border-radius: 999px;
+    padding: .18rem .6rem; display: inline-block; white-space: nowrap;
+  }
+  .report-table .td-total {
+    text-align: right; font-weight: 800; color: var(--success);
+    font-variant-numeric: tabular-nums; white-space: nowrap;
+  }
+  .report-table .td-muted { color: var(--muted); font-size: .82rem; }
+  .report-table tfoot tr { background: #f3f4f6; border-top: 2px solid var(--border); }
+  .report-table tfoot td { padding: .75rem 1rem; border: none; font-weight: 700; font-size: .85rem; }
+  .report-table .tfoot-label { text-align: right; color: var(--muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; }
+  .report-table .tfoot-val   { text-align: right; font-size: 1.05rem; font-weight: 800; color: var(--success); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  /* ── Mobile cards ─────────────────────────────── */
+  .report-cards { display: flex; flex-direction: column; gap: .65rem; padding: .85rem 1rem; }
+  .report-card {
+    background: #fff; border: 1px solid var(--border); border-left: 4px solid var(--primary);
+    border-radius: var(--card-radius); box-shadow: var(--shadow);
+    padding: .75rem .9rem; display: grid; gap: .45rem;
+  }
+  .rc-top { display: flex; justify-content: space-between; align-items: flex-start; gap: .5rem; }
+  .rc-lot  { font-size: .88rem; font-weight: 700; color: #1f2937; }
+  .rc-sub  { font-size: .74rem; color: var(--muted); margin-top: .12rem; }
+  .rc-num  {
+    display: inline-block; padding: .18rem .55rem; border-radius: 999px;
+    background: var(--primary-light); color: var(--primary); border: 1px solid #c7d2fe;
+    font-size: .78rem; font-weight: 700; font-family: monospace; margin-top: .15rem;
+  }
+  .rc-total { font-size: 1.05rem; font-weight: 800; color: var(--success); font-variant-numeric: tabular-nums; text-align: right; }
+  .rc-meta  { font-size: .72rem; color: var(--muted); text-align: right; margin-top: .1rem; }
+
+  /* ── Paginación ───────────────────────────────── */
+  .pagination-wrap {
+    display: flex; justify-content: center; gap: .35rem;
+    flex-wrap: wrap; padding: .85rem 1rem; border-top: 1px solid var(--border);
+  }
+  .pg-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 36px; height: 36px; border-radius: 9px; padding: 0 .6rem;
+    font-size: .83rem; font-weight: 600; text-decoration: none;
+    border: 1.5px solid var(--border); background: #fff; color: #374151;
+    transition: background .12s, border-color .12s, color .12s;
+  }
+  .pg-btn:hover { background: var(--primary-light); border-color: #c7d2fe; color: var(--primary); }
+  .pg-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .pg-btn.disabled { opacity: .4; pointer-events: none; }
+
+  /* ── Empty state ──────────────────────────────── */
+  .empty-state {
+    background: #fff; border: 1px solid var(--border); border-radius: var(--card-radius);
+    box-shadow: var(--shadow); padding: 3rem 1.5rem; text-align: center;
+  }
+  .empty-icon {
+    width: 62px; height: 62px; background: var(--primary-light); border-radius: 18px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 1.7rem; color: var(--primary); margin-bottom: .9rem;
+  }
+  .empty-state h3 { font-size: .98rem; font-weight: 700; color: #1f2937; margin-bottom: .35rem; }
+  .empty-state p  { font-size: .83rem; color: var(--muted); margin: 0; }
+
+  /* ── Responsive ───────────────────────────────── */
+  @media (max-width: 575.98px) { .desktop-only { display: none !important; } }
+  @media (min-width: 576px)    { .mobile-only  { display: none !important; } }
 </style>
 
-<div class="py-3">
-  <div class="d-flex justify-content-between align-items-center flex-wrap">
-    <h1 class="h4 mb-0">Mis Descargues</h1>
+<!-- ══════════ HEADER ══════════════════════════════ -->
+<div class="page-header">
+  <div>
+    <h1><i class="bi bi-inboxes-fill me-2" style="color:var(--primary);"></i>Mis Descargues</h1>
+    {% if filter_date %}<div class="subtitle">{{ filter_date }}</div>{% endif %}
   </div>
+  {% if ventas %}
+    <span class="results-badge">
+      <i class="bi bi-list-ul"></i>{{ ventas.paginator.count }} registro{{ ventas.paginator.count|pluralize }}
+    </span>
+  {% endif %}
 </div>
 
-<section class="filter-bar py-2">
-  <form method="GET" class="container-fluid px-0">
-    <div class="row g-2 align-items-stretch">
-      <div class="col-12">
-        <div class="input-group">
-          <span class="input-group-text tap">
-            <i class="bi bi-search" aria-hidden="true"></i>
-            <span class="visually-hidden">Buscar</span>
-          </span>
-          <input
-            type="search"
-            class="form-control tap"
-            name="search"
-            value="{{ search }}"
-            placeholder="Buscar por número"
-            autocomplete="off"
-            inputmode="numeric"
-          >
-          <button class="btn btn-outline-secondary tap d-none d-sm-inline-flex" id="btn-clear" type="button">Limpiar</button>
+<!-- ══════════ FILTROS ═════════════════════════════ -->
+<div class="filter-card">
+  <form method="GET" id="filter-form">
+    <div class="d-flex flex-column gap-3">
+
+      <div>
+        <span class="filter-label"><i class="bi bi-search me-1"></i>Buscar por número</span>
+        <input type="search" name="search" id="search-input" class="form-control"
+          value="{{ search }}" placeholder="Ej: 42" autocomplete="off" inputmode="numeric">
+      </div>
+
+      <div>
+        <span class="filter-label"><i class="bi bi-calendar3 me-1"></i>Fecha</span>
+        <input type="date" id="fecha-input" name="start_date" class="form-control"
+          value="{{ filter_date }}" max="{% now 'Y-m-d' %}" style="max-width:220px;">
+        <div class="date-chips">
+          <button type="button" class="chip-date" data-date="today">Hoy</button>
+          <button type="button" class="chip-date" data-date="yesterday">Ayer</button>
         </div>
       </div>
 
-      <div class="col-12">
-        <div class="input-group">
-          <span class="input-group-text tap">
-            <i class="bi bi-calendar-event" aria-hidden="true"></i>
-            <span class="visually-hidden">Fecha</span>
-          </span>
-          <input
-            type="date"
-            class="form-control tap"
-            name="start_date"
-            id="start_date"
-            value="{{ filter_date }}"
-            max="{% now 'Y-m-d' %}"
-          >
-        </div>
+      <div>
+        <span class="filter-label"><i class="bi bi-ticket-perforated me-1"></i>Lotería</span>
+        <select name="loteria" id="loteria" class="form-select" style="max-width:320px;">
+          <option value="">Todas las loterías</option>
+          {% for lot in loterias %}
+            <option value="{{ lot.loteria__id }}" {% if loteria_id == lot.loteria__id|stringformat:'s' %}selected{% endif %}>
+              {{ lot.loteria__nombre }}
+            </option>
+          {% endfor %}
+        </select>
       </div>
 
-      <div class="col-12">
-        <div class="input-group">
-          <span class="input-group-text tap">
-            <i class="bi bi-ticket-perforated" aria-hidden="true"></i>
-            <span class="visually-hidden">Lotería</span>
-          </span>
-          <select id="loteria" name="loteria" class="form-select tap">
-            <option value="">Todas las loterías</option>
-            {% for loteria in loterias %}
-              <option value="{{ loteria.loteria__id }}" {% if loteria_id == loteria.loteria__id|stringformat:'s' %}selected{% endif %}>
-                {{ loteria.loteria__nombre }}
-              </option>
-            {% endfor %}
-          </select>
-        </div>
-      </div>
-
-      <div class="col-12 d-grid d-sm-flex gap-2 mt-1">
-        <button type="submit" class="btn btn-primary tap">
-          <i class="bi bi-funnel" aria-hidden="true"></i> Filtrar
+      <div class="d-flex gap-2 flex-wrap">
+        <button type="submit" class="btn-filtrar">
+          <i class="bi bi-funnel"></i> Filtrar
         </button>
+        <a href="{% url 'mis_descargues' %}" class="btn-limpiar">
+          <i class="bi bi-arrow-counterclockwise"></i> Limpiar
+        </a>
       </div>
+
     </div>
   </form>
-</section>
+</div>
 
-<div class="card border-0 shadow-sm card-rounded mt-3 mb-3">
-  <div class="card-body d-flex justify-content-between align-items-center">
-    <div>
-      <div class="text-muted small">Total Descargues</div>
-      <div class="fw-bold fs-total" aria-live="polite">
-        ${{ total_ventas|format_colombian }} <span class="text-muted fs-6">COP</span>
-      </div>
-    </div>
+{% if ventas %}
+
+<!-- ══════════ STAT CARDS ══════════════════════════ -->
+<div class="stat-row">
+  <div class="stat-card s-green">
+    <div class="stat-icon"><i class="bi bi-cash-stack"></i></div>
+    <div class="stat-lbl">Total descargado</div>
+    <div class="stat-val">${{ total_ventas|format_colombian }}</div>
+  </div>
+  <div class="stat-card s-amber">
+    <div class="stat-icon"><i class="bi bi-receipt"></i></div>
+    <div class="stat-lbl">Registros</div>
+    <div class="stat-val">{{ ventas.paginator.count }}</div>
+  </div>
+  <div class="stat-card s-purple">
+    <div class="stat-icon"><i class="bi bi-trophy"></i></div>
+    <div class="stat-lbl">Página</div>
+    <div class="stat-val">{{ ventas.number }}/{{ ventas.paginator.num_pages }}</div>
   </div>
 </div>
 
-<div class="card border-0 shadow-sm card-rounded mb-4">
-  <div class="card-body">
-    <div class="table-responsive table-wrapper">
-      <table class="table table-hover align-middle mb-0 rounded">
-        <thead class="thead-light">
-          <tr>
-            <th class="border-0">Lotería</th>
-            <th class="border-0">Número</th>
-            <th class="border-0 text-end">Valor</th>
-            <th class="border-0">Fecha de Carga</th>
-            <th class="border-0">Registrado por</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for venta in ventas %}
-            <tr>
-              <td>{{ venta.loteria.nombre }}</td>
-              <td>{{ venta.numero }}</td>
-              <td class="text-end">${{ venta.monto|format_colombian }}</td>
-              <td>{{ venta.fecha_venta }}</td>
-              <td>{{ venta.registrado_por.username|capfirst }}</td>
-            </tr>
-          {% empty %}
-            <tr>
-              <td colspan="5" class="text-center py-5">
-                <i class="bi bi-inboxes fs-1 d-block mb-2"></i>
-                <div class="text-muted">No se encontraron descargues.</div>
-              </td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+<!-- ══════════ CONTENIDO ═══════════════════════════ -->
+<div class="report-wrap">
+  <div class="report-wrap-header">
+    <h2><i class="bi bi-table me-2" style="color:var(--muted);"></i>Detalle de descargues</h2>
+  </div>
 
-    <div class="cards-wrapper">
-      {% for venta in ventas %}
-        <article class="card mb-2 shadow-0 border rounded-3">
-          <div class="card-body p-3">
-            <div class="d-flex justify-content-between align-items-start">
-              <div>
-                <div class="fw-semibold">{{ venta.loteria.nombre }}</div>
-                <div class="text-muted">Cargada por {{ venta.registrado_por.username|capfirst }}</div>
-              </div>
-              <div class="text-end">
-                <div class="fw-bold">${{ venta.monto|format_colombian }}</div>
-                <small class="text-muted">{{ venta.fecha_venta }}</small>
-              </div>
-            </div>
-            <div class="mt-3">
-              <div class="border rounded-3 px-3 py-2 d-inline-block fw-bold bg-light">
-                #{{ venta.numero }}
-              </div>
-              <span class="badge border border-secondary text-secondary ms-2" style="font-size: 1rem;">
-                ID: {{ venta.id }}
-              </span>
-            </div>
+  <!-- Vista móvil -->
+  <div class="report-cards mobile-only">
+    {% for venta in ventas %}
+      <div class="report-card">
+        <div class="rc-top">
+          <div>
+            <div class="rc-lot">{{ venta.loteria.nombre }}</div>
+            <div class="rc-sub">{{ venta.fecha_venta }} &middot; {{ venta.registrado_por.username|capfirst }}</div>
+            <span class="rc-num">{{ venta.numero }}</span>
           </div>
-        </article>
-      {% empty %}
-        <div class="text-center text-muted py-5">
-          <i class="bi bi-inboxes fs-1 d-block mb-2"></i>
-          No se encontraron descargues.
+          <div>
+            <div class="rc-total">${{ venta.monto|format_colombian }}</div>
+            <div class="rc-meta">ID #{{ venta.id }}</div>
+          </div>
         </div>
-      {% endfor %}
-    </div>
-
-    {% if ventas.paginator.num_pages > 1 %}
-      <nav aria-label="Paginación" class="mt-3">
-        <ul class="pagination justify-content-center flex-wrap">
-          {% if ventas.has_previous %}
-            <li class="page-item">
-              <a class="page-link" href="?page={{ ventas.previous_page_number }}&start_date={{ filter_date }}&search={{ search|urlencode }}&loteria={{ loteria_id }}">« Anterior</a>
-            </li>
-          {% else %}
-            <li class="page-item disabled"><span class="page-link">«</span></li>
-          {% endif %}
-
-          {% for num in ventas.paginator.page_range %}
-            <li class="page-item {% if ventas.number == num %}active{% endif %}">
-              <a class="page-link" href="?page={{ num }}&start_date={{ filter_date }}&search={{ search|urlencode }}&loteria={{ loteria_id }}">{{ num }}</a>
-            </li>
-          {% endfor %}
-
-          {% if ventas.has_next %}
-            <li class="page-item">
-              <a class="page-link" href="?page={{ ventas.next_page_number }}&start_date={{ filter_date }}&search={{ search|urlencode }}&loteria={{ loteria_id }}">Siguiente »</a>
-            </li>
-          {% else %}
-            <li class="page-item disabled"><span class="page-link">»</span></li>
-          {% endif %}
-        </ul>
-      </nav>
-    {% endif %}
+      </div>
+    {% endfor %}
   </div>
+
+  <!-- Vista desktop -->
+  <div class="desktop-only">
+    <table class="report-table">
+      <thead>
+        <tr>
+          <th>Lotería</th>
+          <th>Número</th>
+          <th style="text-align:right;">Valor</th>
+          <th>Fecha de carga</th>
+          <th>Registrado por</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for venta in ventas %}
+          <tr>
+            <td style="font-weight:600; color:#1f2937;">{{ venta.loteria.nombre }}</td>
+            <td><span class="td-num">{{ venta.numero }}</span></td>
+            <td class="td-total">${{ venta.monto|format_colombian }}</td>
+            <td class="td-muted">{{ venta.fecha_venta }}</td>
+            <td class="td-muted">{{ venta.registrado_por.username|capfirst }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="2" class="tfoot-label">Total (página)</td>
+          <td class="tfoot-val" colspan="3">${{ total_ventas|format_colombian }}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <!-- Paginación -->
+  {% if ventas.paginator.num_pages > 1 %}
+    <div class="pagination-wrap">
+      {% if ventas.has_previous %}
+        <a class="pg-btn" href="?page={{ ventas.previous_page_number }}&start_date={{ filter_date }}&search={{ search|urlencode }}&loteria={{ loteria_id }}">
+          <i class="bi bi-chevron-left"></i>
+        </a>
+      {% else %}
+        <span class="pg-btn disabled"><i class="bi bi-chevron-left"></i></span>
+      {% endif %}
+
+      {% for num in ventas.paginator.page_range %}
+        <a class="pg-btn {% if ventas.number == num %}active{% endif %}"
+           href="?page={{ num }}&start_date={{ filter_date }}&search={{ search|urlencode }}&loteria={{ loteria_id }}">
+          {{ num }}
+        </a>
+      {% endfor %}
+
+      {% if ventas.has_next %}
+        <a class="pg-btn" href="?page={{ ventas.next_page_number }}&start_date={{ filter_date }}&search={{ search|urlencode }}&loteria={{ loteria_id }}">
+          <i class="bi bi-chevron-right"></i>
+        </a>
+      {% else %}
+        <span class="pg-btn disabled"><i class="bi bi-chevron-right"></i></span>
+      {% endif %}
+    </div>
+  {% endif %}
 </div>
 
+{% else %}
+
+<!-- ══════════ ESTADO VACÍO ════════════════════════ -->
+<div class="empty-state">
+  <div class="empty-icon"><i class="bi bi-inboxes"></i></div>
+  <h3>Sin descargues</h3>
+  <p>No se encontraron registros con los filtros aplicados.<br>
+  Intenta con otra fecha o limpia los filtros.</p>
+</div>
+
+{% endif %}
+
+<!-- ══════════ JAVASCRIPT ══════════════════════════ -->
 <script>
-  (() => {
-    const form = document.querySelector('.filter-bar form');
-    const q = form?.querySelector('input[name="search"]');
-    const btnClear = document.getElementById('btn-clear');
+(() => {
+  const form   = document.getElementById('filter-form');
+  const fecha  = document.getElementById('fecha-input');
+  const search = document.getElementById('search-input');
+  const toISO  = d => d.toISOString().slice(0, 10);
 
-    let t;
-    q?.addEventListener('input', () => {
-      if (btnClear) btnClear.classList.toggle('d-none', !q.value);
-      clearTimeout(t);
-      t = setTimeout(() => form.submit(), 350);
-    });
+  // Auto-submit al cambiar fecha o lotería
+  fecha?.addEventListener('change', () => form.submit());
+  document.getElementById('loteria')?.addEventListener('change', () => form.submit());
 
-    btnClear?.addEventListener('click', () => {
-      q.value = '';
+  // Auto-submit con debounce al escribir en búsqueda
+  let t;
+  search?.addEventListener('input', () => {
+    clearTimeout(t);
+    t = setTimeout(() => form.submit(), 350);
+  });
+
+  // Chips de fecha
+  document.querySelectorAll('.chip-date').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const today = new Date(); today.setHours(0,0,0,0);
+      if (btn.dataset.date === 'today') {
+        fecha.value = toISO(today);
+      } else if (btn.dataset.date === 'yesterday') {
+        const d = new Date(today); d.setDate(d.getDate() - 1);
+        fecha.value = toISO(d);
+      }
       form.submit();
     });
-  })();
+  });
+
+  // Marcar chip activo según fecha actual
+  const hoy  = toISO((() => { const d = new Date(); d.setHours(0,0,0,0); return d; })());
+  const ayer = toISO((() => { const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate()-1); return d; })());
+  const val  = fecha?.value;
+  document.querySelectorAll('.chip-date').forEach(btn => {
+    btn.classList.toggle('active',
+      (btn.dataset.date === 'today'     && val === hoy) ||
+      (btn.dataset.date === 'yesterday' && val === ayer)
+    );
+  });
+})();
 </script>
+
 {% endblock %}

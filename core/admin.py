@@ -43,14 +43,14 @@ class VentaAdmin(admin.ModelAdmin):
 
     def get_fields(self, request, obj=None):
         if request.user.is_superuser:
-            return ("vendedor", "fecha_venta", "numero", "combi", "monto", "loterias")
-        return ("vendedor", "fecha_venta", "numero", "combi", "monto", "loterias_list")
+            return ("vendedor", "fecha_venta", "numero", "es_combinado", "monto", "loterias")
+        return ("vendedor", "fecha_venta", "numero", "es_combinado", "monto", "loterias_list")
 
     def get_readonly_fields(self, request, obj=None):
         # Se permite correccion por superadmin, pero se preserva la fecha de venta.
         if request.user.is_superuser:
             return ("fecha_venta",)
-        return ("vendedor", "fecha_venta", "numero", "monto", "combi", "loterias_list")
+        return ("vendedor", "fecha_venta", "numero", "monto", "es_combinado", "loterias_list")
 
     def _attach_audit_context(self, request, obj):
         obj._audit_actor = request.user

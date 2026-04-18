@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(pip show:*)"
+      "Bash(pip show:*)",
+      "Bash(python manage.py test core)",
+      "Bash(python manage.py test core -v 2)",
+      "Bash(python manage.py test core --noinput)"
     ]
   }
 }

@@ -119,7 +119,7 @@ class Venta(models.Model):
     fecha_venta = models.DateTimeField(auto_now_add=True, db_index=True)  # Agregado db_index=True para optimizar consultas
     numero = models.CharField(max_length=50, db_index=True)
     monto = models.IntegerField()  # Cambiado a IntegerField
-    combi = models.IntegerField(null=True, blank=True)  # Cambiado a IntegerField
+    es_combinado = models.BooleanField(default=False)
 
     def __str__(self):
         return f"{self.vendedor} - {self.numero} - {self.fecha_venta}"
@@ -127,7 +127,7 @@ class Venta(models.Model):
     def save(self, *args, **kwargs):
         if self.pk:
             original = type(self).objects.filter(pk=self.pk).values(
-                "vendedor_id", "numero", "monto", "combi", "fecha_venta"
+                "vendedor_id", "numero", "monto", "es_combinado", "fecha_venta"
             ).first()
             if original:
                 cambios = {}
@@ -137,8 +137,8 @@ class Venta(models.Model):
                     cambios["numero"] = [original["numero"], self.numero]
                 if original["monto"] != self.monto:
                     cambios["monto"] = [original["monto"], self.monto]
-                if original["combi"] != self.combi:
-                    cambios["combi"] = [original["combi"], self.combi]
+                if original["es_combinado"] != self.es_combinado:
+                    cambios["es_combinado"] = [original["es_combinado"], self.es_combinado]
                 if str(original["fecha_venta"]) != str(self.fecha_venta):
                     cambios["fecha_venta"] = [str(original["fecha_venta"]), str(self.fecha_venta)]
 

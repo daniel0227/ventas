@@ -388,7 +388,7 @@ def crear_venta(request):
         loterias_ids = request.POST.getlist('loterias')
         numeros = request.POST.getlist('numero')
         montos = request.POST.getlist('monto')
-        combis = request.POST.getlist('combi')
+        es_combinados = request.POST.getlist('es_combinado')
         loterias_ids = list(dict.fromkeys(loterias_ids))
 
         _audit_sale_event(
@@ -400,16 +400,16 @@ def crear_venta(request):
         )
 
         # --- Validaciones de longitud ---
-        if not (len(numeros) == len(montos) == len(combis)):
+        if not (len(numeros) == len(montos) == len(es_combinados)):
             _audit_sale_event(
                 request,
                 VentaAuditLog.EVENT_CREATE_REJECTED,
                 VentaAuditLog.STATUS_REJECTED,
-                message="Longitudes inconsistentes entre numero, monto y combi.",
-                payload={"numero": len(numeros), "monto": len(montos), "combi": len(combis)}
+                message="Longitudes inconsistentes entre numero, monto y es_combinado.",
+                payload={"numero": len(numeros), "monto": len(montos), "es_combinado": len(es_combinados)}
             )
             return JsonResponse(
-                {'success': False, 'error': 'Los numeros, montos y combis no coinciden.'},
+                {'success': False, 'error': 'Los datos enviados son inconsistentes.'},
                 status=400
             )
 
@@ -452,9 +452,9 @@ def crear_venta(request):
 
         # --- Validacion fila a fila ---
         jugadas_validadas = []
-        for idx, (numero, monto, combi) in enumerate(zip(numeros, montos, combis), start=1):
+        for idx, (numero, monto, es_comb) in enumerate(zip(numeros, montos, es_combinados), start=1):
             numero = (numero or '').strip()
-            combi = (combi or '').strip()
+            es_comb_val = (es_comb or '0').strip() == '1'
             monto = (monto or '').strip()
 
             try:
@@ -485,23 +485,23 @@ def crear_venta(request):
                     status=400
                 )
 
-            if numero == '' and combi == '':
+            if numero == '':
                 _audit_sale_event(
                     request,
                     VentaAuditLog.EVENT_CREATE_REJECTED,
                     VentaAuditLog.STATUS_REJECTED,
-                    message=f"Fila {idx}: numero y combi vacios.",
+                    message=f"Fila {idx}: numero vacio.",
                     payload={"fila": idx}
                 )
                 return JsonResponse(
-                    {'success': False, 'error': f'Fila {idx}: ingrese Numero o Combi.'},
+                    {'success': False, 'error': f'Fila {idx}: el número es obligatorio.'},
                     status=400
                 )
 
             jugadas_validadas.append({
                 "fila": idx,
                 "numero": numero,
-                "combi": combi,
+                "es_combinado": es_comb_val,
                 "monto": monto_val,
             })
 
@@ -614,7 +614,7 @@ def crear_venta(request):
                         numero=jugada["numero"],
                         monto=int(jugada["monto"]),
                         fecha_venta=ahora_tx,
-                        combi=int(jugada["combi"]) if jugada["combi"] else None
+                        es_combinado=jugada["es_combinado"],
                     )
                     venta._allow_loterias_assignment = True
                     venta.loterias.set(loterias_seleccionadas)
@@ -659,7 +659,7 @@ def crear_venta(request):
         for jugada in jugadas_validadas:
             jugadas_resumen.append({
                 'numero': jugada["numero"],
-                'combi': jugada["combi"],
+                'es_combinado': jugada["es_combinado"],
                 'monto': int(jugada["monto"]),
             })
 
@@ -693,7 +693,7 @@ def crear_venta(request):
                 'loterias': [lot.nombre for lot in loterias_seleccionadas],
                 'jugadas': [{
                     'numero': v.numero,
-                    'combi': v.combi,
+                    'es_combinado': v.es_combinado,
                     'monto': v.monto
                 } for v in ventas_creadas],
                 'total': sum(v.monto for v in ventas_creadas) * loterias_count
@@ -904,11 +904,9 @@ def ventas_list(request):
     if request.user.is_staff and vendedor_id:
         ventas_qs = ventas_qs.filter(vendedor_id=vendedor_id)
 
-    # 3. Búsqueda: número **o** combi
+    # 3. Búsqueda por número
     if search:
-        ventas_qs = ventas_qs.filter(
-            Q(numero__icontains=search) | Q(combi__icontains=search)
-        )
+        ventas_qs = ventas_qs.filter(Q(numero__icontains=search))
 
     # 4. Optimización N+1
     ventas_qs = (
@@ -1433,7 +1431,7 @@ def reporte_descargas(request):
                 veces_apostado=Count('id', distinct=True),
                 total_ventas=Coalesce(Sum('monto'), 0, output_field=IntegerField()),
             )
-            .order_by('loterias__nombre', '-total_ventas')
+            .order_by('-total_ventas')
     )
 
     # ── Exportar CSV ──────────────────────────────

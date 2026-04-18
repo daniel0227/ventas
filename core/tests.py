@@ -33,7 +33,7 @@ class ReporteDescargasTests(TestCase):
             vendedor=self.staff,
             numero='428',
             monto=1100,
-            combi=None,
+            es_combinado=False,
         )
         venta.loterias.set([self.valle, self.manizales])
 
@@ -93,12 +93,12 @@ class LimiteVentaPorNumeroTests(TestCase):
             limite_apuesta_por_numero=30000,
         )
 
-    def _crear_venta_existente(self, numero, monto):
+    def _crear_venta_existente(self, numero, monto, es_combinado=False):
         venta = Venta.objects.create(
             vendedor=self.user,
             numero=numero,
             monto=monto,
-            combi=None,
+            es_combinado=es_combinado,
         )
         venta.loterias.set([self.valle])
         return venta
@@ -112,7 +112,7 @@ class LimiteVentaPorNumeroTests(TestCase):
                 'loterias': [str(self.valle.id)],
                 'numero': ['248'],
                 'monto': ['12000'],
-                'combi': [''],
+                'es_combinado': ['0'],
             },
         )
 
@@ -130,7 +130,7 @@ class LimiteVentaPorNumeroTests(TestCase):
                 'loterias': [str(self.valle.id)],
                 'numero': ['248'],
                 'monto': ['10000'],
-                'combi': [''],
+                'es_combinado': ['0'],
             },
         )
 
@@ -151,7 +151,7 @@ class LimiteVentaPorNumeroTests(TestCase):
                 'loterias': [str(self.manizales.id)],
                 'numero': ['248'],
                 'monto': ['5000'],
-                'combi': [''],
+                'es_combinado': ['0'],
             },
         )
 
@@ -397,3 +397,203 @@ class FlujoDescarguesTests(TestCase):
             response.context['premios_list'][0]['vendedor'],
             self.descargue,
         )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Tests para el campo es_combinado (BooleanField)
+# ─────────────────────────────────────────────────────────────────────────────
+
+class EsCombinadoModelTests(TestCase):
+    """Verifica que el campo es_combinado se guarda y lee correctamente."""
+
+    def setUp(self):
+        User = get_user_model()
+        self.user = User.objects.create_user(username='vendedor_combi', password='pass')
+        self.loteria = Loteria.objects.create(
+            nombre='Lotería Combi',
+            hora_inicio=time(0, 0),
+            hora_fin=time(23, 59),
+        )
+
+    def _crear(self, es_combinado):
+        v = Venta.objects.create(
+            vendedor=self.user,
+            numero='123',
+            monto=1000,
+            es_combinado=es_combinado,
+        )
+        v.loterias.set([self.loteria])
+        return v
+
+    def test_default_es_false(self):
+        """Una venta creada sin especificar es_combinado debe tener False."""
+        v = Venta.objects.create(vendedor=self.user, numero='100', monto=500)
+        v.loterias.set([self.loteria])
+        self.assertFalse(Venta.objects.get(pk=v.pk).es_combinado)
+
+    def test_guarda_true(self):
+        v = self._crear(es_combinado=True)
+        self.assertTrue(Venta.objects.get(pk=v.pk).es_combinado)
+
+    def test_guarda_false(self):
+        v = self._crear(es_combinado=False)
+        self.assertFalse(Venta.objects.get(pk=v.pk).es_combinado)
+
+    def test_filtro_combinadas(self):
+        self._crear(es_combinado=True)
+        self._crear(es_combinado=False)
+        self.assertEqual(Venta.objects.filter(es_combinado=True).count(), 1)
+        self.assertEqual(Venta.objects.filter(es_combinado=False).count(), 1)
+
+    def test_no_existe_campo_combi(self):
+        """El campo combi ya no debe existir en el modelo."""
+        v = self._crear(es_combinado=False)
+        self.assertFalse(hasattr(v, 'combi'))
+
+
+class EsCombinadoViewTests(TestCase):
+    """Prueba el flujo completo POST → BD con es_combinado."""
+
+    def setUp(self):
+        User = get_user_model()
+        self.user = User.objects.create_user(username='vendedor_view', password='pass')
+        self.client.force_login(self.user)
+
+        dia_actual_en = timezone.localtime(timezone.now()).strftime('%A')
+        dias_map = {
+            'Monday': 'Lunes', 'Tuesday': 'Martes', 'Wednesday': 'Miércoles',
+            'Thursday': 'Jueves', 'Friday': 'Viernes',
+            'Saturday': 'Sábado', 'Sunday': 'Domingo',
+        }
+        self.dia = Dia.objects.create(nombre=dias_map[dia_actual_en])
+        self.loteria = Loteria.objects.create(
+            nombre='Lotería Vista',
+            hora_inicio=time(0, 0),
+            hora_fin=time(23, 59),
+        )
+        self.loteria.dias_juego.add(self.dia)
+
+    def _post(self, numeros, montos, es_combinados, loterias=None):
+        return self.client.post(
+            reverse('ventas'),
+            data={
+                'loterias': [str(self.loteria.id)] if loterias is None else loterias,
+                'numero': numeros,
+                'monto': montos,
+                'es_combinado': es_combinados,
+            },
+        )
+
+    # ── Happy path ────────────────────────────────────────
+
+    def test_venta_directa_guarda_false(self):
+        """Apuesta sin combinado → es_combinado=False en BD."""
+        response = self._post(['777'], ['2000'], ['0'])
+        self.assertEqual(response.status_code, 201)
+        v = Venta.objects.get(numero='777')
+        self.assertFalse(v.es_combinado)
+
+    def test_venta_combinada_guarda_true(self):
+        """Apuesta combinada (checkbox activado = '1') → es_combinado=True."""
+        response = self._post(['777'], ['2000'], ['1'])
+        self.assertEqual(response.status_code, 201)
+        v = Venta.objects.get(numero='777')
+        self.assertTrue(v.es_combinado)
+
+    def test_multiples_filas_combinado_mixto(self):
+        """Varias filas: sólo las marcadas como '1' se guardan como combinado."""
+        response = self._post(
+            ['111', '222', '333'],
+            ['1000', '1500', '2000'],
+            ['0', '1', '0'],
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertFalse(Venta.objects.get(numero='111').es_combinado)
+        self.assertTrue(Venta.objects.get(numero='222').es_combinado)
+        self.assertFalse(Venta.objects.get(numero='333').es_combinado)
+
+    def test_respuesta_json_incluye_es_combinado(self):
+        """El JSON de respuesta debe incluir el campo es_combinado."""
+        response = self._post(['456'], ['3000'], ['1'])
+        self.assertEqual(response.status_code, 201)
+        data = response.json()
+        self.assertTrue(data['success'])
+        jugada = data['resumen_venta']['jugadas'][0]
+        self.assertIn('es_combinado', jugada)
+        self.assertTrue(jugada['es_combinado'])
+
+    def test_multiples_loterias_con_combinado(self):
+        """Con 2 loterías, se crea 1 venta con las 2 loterías asignadas vía M2M."""
+        loteria2 = Loteria.objects.create(
+            nombre='Segunda Lotería',
+            hora_inicio=time(0, 0),
+            hora_fin=time(23, 59),
+        )
+        loteria2.dias_juego.add(self.dia)
+
+        response = self.client.post(
+            reverse('ventas'),
+            data={
+                'loterias': [str(self.loteria.id), str(loteria2.id)],
+                'numero': ['999'],
+                'monto': ['5000'],
+                'es_combinado': ['1'],
+            },
+        )
+        self.assertEqual(response.status_code, 201)
+        ventas = Venta.objects.filter(numero='999')
+        # Una sola venta con ambas loterías asignadas via M2M
+        self.assertEqual(ventas.count(), 1)
+        v = ventas.first()
+        self.assertTrue(v.es_combinado)
+        self.assertEqual(v.loterias.count(), 2)
+
+    # ── Validaciones ──────────────────────────────────────
+
+    def test_rechaza_sin_numero(self):
+        """Número vacío debe rechazarse (es_combinado ya no puede sustituirlo)."""
+        response = self._post([''], ['2000'], ['1'])
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(response.json()['success'])
+        self.assertIn('número', response.json()['error'])
+
+    def test_rechaza_monto_cero(self):
+        """Monto 0 debe rechazarse independientemente de es_combinado."""
+        response = self._post(['123'], ['0'], ['1'])
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(response.json()['success'])
+
+    def test_rechaza_longitudes_inconsistentes(self):
+        """Si los arrays no tienen la misma longitud el servidor rechaza."""
+        response = self._post(
+            ['111', '222'],   # 2 números
+            ['1000', '2000'], # 2 montos
+            ['0'],            # sólo 1 es_combinado → inconsistente
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(response.json()['success'])
+
+    def test_es_combinado_valor_invalido_se_trata_como_false(self):
+        """Cualquier valor distinto de '1' se interpreta como False."""
+        casos = {'': '300', 'on': '301', 'true': '302', 'yes': '303', '2': '304'}
+        for val, numero in casos.items():
+            response = self._post([numero], ['1000'], [val])
+            self.assertEqual(response.status_code, 201, f"Falló para valor '{val}'")
+            self.assertFalse(
+                Venta.objects.get(numero=numero).es_combinado,
+                f"Se esperaba False para valor '{val}'",
+            )
+
+    # ── Migración de datos ────────────────────────────────
+
+    def test_campo_combi_no_existe_en_bd(self):
+        """Confirma que el campo combi fue eliminado de la tabla."""
+        from django.db import connection
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT column_name FROM information_schema.columns "
+                "WHERE table_name = 'core_venta'"
+            )
+            columnas = [row[0] for row in cursor.fetchall()]
+        self.assertNotIn('combi', columnas)
+        self.assertIn('es_combinado', columnas)

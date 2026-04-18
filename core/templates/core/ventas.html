@@ -5,37 +5,42 @@
 {% block content %}
 
   <section class="ventas-shell">
-    <header class="ventas-header text-center mb-3 mb-md-4">
-      <h3 class="ventas-title mb-1">Registrar Ventas</h3>
-      <p class="ventas-subtitle mb-0">Crea jugadas de forma rapida y clara.</p>
-    </header>
-  
+
+    <!-- ══════════ HEADER ══════════════════════════════ -->
+    <div class="page-header">
+      <div>
+        <h1 class="page-title"><i class="bi bi-dice-5-fill me-2" style="color:var(--ventas-primary);"></i>Registrar Ventas</h1>
+        <p class="page-subtitle mb-0">Crea jugadas de forma rápida y clara.</p>
+      </div>
+    </div>
+
   <!-- Toast Container (Mensaje de exito) -->
   <div aria-live="polite" aria-atomic="true" class="position-fixed top-0 end-0 p-3" style="z-index: 1080;">
     <div id="toastSuccess" class="toast align-items-center text-white bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
       <div class="d-flex">
         <div class="toast-body">
-          La venta se guardo correctamente.
+          La venta se guardó correctamente.
         </div>
         <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
       </div>
     </div>
   </div>
-  
+
   <form id="ventas-form" method="post" class="needs-validation ventas-form" novalidate>
     {% csrf_token %}
     <div id="ventasFeedback" class="alert d-none ventas-feedback" role="alert"></div>
-  
+
     <!-- Selección de Loterías -->
     {% if loterias %}
       <section class="ventas-card mb-3">
       <div class="section-head">
-        <h4 class="section-title mb-0">Loterias</h4>
+        <h4 class="section-title mb-0"><i class="bi bi-ticket-perforated-fill me-2"></i>Loterías</h4>
       </div>
       <div class="dropdown">
-        <button class="btn btn-secondary dropdown-toggle w-100" type="button" 
+        <button class="ventas-dropdown-btn dropdown-toggle w-100" type="button"
                 id="lotteryDropdown" data-bs-toggle="dropdown" aria-expanded="false" data-bs-auto-close="outside">
-          Seleccionar Loterias ({{ loterias_seleccionadas.count }})
+          <i class="bi bi-grid-3x3-gap me-2"></i>Seleccionar Loterías
+          <span class="lottery-count-badge">{{ loterias_seleccionadas.count }}</span>
         </button>
         <div class="dropdown-menu p-2 lottery-menu"
      aria-labelledby="lotteryDropdown"
@@ -43,7 +48,7 @@
   <div class="lottery-controls">
     <div class="lottery-search-wrap">
       <i class="bi bi-search"></i>
-      <input type="search" id="lotterySearch" class="form-control form-control-sm" placeholder="Buscar loteria...">
+      <input type="search" id="lotterySearch" class="form-control form-control-sm" placeholder="Buscar lotería...">
     </div>
     <div class="lottery-filter-group" role="group" aria-label="Filtrar loterias">
       <button type="button" class="btn btn-filter active" data-filter="all">Todas</button>
@@ -52,7 +57,7 @@
     </div>
   </div>
   <div id="lotteryEmptyState" class="lottery-empty-state d-none">
-    No hay loterias que coincidan con la busqueda.
+    No hay loterías que coincidan con la búsqueda.
   </div>
   {% for loteria in loterias %}
     <div class="dropdown-item lottery-option"
@@ -76,12 +81,12 @@
                 </span>
               </span>
               {% if loteria.disponible %}
-                <span class="lottery-item-state badge bg-success">Disponible</span>
+                <span class="lottery-item-state badge-state open">Disponible</span>
               {% else %}
-                <span class="lottery-item-state badge bg-secondary">Cerrada</span>
+                <span class="lottery-item-state badge-state closed">Cerrada</span>
               {% endif %}
       </label>
-      
+
     </div>
   {% endfor %}
 </div>
@@ -91,34 +96,42 @@
       </div>
       </section>
     {% else %}
-      <p class="text-danger">No hay loterias disponibles para el dia y hora actuales.</p>
+      <div class="ventas-card mb-3">
+        <p class="text-danger mb-0"><i class="bi bi-exclamation-triangle-fill me-2"></i>No hay loterías disponibles para el día y hora actuales.</p>
+      </div>
     {% endif %}
-  
+
     <!-- Detalles de la Venta -->
     <section class="ventas-card">
     <div class="section-head">
-      <h4 class="section-title mb-0">Detalles de la Venta</h4>
+      <h4 class="section-title mb-0"><i class="bi bi-table me-2"></i>Detalles de la Venta</h4>
     </div>
     <div class="table-responsive">
-      <table id="dynamic-table" class="table table-bordered table-striped ventas-table">
-        <thead class="table-dark">
+      <table id="dynamic-table" class="ventas-table">
+        <thead>
           <tr>
             <th style="text-align: center;">Número</th>
-            <th style="text-align: center;">Combi</th>
+            <th style="text-align: center; width:70px;">Combi</th>
             <th style="text-align: center;">Monto</th>
-            <th></th>
+            <th style="width:44px;"></th>
           </tr>
         </thead>
         <tbody>
           {# Se generan 5 filas por defecto #}
           {% for i in "12345"|make_list %}
             <tr>
-              <td data-label="Numero"><input type="number" name="numero" class="form-control" inputmode="numeric" min="0" step="1"></td>
-              <td data-label="Combi"><input type="number" name="combi" class="form-control combi" inputmode="numeric" min="0" step="1"></td>
-              <td data-label="Monto"><input type="number" name="monto" class="form-control monto" inputmode="decimal" min="0" step="any"></td>
+              <td data-label="Numero"><input type="number" name="numero" class="form-control ventas-input" inputmode="numeric" min="0" step="1"></td>
+              <td data-label="Combi" class="cell-combi">
+                <input type="hidden" name="es_combinado" value="0" class="es-combinado-hidden">
+                <label class="combi-check-wrap">
+                  <input type="checkbox" class="combi-check">
+                  <span class="combi-check-ui"></span>
+                </label>
+              </td>
+              <td data-label="Monto"><input type="number" name="monto" class="form-control ventas-input monto" inputmode="decimal" min="0" step="any"></td>
               <td class="cell-remove" data-label="Accion">
-                <button type="button" class="btn btn-danger btn-sm remove-row remove-row-btn" title="Eliminar fila">
-                  <i class="bi bi-trash"></i>
+                <button type="button" class="btn remove-row remove-row-btn" title="Eliminar fila">
+                  <i class="bi bi-x-lg"></i>
                 </button>
               </td>
             </tr>
@@ -127,21 +140,21 @@
       </table>
       <div class="d-flex justify-content-between mt-3 ventas-actions">
         <div class="d-flex gap-2">
-          <button type="button" id="add-row" class="btn btn-success btn-add-row">
+          <button type="button" id="add-row" class="btn btn-add-row">
             <i class="bi bi-plus-circle"></i> Agregar Fila
           </button>
         </div>
-        <button type="submit" class="btn btn-primary btn-save d-none d-md-inline-flex">
-          <i class="bi bi-save"></i> Guardar
+        <button type="submit" class="btn btn-save d-none d-md-inline-flex">
+          <i class="bi bi-save2"></i> Guardar
         </button>
       </div>
     </div>
     </section>
-  
+
     <!-- Total Dinámico -->
     <div class="mt-3 mt-md-4 total-wrap d-none d-md-block">
       <h5 class="text-end total-inline">
-        Total: 
+        Total:
         <input type="text" id="total-monto" class="form-control d-inline-block w-auto text-end" value="0" readonly>
       </h5>
     </div>
@@ -150,19 +163,19 @@
         <span class="mobile-subtotal-label">Subtotal</span>
         <span id="mobile-subtotal-inline" class="mobile-subtotal-value">$0</span>
       </div>
-      <button type="submit" class="btn btn-primary mobile-inline-save-btn">
-        <i class="bi bi-save me-1"></i> Guardar
+      <button type="submit" class="btn btn-save mobile-inline-save-btn">
+        <i class="bi bi-save2 me-1"></i> Guardar
       </button>
     </div>
-    <div id="mobile-summary-inline" class="mobile-summary-counts mobile-summary-inline">0 loterias - 0 jugadas</div>
+    <div id="mobile-summary-inline" class="mobile-summary-counts mobile-summary-inline">0 loterías - 0 jugadas</div>
     <div id="mobileSaveBar" class="mobile-submit-bar d-md-none">
       <div class="mobile-total-block">
         <span class="mobile-total-label">Total</span>
         <span id="mobile-total-monto" class="mobile-total-value">$0</span>
-        <span id="mobile-summary-counts" class="mobile-summary-counts">0 loterias - 0 jugadas</span>
+        <span id="mobile-summary-counts" class="mobile-summary-counts">0 loterías - 0 jugadas</span>
       </div>
-      <button type="submit" class="btn btn-primary mobile-save-btn">
-        <i class="bi bi-save me-1"></i> Guardar
+      <button type="submit" class="btn btn-save mobile-save-btn">
+        <i class="bi bi-save2 me-1"></i> Guardar
       </button>
     </div>
 <!-- Overlay de procesamiento -->
@@ -176,7 +189,7 @@
   <div id="successContainer" class="overlay-success">
     <i class="bi bi-check-circle-fill overlay-success-icon"></i>
     <div class="overlay-success-text">
-      Apuesta realizada con exito.
+      Apuesta realizada con éxito.
     </div>
   </div>
 </div>
@@ -188,50 +201,46 @@
 </a>
   </form>
   </section>
-  
+
   <!-- Modal de Detalle de la Venta -->
   <div class="modal fade" id="saleDetailModal" tabindex="-1" aria-labelledby="saleDetailModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-md">
-      <div class="modal-content">
+      <div class="modal-content modal-ventas">
         <!-- Encabezado del modal -->
-        <div class="modal-header bg-primary text-white">
-          <h5 class="modal-title d-flex align-items-center" id="saleDetailModalLabel" style="gap: 8px;">
-            <i class="bi bi-receipt" style="font-size: 1.3rem;"></i>
-            Resumen de venta <span role="img" aria-label="celebration">🎉</span>
+        <div class="modal-header modal-ventas-header">
+          <h5 class="modal-title d-flex align-items-center gap-2" id="saleDetailModalLabel">
+            <span class="modal-header-icon"><i class="bi bi-receipt"></i></span>
+            Resumen de apuesta
           </h5>
           <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
-  
+
         <!-- Cuerpo del modal -->
-        <div class="modal-body">
-          <p class="text-muted mb-3">
-            Por favor, asegúrese que los datos han sido ingresados correctamente.
+        <div class="modal-body modal-ventas-body">
+          <p class="modal-hint">
+            <i class="bi bi-info-circle me-1"></i>Revisa los datos antes de confirmar.
           </p>
-  
-          <!-- Información básica en tabla -->
-          <div class="table-responsive mb-3">
-            <table class="table table-sm table-bordered align-middle">
-              <tbody>
-                <tr>
-                  <th scope="row" style="width: 30%;">Día:</th>
-                  <td id="saleDay"></td>
-                </tr>
-                <tr>
-                  <th scope="row">Loterías:</th>
-                  <td><span id="saleLoteriasList"></span></td>
-                </tr>
-              </tbody>
-            </table>
+
+          <!-- Info básica -->
+          <div class="modal-info-grid mb-3">
+            <div class="modal-info-item">
+              <span class="modal-info-label">Día</span>
+              <span class="modal-info-value" id="saleDay"></span>
+            </div>
+            <div class="modal-info-item">
+              <span class="modal-info-label">Loterías</span>
+              <span class="modal-info-value" id="saleLoteriasList"></span>
+            </div>
           </div>
-  
+
           <!-- Tabla de detalles -->
           <div class="table-responsive">
-            <table class="table table-sm table-bordered table-striped align-middle">
-              <thead class="table-light">
-                <tr style="text-align: center;">
-                  <th>Detalle</th>
+            <table class="modal-detail-table">
+              <thead>
+                <tr>
+                  <th>Número</th>
                   <th>Valor</th>
-                  <th>Comb</th>
+                  <th>Combinado</th>
                 </tr>
               </thead>
               <tbody id="saleDetailsList">
@@ -239,18 +248,22 @@
               </tbody>
             </table>
           </div>
-  
+
           <!-- Total -->
-          <div class="text-end mt-3">
-            <strong>Total:</strong>
-            <span id="saleTotalAmount" class="fw-bold"></span>
+          <div class="modal-total-row">
+            <span class="modal-total-label">Total a apostar</span>
+            <span id="saleTotalAmount" class="modal-total-value"></span>
           </div>
         </div>
-  
+
         <!-- Pie del modal -->
-        <div class="modal-footer">
-          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Descartar</button>
-          <button type="button" class="btn btn-primary" id="confirmSaleButton">Apostar</button>
+        <div class="modal-footer modal-ventas-footer">
+          <button type="button" class="btn btn-modal-cancel" data-bs-dismiss="modal">
+            <i class="bi bi-x me-1"></i>Cancelar
+          </button>
+          <button type="button" class="btn btn-modal-confirm" id="confirmSaleButton">
+            <i class="bi bi-check2 me-1"></i>Apostar
+          </button>
         </div>
       </div>
     </div>
@@ -258,49 +271,72 @@
 
   <style>
     :root {
-      --ventas-bg: #f8fafc;
-      --ventas-surface: #ffffff;
-      --ventas-border: #e2e8f0;
-      --ventas-text: #0f172a;
-      --ventas-muted: #64748b;
-      --ventas-primary: #0ea5e9;
+      --ventas-primary:       #4f46e5;
+      --ventas-primary-dark:  #3730a3;
+      --ventas-primary-light: #eef2ff;
+      --ventas-success:       #10b981;
+      --ventas-success-light: #ecfdf5;
+      --ventas-danger:        #ef4444;
+      --ventas-danger-light:  #fee2e2;
+      --ventas-border:        #e5e7eb;
+      --ventas-bg:            #f8fafc;
+      --ventas-surface:       #ffffff;
+      --ventas-text:          #0f172a;
+      --ventas-muted:         #6b7280;
+      --ventas-shadow:        0 2px 12px rgba(0,0,0,.07);
+      --ventas-radius:        14px;
     }
 
+    /* ── Shell & Header ──────────────────────────────── */
     .ventas-shell {
       max-width: 1040px;
       margin: 0 auto;
     }
 
-    .ventas-title {
-      color: var(--ventas-text);
+    .page-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: .6rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .page-title {
+      font-size: 1.35rem;
       font-weight: 700;
-      font-size: 1.45rem;
+      color: var(--ventas-text);
+      margin: 0;
     }
 
-    .ventas-subtitle {
+    .page-subtitle {
+      font-size: .83rem;
       color: var(--ventas-muted);
-      font-size: 0.93rem;
+      margin-top: .1rem;
     }
 
+    /* ── Card base ───────────────────────────────────── */
     .ventas-card {
       background: var(--ventas-surface);
       border: 1px solid var(--ventas-border);
-      border-radius: 14px;
-      box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
-      padding: 0.9rem;
-      margin-bottom: 0.9rem;
+      border-radius: var(--ventas-radius);
+      box-shadow: var(--ventas-shadow);
+      padding: 1rem 1.1rem;
+      margin-bottom: .9rem;
     }
 
     .ventas-feedback {
-      border-radius: 12px;
-      border: 1px solid transparent;
-      padding: 0.55rem 0.75rem;
-      margin-bottom: 0.75rem;
-      font-size: 0.9rem;
+      border-radius: 10px;
+      padding: .55rem .75rem;
+      margin-bottom: .75rem;
+      font-size: .9rem;
     }
 
+    /* ── Section head ────────────────────────────────── */
     .section-head {
-      margin-bottom: 0.7rem;
+      margin-bottom: .85rem;
+      padding-bottom: .65rem;
+      border-bottom: 1px solid var(--ventas-border);
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -308,47 +344,88 @@
 
     .section-title {
       color: var(--ventas-text);
-      font-size: 1rem;
+      font-size: .95rem;
       font-weight: 700;
     }
 
-    #lotteryDropdown {
-      background: #f1f5f9;
-      color: #0f172a;
-      border: 1px solid #cbd5e1;
-      font-weight: 600;
-      border-radius: 10px;
-      padding: 0.62rem 0.8rem;
+    .section-title i {
+      color: var(--ventas-primary);
     }
 
+    /* ── Lottery dropdown button ─────────────────────── */
+    .ventas-dropdown-btn {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #f8fafc;
+      color: var(--ventas-text);
+      border: 1.5px solid var(--ventas-border);
+      font-weight: 600;
+      font-size: .92rem;
+      border-radius: 10px;
+      padding: .62rem .9rem;
+      min-height: 46px;
+      transition: border-color .2s, background .2s;
+      text-align: left;
+    }
+
+    .ventas-dropdown-btn:hover,
+    .ventas-dropdown-btn:focus {
+      background: var(--ventas-primary-light);
+      border-color: #c7d2fe;
+      color: var(--ventas-primary);
+      box-shadow: none;
+      outline: none;
+    }
+
+    .ventas-dropdown-btn[aria-expanded="true"] {
+      background: var(--ventas-primary-light);
+      border-color: var(--ventas-primary);
+      color: var(--ventas-primary);
+    }
+
+    .ventas-dropdown-btn::after {
+      display: none !important;
+    }
+
+    .ventas-dropdown-btn .bi-chevron-down {
+      transition: transform .2s;
+    }
+
+    .ventas-dropdown-btn[aria-expanded="true"] .bi-chevron-down {
+      transform: rotate(180deg);
+    }
+
+    .lottery-count-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 22px;
+      height: 22px;
+      padding: 0 .45rem;
+      border-radius: 999px;
+      background: var(--ventas-primary);
+      color: #fff;
+      font-size: .72rem;
+      font-weight: 800;
+      margin-left: auto;
+    }
+
+    /* ── Lottery menu ────────────────────────────────── */
     #lotteriesContainer {
       width: 100%;
       max-height: 320px;
       overflow-y: auto;
-      border-radius: 10px;
-      border: 1px solid #e2e8f0;
-      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
-    }
-
-    .dropdown-menu .dropdown-item {
-      padding: 0.45rem 0.55rem;
-      white-space: normal;
-      border-radius: 10px;
-      margin-bottom: 0.28rem;
-      background: #fff;
-      border: 1px solid #edf2f7;
-    }
-
-    .dropdown-menu .dropdown-item:hover {
-      background: #f8fafc;
-      border-color: #e2e8f0;
+      border-radius: 12px;
+      border: 1px solid var(--ventas-border);
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.1);
     }
 
     .lottery-menu {
       width: 100%;
       max-height: 300px;
       overflow-y: auto;
-      padding: 0.35rem !important;
+      padding: .4rem !important;
       border-radius: 12px;
     }
 
@@ -357,23 +434,23 @@
       top: 0;
       z-index: 2;
       background: #ffffff;
-      padding: 0.2rem 0.1rem 0.45rem;
-      margin-bottom: 0.3rem;
-      border-bottom: 1px solid #e2e8f0;
+      padding: .2rem .1rem .5rem;
+      margin-bottom: .3rem;
+      border-bottom: 1px solid var(--ventas-border);
     }
 
     .lottery-search-wrap {
       position: relative;
-      margin-bottom: 0.35rem;
+      margin-bottom: .35rem;
     }
 
     .lottery-search-wrap i {
       position: absolute;
-      left: 0.55rem;
+      left: .55rem;
       top: 50%;
       transform: translateY(-50%);
-      font-size: 0.8rem;
-      color: #64748b;
+      font-size: .8rem;
+      color: var(--ventas-muted);
       pointer-events: none;
     }
 
@@ -381,87 +458,94 @@
       border-radius: 9px;
       border-color: #d2dbe6;
       padding-left: 1.7rem;
-      min-height: 34px;
+      min-height: 36px;
+      font-size: .88rem;
+    }
+
+    #lotterySearch:focus {
+      border-color: var(--ventas-primary);
+      box-shadow: none;
     }
 
     .lottery-filter-group {
       display: flex;
-      gap: 0.25rem;
+      gap: .25rem;
       flex-wrap: wrap;
     }
 
     .btn-filter {
-      border: 1px solid #dbe2ea;
+      border: 1.5px solid var(--ventas-border);
       background: #f8fafc;
       color: #334155;
-      font-size: 0.73rem;
+      font-size: .72rem;
+      font-weight: 600;
       border-radius: 999px;
-      padding: 0.2rem 0.56rem;
-      line-height: 1.2;
+      padding: .22rem .6rem;
+      line-height: 1.3;
+      transition: background .15s, border-color .15s, color .15s;
     }
 
     .btn-filter.active {
-      background: #e0f2fe;
-      color: #075985;
-      border-color: #bae6fd;
+      background: var(--ventas-primary-light);
+      color: var(--ventas-primary);
+      border-color: #c7d2fe;
     }
 
-    /* Override global theme rule: .dropdown-menu span { width: 30px; } */
-    #lotteriesContainer span {
-      width: auto;
-    }
-
-    #lotteriesContainer .lottery-item-main {
-      width: 100%;
-    }
-
-    #lotteriesContainer .lottery-option,
-    #lotteriesContainer .lottery-option-label,
-    #lotteriesContainer .lottery-item-main {
-      width: 100% !important;
+    .btn-filter:hover {
+      background: var(--ventas-primary-light);
+      color: var(--ventas-primary);
+      border-color: #c7d2fe;
     }
 
     .lottery-empty-state {
-      font-size: 0.78rem;
-      color: #64748b;
-      border: 1px dashed #dbe2ea;
+      font-size: .78rem;
+      color: var(--ventas-muted);
+      border: 1px dashed var(--ventas-border);
       border-radius: 10px;
-      padding: 0.5rem 0.6rem;
-      margin: 0.2rem 0.1rem 0.35rem;
+      padding: .55rem .6rem;
+      margin: .2rem .1rem .35rem;
       text-align: center;
       background: #f8fafc;
     }
 
+    /* Override global theme rule */
+    #lotteriesContainer span { width: auto; }
+    #lotteriesContainer .lottery-item-main { width: 100%; }
+    #lotteriesContainer .lottery-option,
+    #lotteriesContainer .lottery-option-label,
+    #lotteriesContainer .lottery-item-main { width: 100% !important; }
+
     .lottery-option {
-      margin: 0 0 0.35rem 0;
+      margin: 0 0 .3rem 0;
       display: grid !important;
       grid-template-columns: 1.1rem minmax(0, 1fr);
       align-items: center;
-      gap: 0.58rem;
-      padding: 0.56rem 0.6rem;
-      border-radius: 12px;
-      border: 1px solid #e2e8f0;
+      gap: .6rem;
+      padding: .6rem .65rem;
+      border-radius: 10px;
+      border: 1.5px solid var(--ventas-border);
       background: #fff;
       white-space: normal;
-      transition: border-color 0.15s ease, background-color 0.15s ease;
+      transition: border-color .15s, background .15s;
     }
 
-    .lottery-option:last-child {
-      margin-bottom: 0;
-    }
+    .lottery-option:last-child { margin-bottom: 0; }
 
     .lottery-option:hover {
-      background: #f8fafc;
-      border-color: #cbd5e1;
+      background: var(--ventas-primary-light);
+      border-color: #c7d2fe;
     }
 
     .lottery-option-input {
       width: 1.05rem;
       height: 1.05rem;
-      margin: 0.12rem 0 0;
-      accent-color: #0ea5e9;
+      margin: .1rem 0 0;
+      accent-color: var(--ventas-primary);
       cursor: pointer;
     }
+
+    .lottery-option-input:disabled { cursor: not-allowed; opacity: .65; }
+    .lottery-option-input:disabled + .lottery-option-label { cursor: not-allowed; opacity: .6; }
 
     .lottery-option-label {
       width: 100%;
@@ -469,85 +553,73 @@
       display: grid;
       grid-template-columns: minmax(0, 1fr) auto;
       align-items: center;
-      gap: 0.5rem;
+      gap: .5rem;
       line-height: 1.2;
       cursor: pointer;
       min-width: 0;
     }
 
     .lottery-item-main {
-      width: 100%;
-      max-width: 100%;
-      min-width: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 0.2rem;
-      flex: 1 1 auto;
-      justify-self: stretch;
+      width: 100%; max-width: 100%; min-width: 0;
+      display: flex; flex-direction: column; gap: .18rem;
+      flex: 1 1 auto; justify-self: stretch;
     }
 
     .lottery-item-name {
-      color: #0f172a;
+      color: var(--ventas-text);
       font-weight: 700;
-      font-size: 0.95rem;
+      font-size: .93rem;
       line-height: 1.15;
       word-break: normal;
       overflow-wrap: break-word;
     }
 
     .lottery-item-meta {
-      color: #64748b;
-      font-size: 0.78rem;
+      color: var(--ventas-muted);
+      font-size: .77rem;
       display: inline-flex;
       align-items: center;
-      gap: 0.25rem;
+      gap: .22rem;
     }
 
-    .lottery-item-state {
+    /* State badges */
+    .badge-state {
       display: inline-flex;
       align-items: center;
       justify-content: center;
       min-height: 22px;
       border-radius: 999px;
-      font-size: 0.69rem;
+      font-size: .68rem;
       font-weight: 700;
-      padding: 0.16rem 0.52rem;
+      padding: .16rem .52rem;
       white-space: nowrap;
     }
 
-    .lottery-option-input:checked + .lottery-option-label {
-      background: #eff6ff;
-      border-radius: 10px;
-      padding: 0.22rem 0.3rem 0.22rem 0.22rem;
-      margin: -0.22rem -0.3rem -0.22rem -0.22rem;
+    .badge-state.open {
+      background: var(--ventas-success-light);
+      color: #065f46;
+      border: 1px solid #6ee7b7;
     }
 
-    .lottery-option-input:disabled {
-      cursor: not-allowed;
-      opacity: 0.65;
-    }
-
-    .lottery-option-input:disabled + .lottery-option-label {
-      cursor: not-allowed;
-      opacity: 0.6;
-    }
-
-    .dropdown-toggle::after {
-      vertical-align: middle;
-    }
-
-    .selected-lotteries-wrap h6 {
+    .badge-state.closed {
+      background: #f3f4f6;
       color: var(--ventas-muted);
-      font-size: 0.82rem;
-      text-transform: uppercase;
-      letter-spacing: 0.03em;
-      margin-bottom: 0.45rem;
+      border: 1px solid var(--ventas-border);
     }
 
+    .lottery-option-input:checked + .lottery-option-label {
+      border-radius: 8px;
+      padding: .18rem .28rem .18rem .18rem;
+      margin: -.18rem -.28rem -.18rem -.18rem;
+    }
+
+    .dropdown-toggle::after { display: none; }
+
+    /* ── Selected lotteries ──────────────────────────── */
     .selected-lotteries-wrap {
       display: flex;
       flex-wrap: wrap;
-      gap: 0.35rem;
+      gap: .35rem;
       align-items: center;
     }
 
@@ -556,56 +628,177 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 0.1rem;
+      margin-bottom: .1rem;
+    }
+
+    .selected-lotteries-wrap h6 {
+      color: var(--ventas-muted);
+      font-size: .78rem;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      margin-bottom: .45rem;
     }
 
     .badge-lottery {
-      background: #dcfce7;
-      color: #14532d;
+      background: var(--ventas-success-light);
+      color: #065f46;
       border-radius: 999px;
-      padding: 0.26rem 0.6rem;
-      font-size: 0.8rem;
+      padding: .28rem .65rem;
+      font-size: .8rem;
+      font-weight: 600;
       display: inline-flex;
       align-items: center;
-      gap: 0.35rem;
-      border: 1px solid #bbf7d0;
-      margin-bottom: 0.35rem;
+      gap: .35rem;
+      border: 1px solid #6ee7b7;
     }
-    
+
     .badge-lottery .remove-lottery-icon {
       cursor: pointer;
       color: #b91c1c;
+      font-size: .75rem;
+      transition: color .15s;
+    }
+
+    .badge-lottery .remove-lottery-icon:hover { color: var(--ventas-danger); }
+
+    /* ── Tabla ───────────────────────────────────────── */
+    .table-responsive {
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--ventas-border);
+    }
+
+    .ventas-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+      margin: 0;
+    }
+
+    .ventas-table thead tr {
+      background: linear-gradient(135deg, var(--ventas-primary) 0%, var(--ventas-primary-dark) 100%);
     }
 
     .ventas-table thead th {
-      font-size: 0.82rem;
+      color: #fff;
+      font-size: .73rem;
+      font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: 0.03em;
+      letter-spacing: .05em;
+      padding: .75rem .85rem;
+      border: none;
+      white-space: nowrap;
     }
 
-    .ventas-table td {
+    .ventas-table tbody tr {
+      border-bottom: 1px solid var(--ventas-border);
+      transition: background .1s;
+    }
+
+    .ventas-table tbody tr:last-child { border-bottom: none; }
+    .ventas-table tbody tr:hover { background: #fafafa; }
+
+    .ventas-table tbody td {
+      padding: .45rem .55rem;
+      border: none;
       vertical-align: middle;
     }
 
-    .ventas-table input.form-control {
-      min-height: 38px;
-      border-radius: 8px;
-      border-color: #dbe2ea;
+    .ventas-table tbody td.cell-remove {
+      width: 44px;
+      min-width: 44px;
+      max-width: 44px;
+      text-align: center;
+      padding-left: .25rem;
+      padding-right: .25rem;
     }
 
-    .btn-add-row,
-    .btn-save {
-      border-radius: 10px;
-      font-weight: 600;
-      padding: 0.55rem 0.95rem;
+    /* ── Inputs de la tabla ──────────────────────────── */
+    .ventas-input {
+      border: 1.5px solid var(--ventas-border) !important;
+      border-radius: 9px !important;
+      font-size: .92rem;
+      min-height: 42px;
+      padding: .45rem .6rem;
+      background: #fafafa;
+      font-weight: 500;
+      color: var(--ventas-text);
+      transition: border-color .2s, background .2s;
     }
+
+    .ventas-input:focus {
+      border-color: var(--ventas-primary) !important;
+      background: #fff !important;
+      box-shadow: 0 0 0 3px rgba(79,70,229,.12) !important;
+      outline: none;
+    }
+
+    /* ── Botones de acción ───────────────────────────── */
+    .btn-add-row {
+      display: inline-flex;
+      align-items: center;
+      gap: .4rem;
+      border: 1.5px solid #6ee7b7;
+      background: var(--ventas-success-light);
+      color: #065f46;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: .88rem;
+      padding: .55rem 1rem;
+      min-height: 42px;
+      transition: background .15s, border-color .15s;
+    }
+
+    .btn-add-row:hover {
+      background: #d1fae5;
+      border-color: var(--ventas-success);
+      color: #065f46;
+    }
+
+    .btn-save {
+      display: inline-flex;
+      align-items: center;
+      gap: .4rem;
+      background: var(--ventas-primary);
+      border: none;
+      color: #fff;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: .88rem;
+      padding: .55rem 1.2rem;
+      min-height: 42px;
+      transition: background .15s;
+    }
+
+    .btn-save:hover {
+      background: var(--ventas-primary-dark);
+      color: #fff;
+    }
+
+    .btn-save:active { transform: scale(.97); }
 
     .remove-row-btn {
-      min-width: 34px;
-      min-height: 34px;
-      border-radius: 9px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: var(--ventas-danger-light);
+      border: 1.5px solid #fca5a5;
+      color: var(--ventas-danger);
+      font-size: .8rem;
+      padding: 0;
+      transition: background .15s;
     }
 
+    .remove-row-btn:hover {
+      background: #fecaca;
+      border-color: var(--ventas-danger);
+      color: var(--ventas-danger);
+    }
+
+    /* ── Total desktop ───────────────────────────────── */
     .total-inline {
       color: var(--ventas-text);
       font-weight: 700;
@@ -615,57 +808,62 @@
 
     #total-monto {
       border-radius: 9px;
-      border-color: #cbd5e1;
+      border: 1.5px solid var(--ventas-border);
       font-weight: 700;
-      color: #0f172a;
-      font-size: 0.96rem;
+      color: var(--ventas-text);
+      font-size: .96rem;
+      background: #f8fafc;
+    }
+
+    /* ── Mobile inline action row ────────────────────── */
+    .mobile-inline-action-row {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      margin-top: .7rem;
     }
 
     .mobile-subtotal-inline {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      border: 1px solid #dbeafe;
-      background: #f8fbff;
+      flex: 1 1 auto;
+      min-width: 0;
+      border: 1.5px solid #c7d2fe;
+      background: var(--ventas-primary-light);
       border-radius: 10px;
-      padding: 0.45rem 0.62rem;
-      margin-top: 0.65rem;
-    }
-
-    .mobile-inline-action-row {
-      display: flex;
-      align-items: center;
-      gap: 0.45rem;
-      margin-top: 0.65rem;
+      padding: .45rem .65rem;
     }
 
     .mobile-subtotal-label {
-      color: #64748b;
-      font-size: 0.74rem;
-      letter-spacing: 0.03em;
+      color: var(--ventas-primary);
+      font-size: .72rem;
+      font-weight: 600;
+      letter-spacing: .04em;
       text-transform: uppercase;
     }
 
     .mobile-subtotal-value {
-      color: #0f172a;
-      font-size: 0.95rem;
-      font-weight: 700;
-    }
-
-    .mobile-summary-inline {
-      margin-top: 0.3rem;
-      margin-bottom: 0.45rem;
+      color: var(--ventas-text);
+      font-size: .95rem;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
     }
 
     .mobile-inline-save-btn {
       flex: 0 0 auto;
-      border-radius: 10px;
-      font-weight: 700;
-      padding: 0.55rem 0.8rem;
-      margin-bottom: 0;
+      padding: .55rem .9rem;
       white-space: nowrap;
     }
 
+    .mobile-summary-inline {
+      margin-top: .3rem;
+      margin-bottom: .45rem;
+      font-size: .7rem;
+      color: var(--ventas-muted);
+    }
+
+    /* ── Mobile sticky bottom bar ────────────────────── */
     #mobileSaveBar.mobile-submit-bar {
       position: sticky;
       bottom: 10px;
@@ -673,60 +871,61 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 0.55rem;
-      padding: 0.55rem 0.65rem;
-      border: 1px solid #dbeafe;
-      background: rgba(255, 255, 255, 0.96);
-      border-radius: 12px;
-      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.14);
-      backdrop-filter: blur(5px);
-      margin-top: 0.75rem;
+      gap: .55rem;
+      padding: .65rem .85rem;
+      border: 1.5px solid #c7d2fe;
+      background: rgba(255,255,255,.97);
+      border-radius: 14px;
+      box-shadow: 0 12px 28px rgba(79,70,229,.15);
+      backdrop-filter: blur(8px);
+      margin-top: .75rem;
     }
 
     .mobile-total-block {
       display: flex;
       flex-direction: column;
-      line-height: 1.1;
+      line-height: 1.15;
     }
 
     .mobile-total-label {
-      font-size: 0.74rem;
-      color: var(--ventas-muted);
+      font-size: .68rem;
+      color: var(--ventas-primary);
+      font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: 0.03em;
+      letter-spacing: .04em;
     }
 
     .mobile-total-value {
-      font-size: 0.95rem;
-      font-weight: 700;
-      color: #0f172a;
+      font-size: 1rem;
+      font-weight: 800;
+      color: var(--ventas-text);
+      font-variant-numeric: tabular-nums;
     }
 
     .mobile-summary-counts {
-      font-size: 0.68rem;
-      color: #64748b;
+      font-size: .68rem;
+      color: var(--ventas-muted);
       line-height: 1.2;
-      margin-top: 0.14rem;
+      margin-top: .12rem;
     }
 
     .mobile-save-btn {
-      border-radius: 10px;
-      font-weight: 700;
-      padding: 0.5rem 0.82rem;
+      padding: .55rem 1rem;
       white-space: nowrap;
     }
 
+    /* ── Processing overlay ──────────────────────────── */
     .processing-overlay {
       display: none;
       position: fixed;
       inset: 0;
-      background: rgba(255, 255, 255, 0.92);
+      background: rgba(255,255,255,.93);
       z-index: 2000;
       justify-content: center;
       align-items: center;
       flex-direction: column;
       gap: 1rem;
-      backdrop-filter: blur(3px);
+      backdrop-filter: blur(4px);
     }
 
     .overlay-loader {
@@ -734,17 +933,14 @@
       flex-direction: column;
       align-items: center;
       z-index: 2001;
-      gap: 0.45rem;
+      gap: .5rem;
     }
 
-    .overlay-loader-img {
-      width: 80px;
-      height: 80px;
-    }
+    .overlay-loader-img { width: 80px; height: 80px; }
 
     .overlay-loader-text {
-      font-size: 1.02rem;
-      color: #0f172a;
+      font-size: 1rem;
+      color: var(--ventas-text);
       font-weight: 600;
     }
 
@@ -752,20 +948,19 @@
       display: none;
       flex-direction: column;
       align-items: center;
-      color: #28a745;
+      color: var(--ventas-success);
       z-index: 2001;
-      gap: 0.25rem;
+      gap: .35rem;
     }
 
-    .overlay-success-icon {
-      font-size: 3rem;
-    }
+    .overlay-success-icon { font-size: 3.2rem; }
 
     .overlay-success-text {
       font-size: 1.1rem;
       font-weight: 700;
     }
 
+    /* ── WhatsApp button ─────────────────────────────── */
     .btn-whatsapp-central {
       position: fixed;
       bottom: 80px;
@@ -775,24 +970,284 @@
       color: white;
       font-weight: 700;
       border-radius: 999px;
-      padding: 12px 20px;
-      font-size: 16px;
+      padding: 12px 22px;
+      font-size: 1rem;
       z-index: 3000;
-      box-shadow: 0 8px 18px rgba(0, 0, 0, 0.25);
+      box-shadow: 0 8px 20px rgba(37,211,102,.35);
       text-align: center;
       text-decoration: none;
-      transition: transform 0.2s ease-in-out;
+      transition: transform .2s;
     }
 
     .btn-whatsapp-central:hover {
       transform: translateX(-50%) scale(1.04);
+      color: #fff;
     }
 
-    @media (min-width: 768px) {
-      .ventas-card {
-        padding: 1rem 1.1rem;
-      }
+    /* ── Modal ───────────────────────────────────────── */
+    .modal-ventas {
+      border: none;
+      border-radius: 18px;
+      overflow: hidden;
+      box-shadow: 0 20px 50px rgba(15,23,42,.18);
+    }
 
+    .modal-ventas-header {
+      background: linear-gradient(135deg, var(--ventas-primary) 0%, var(--ventas-primary-dark) 100%);
+      border: none;
+      padding: 1rem 1.25rem;
+    }
+
+    .modal-ventas-header .modal-title {
+      color: #fff;
+      font-size: .98rem;
+      font-weight: 700;
+    }
+
+    .modal-header-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      background: rgba(255,255,255,.2);
+      font-size: 1rem;
+    }
+
+    .modal-ventas-body {
+      padding: 1.1rem 1.25rem;
+    }
+
+    .modal-hint {
+      font-size: .82rem;
+      color: var(--ventas-muted);
+      background: #f8fafc;
+      border: 1px solid var(--ventas-border);
+      border-radius: 9px;
+      padding: .5rem .75rem;
+      margin-bottom: 1rem;
+    }
+
+    .modal-info-grid {
+      display: grid;
+      gap: .5rem;
+    }
+
+    .modal-info-item {
+      display: flex;
+      flex-direction: column;
+      gap: .1rem;
+      padding: .55rem .75rem;
+      background: #f8fafc;
+      border: 1px solid var(--ventas-border);
+      border-radius: 10px;
+    }
+
+    .modal-info-label {
+      font-size: .68rem;
+      font-weight: 600;
+      color: var(--ventas-muted);
+      text-transform: uppercase;
+      letter-spacing: .05em;
+    }
+
+    .modal-info-value {
+      font-size: .9rem;
+      font-weight: 700;
+      color: var(--ventas-text);
+    }
+
+    .modal-detail-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .88rem;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid var(--ventas-border);
+    }
+
+    .modal-detail-table thead tr {
+      background: linear-gradient(135deg, var(--ventas-primary) 0%, var(--ventas-primary-dark) 100%);
+    }
+
+    .modal-detail-table thead th {
+      color: #fff;
+      font-size: .72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      padding: .6rem .85rem;
+      border: none;
+    }
+
+    .modal-detail-table tbody tr {
+      border-bottom: 1px solid var(--ventas-border);
+    }
+
+    .modal-detail-table tbody tr:last-child { border-bottom: none; }
+    .modal-detail-table tbody tr:hover { background: #f9fafb; }
+
+    .modal-detail-table tbody td {
+      padding: .55rem .85rem;
+      border: none;
+      color: #374151;
+      font-size: .88rem;
+    }
+
+    .modal-total-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 1rem;
+      padding: .65rem .85rem;
+      background: var(--ventas-success-light);
+      border: 1px solid #6ee7b7;
+      border-radius: 10px;
+    }
+
+    .modal-total-label {
+      font-size: .78rem;
+      font-weight: 600;
+      color: var(--ventas-muted);
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+
+    .modal-total-value {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: #065f46;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .modal-ventas-footer {
+      border: none;
+      padding: .75rem 1.25rem;
+      background: #f8fafc;
+      gap: .5rem;
+    }
+
+    .btn-modal-cancel {
+      display: inline-flex;
+      align-items: center;
+      gap: .3rem;
+      padding: .52rem 1.1rem;
+      border-radius: 10px;
+      font-size: .88rem;
+      font-weight: 600;
+      background: #fff;
+      border: 1.5px solid var(--ventas-border);
+      color: var(--ventas-muted);
+      transition: background .15s;
+    }
+
+    .btn-modal-cancel:hover {
+      background: var(--ventas-danger-light);
+      border-color: #fca5a5;
+      color: var(--ventas-danger);
+    }
+
+    .btn-modal-confirm {
+      display: inline-flex;
+      align-items: center;
+      gap: .3rem;
+      padding: .52rem 1.4rem;
+      border-radius: 10px;
+      font-size: .88rem;
+      font-weight: 700;
+      background: var(--ventas-primary);
+      border: none;
+      color: #fff;
+      transition: background .15s;
+    }
+
+    .btn-modal-confirm:hover {
+      background: var(--ventas-primary-dark);
+      color: #fff;
+    }
+
+    /* ── Checkbox combinado ─────────────────────────── */
+    .cell-combi {
+      text-align: center;
+      vertical-align: middle;
+    }
+
+    .combi-check-wrap {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      margin: 0;
+      padding: .3rem;
+    }
+
+    .combi-check { display: none; }
+
+    .combi-check-ui {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      border: 2px solid var(--ventas-border);
+      background: #f8fafc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background .15s, border-color .15s;
+      flex-shrink: 0;
+    }
+
+    .combi-check-ui::after {
+      content: '';
+      display: block;
+      width: 7px;
+      height: 12px;
+      border: 2.5px solid transparent;
+      border-top: none;
+      border-left: none;
+      transform: rotate(45deg) translateY(-1px);
+      transition: border-color .15s;
+    }
+
+    .combi-check:checked + .combi-check-ui {
+      background: var(--ventas-primary);
+      border-color: var(--ventas-primary);
+    }
+
+    .combi-check:checked + .combi-check-ui::after {
+      border-color: #fff;
+    }
+
+    .combi-check-wrap:hover .combi-check-ui {
+      border-color: var(--ventas-primary);
+      background: var(--ventas-primary-light);
+    }
+
+    /* Badges modal */
+    .badge-combi-si {
+      display: inline-block;
+      background: var(--ventas-primary-light);
+      color: var(--ventas-primary);
+      border: 1px solid #c7d2fe;
+      border-radius: 999px;
+      font-size: .72rem;
+      font-weight: 700;
+      padding: .15rem .55rem;
+    }
+
+    .badge-combi-no {
+      display: inline-block;
+      background: #f3f4f6;
+      color: var(--ventas-muted);
+      border: 1px solid var(--ventas-border);
+      border-radius: 999px;
+      font-size: .72rem;
+      font-weight: 600;
+      padding: .15rem .55rem;
+    }
+
+    /* ── Responsive ──────────────────────────────────── */
+    @media (min-width: 768px) {
       .mobile-subtotal-inline,
       .mobile-inline-action-row,
       .mobile-inline-save-btn,
@@ -816,39 +1271,15 @@
     }
 
     @media (max-width: 575.98px) {
-      .ventas-title {
-        font-size: 1.2rem;
-      }
-
-      .ventas-subtitle {
-        font-size: 0.84rem;
-      }
+      .page-title { font-size: 1.18rem; }
+      .page-subtitle { font-size: .82rem; }
 
       .ventas-card {
-        padding: 0.7rem;
+        padding: .75rem;
         border-radius: 12px;
-      }
-
-      .mobile-inline-action-row {
-        gap: 0.4rem;
-      }
-
-      .mobile-subtotal-inline {
-        flex: 1 1 auto;
-        min-width: 0;
-        margin-top: 0;
-        padding: 0.42rem 0.55rem;
-      }
-
-      .mobile-inline-save-btn {
-        flex: 0 0 auto;
-        padding: 0.52rem 0.72rem;
       }
 
       .table-responsive {
-        border: 1px solid #dbe2ea;
-        border-radius: 12px;
-        background: #ffffff;
         overflow-x: visible;
       }
 
@@ -856,106 +1287,65 @@
         table-layout: fixed;
         width: 100%;
         min-width: 100%;
-        margin-bottom: 0;
-      }
-
-      .ventas-table thead {
-        display: table-header-group;
       }
 
       .ventas-table thead th {
-        font-size: 0.66rem;
-        letter-spacing: 0.02em;
-        padding: 0.36rem 0.28rem;
-        white-space: nowrap;
+        font-size: .63rem;
+        padding: .55rem .35rem;
       }
 
       .ventas-table thead th:last-child {
-        width: 42px;
-        min-width: 42px;
-        max-width: 42px;
-      }
-
-      .ventas-actions {
-        margin-bottom: 0.2rem;
-        flex-direction: column;
-        align-items: stretch;
-        gap: 0.45rem;
-      }
-
-      .ventas-actions > .d-flex {
-        width: 100%;
-      }
-
-      .btn-add-row,
-      .btn-save {
-        flex: 1 1 0;
+        width: 44px;
+        min-width: 44px;
+        max-width: 44px;
       }
 
       .ventas-table tbody td {
-        padding: 0.28rem;
-        vertical-align: middle;
-      }
-
-      .ventas-table tbody td::before {
-        content: none;
+        padding: .35rem .3rem;
       }
 
       .ventas-table tbody td.cell-remove {
-        width: 42px;
-        min-width: 42px;
-        max-width: 42px;
-        text-align: center;
-        padding-left: 0.14rem;
-        padding-right: 0.14rem;
+        width: 44px;
+        min-width: 44px;
+        max-width: 44px;
+        padding-left: .15rem;
+        padding-right: .15rem;
       }
 
-      .ventas-table input.form-control {
-        min-height: 34px;
-        font-size: 0.9rem;
-        padding: 0.32rem 0.42rem;
+      .ventas-input {
+        min-height: 40px;
+        font-size: .88rem;
+        padding: .38rem .45rem;
       }
 
-      .remove-row-btn {
-        min-width: 32px;
-        min-height: 32px;
-        padding: 0.2rem 0.28rem;
+      .ventas-actions {
+        flex-direction: column;
+        align-items: stretch;
+        gap: .4rem;
       }
 
-      .lottery-option-input {
-        width: 1rem;
-        height: 1rem;
-        margin-top: 0.14rem;
+      .ventas-actions > .d-flex { width: 100%; }
+
+      .btn-add-row,
+      .btn-save { flex: 1 1 0; justify-content: center; }
+
+      .mobile-inline-action-row { gap: .4rem; }
+
+      .lottery-option { padding: .55rem .6rem; }
+
+      .lottery-item-name { font-size: .9rem; }
+      .lottery-item-meta { font-size: .74rem; }
+
+      .badge-state {
+        font-size: .64rem;
+        padding: .14rem .42rem;
       }
 
-      .lottery-option-label {
-        gap: 0.44rem;
-      }
-
-      .lottery-item-name {
-        font-size: 0.92rem;
-      }
-
-      .lottery-item-meta {
-        font-size: 0.74rem;
-      }
-
-      .lottery-item-state {
-        font-size: 0.66rem;
-        padding: 0.16rem 0.42rem;
-      }
-
-      .lottery-filter-group {
-        gap: 0.18rem;
-      }
-
-      .btn-filter {
-        font-size: 0.68rem;
-        padding: 0.17rem 0.46rem;
-      }
+      .lottery-filter-group { gap: .18rem; }
+      .btn-filter { font-size: .68rem; padding: .18rem .48rem; }
     }
   </style>
-  
+
   <script>
     (function() {
       'use strict';
@@ -1039,9 +1429,10 @@
         mensaje += `*Apuesta:*\n`;
 
         jugadas.forEach(j => {
-          const valor = j.numero || j.combi || 'N/A';
+          const valor = j.numero || 'N/A';
+          const combiStr = j.es_combinado ? ' (C)' : '';
           const monto = `${j.monto.toLocaleString('es-CO')}`;
-          mensaje += `- ${valor} - ${monto}\n`;
+          mensaje += `- ${valor}${combiStr} - ${monto}\n`;
         });
 
         mensaje += `\n*Total:* ${total.toLocaleString('es-CO')}`;
@@ -1093,9 +1484,8 @@
         let count = 0;
         getRows().forEach(row => {
           const numero = row.querySelector('input[name="numero"]').value.trim();
-          const combi = row.querySelector('input[name="combi"]').value.trim();
           const monto = row.querySelector('input[name="monto"]').value.trim();
-          if (numero || combi || monto) count += 1;
+          if (numero || monto) count += 1;
         });
         return count;
       }
@@ -1146,7 +1536,8 @@
         const container = document.getElementById('selected-lotteries');
         if (!container || !lotteryDropdownButton) return;
 
-        lotteryDropdownButton.textContent = `Seleccionar Loterias (${selected.length})`;
+        const badge = lotteryDropdownButton.querySelector('.lottery-count-badge');
+        if (badge) badge.textContent = selected.length;
 
         if (!selected.length) {
           container.innerHTML = '';
@@ -1156,7 +1547,7 @@
 
         container.innerHTML = `
           <div class="selected-lotteries-head">
-            <h6 class="mb-2">Loterias seleccionadas</h6>
+            <h6 class="mb-2">Loterías seleccionadas</h6>
             <button type="button" class="btn btn-sm btn-link text-danger p-0" id="clearSelectedLotteries">Limpiar</button>
           </div>
         `;
@@ -1199,19 +1590,33 @@
         row.querySelectorAll('input').forEach(input => {
           input.addEventListener('input', updateTotal);
         });
+        // Sincronizar checkbox con el hidden input
+        const check = row.querySelector('.combi-check');
+        const hidden = row.querySelector('.es-combinado-hidden');
+        if (check && hidden) {
+          check.addEventListener('change', () => {
+            hidden.value = check.checked ? '1' : '0';
+          });
+        }
       }
 
       function buildRowHtml(values) {
         const numero = values?.numero || '';
-        const combi = values?.combi || '';
+        const esCombi = values?.es_combinado ? '1' : '0';
         const monto = values?.monto || '';
         return `
-          <td data-label="Numero"><input type="number" name="numero" class="form-control" value="${numero}" inputmode="numeric" min="0" step="1"></td>
-          <td data-label="Combi"><input type="number" name="combi" class="form-control combi" value="${combi}" inputmode="numeric" min="0" step="1"></td>
-          <td data-label="Monto"><input type="number" name="monto" class="form-control monto" value="${monto}" inputmode="decimal" min="0" step="any"></td>
+          <td data-label="Numero"><input type="number" name="numero" class="form-control ventas-input" value="${numero}" inputmode="numeric" min="0" step="1"></td>
+          <td data-label="Combi" class="cell-combi">
+            <input type="hidden" name="es_combinado" value="${esCombi}" class="es-combinado-hidden">
+            <label class="combi-check-wrap">
+              <input type="checkbox" class="combi-check"${esCombi === '1' ? ' checked' : ''}>
+              <span class="combi-check-ui"></span>
+            </label>
+          </td>
+          <td data-label="Monto"><input type="number" name="monto" class="form-control ventas-input monto" value="${monto}" inputmode="decimal" min="0" step="any"></td>
           <td class="cell-remove" data-label="Accion">
-            <button type="button" class="btn btn-danger btn-sm remove-row remove-row-btn" title="Eliminar fila">
-              <i class="bi bi-trash"></i>
+            <button type="button" class="btn remove-row remove-row-btn" title="Eliminar fila">
+              <i class="bi bi-x-lg"></i>
             </button>
           </td>
         `;
@@ -1282,15 +1687,14 @@
 
         getRows().forEach(row => {
           const numero = row.querySelector('input[name="numero"]').value.trim();
-          const combi = row.querySelector('input[name="combi"]').value.trim();
           const monto = row.querySelector('input[name="monto"]').value.trim();
 
-          if (!numero && !combi && !monto) {
+          if (!numero && !monto) {
             row.remove();
             return;
           }
 
-          if (!monto || (!numero && !combi)) {
+          if (!monto || !numero) {
             incompleteFound = true;
           } else {
             validRowExists = true;
@@ -1320,7 +1724,10 @@
         saleDetailsList.innerHTML = '';
         getRows().forEach(row => {
           const numero = row.querySelector('input[name="numero"]').value.trim() || 'N/A';
-          const combi = row.querySelector('input[name="combi"]').value.trim() || 'N/A';
+          const esCombi = row.querySelector('.combi-check')?.checked;
+          const combiLabel = esCombi
+            ? '<span class="badge-combi-si">Sí</span>'
+            : '<span class="badge-combi-no">No</span>';
           const monto = parseFloat(row.querySelector('input[name="monto"]').value) || 0;
           const formattedMonto = monto.toLocaleString('es-CO', {
             style: 'currency',
@@ -1328,7 +1735,7 @@
             minimumFractionDigits: 0
           });
           const tr = document.createElement('tr');
-          tr.innerHTML = `<td>${numero}</td><td>${formattedMonto}</td><td>${combi}</td>`;
+          tr.innerHTML = `<td>${numero}</td><td>${formattedMonto}</td><td style="text-align:center;">${combiLabel}</td>`;
           saleDetailsList.appendChild(tr);
         });
 
@@ -1429,5 +1836,5 @@
       });
     })();
   </script>
-  
+
 {% endblock %}
