@@ -16,6 +16,7 @@ from .models import (
     Premio,
     VentaAuditLog,
     ConfiguracionVenta,
+    Notificacion,
     _safe_create_venta_audit_log,
 )
 from django.db import transaction, IntegrityError
@@ -33,6 +34,7 @@ from django.utils.decorators import method_decorator
 from django_ratelimit.decorators import ratelimit
 from datetime import date, timedelta, datetime
 import csv
+import io
 from django.db.models.functions import TruncDate
 from django.db.models.functions import Coalesce, Trim
 import os
@@ -250,32 +252,67 @@ def _resolver_datos_premio_combinado(numero_apostado, numero_ganador):
 # Vista Home
 @login_required
 def home(request):
-    # Obtener la fecha actual y la hora local ajustada    
     ahora = localtime()
-    dia_actual = ahora.date()
+    hoy = ahora.date()
+    hace_30 = hoy - timedelta(days=29)
 
-    # Calcular el total de ventas y el promedio diario de ventas
-    total_ventas = Venta.objects.filter(fecha_venta__date=dia_actual).aggregate(Sum('monto'))['monto__sum'] or 0
-    ventas_del_dia = Venta.objects.filter(fecha_venta__date=dia_actual)
+    # ── Totales del día ────────────────────────────────────────────────
+    ventas_hoy_qs = Venta.objects.filter(fecha_venta__date=hoy)
+    if not request.user.is_staff:
+        ventas_hoy_qs = ventas_hoy_qs.filter(vendedor=request.user)
+    total_ventas_hoy = ventas_hoy_qs.aggregate(t=Coalesce(Sum('monto'), 0, output_field=IntegerField()))['t']
 
-    # Calcular el promedio diario de ventas
-    if ventas_del_dia.exists():
-        promedio_diario = total_ventas / ventas_del_dia.count()
+    # ── Tendencia 30 días (solo admin ve todos los vendedores) ─────────
+    if request.user.is_staff:
+        tendencia_qs = (
+            Venta.objects
+            .filter(fecha_venta__date__range=(hace_30, hoy))
+            .annotate(dia=TruncDate('fecha_venta'))
+            .values('dia')
+            .annotate(total=Coalesce(Sum('monto'), 0, output_field=IntegerField()))
+            .order_by('dia')
+        )
     else:
-        promedio_diario = 0
+        tendencia_qs = (
+            Venta.objects
+            .filter(fecha_venta__date__range=(hace_30, hoy), vendedor=request.user)
+            .annotate(dia=TruncDate('fecha_venta'))
+            .values('dia')
+            .annotate(total=Coalesce(Sum('monto'), 0, output_field=IntegerField()))
+            .order_by('dia')
+        )
+    tendencia_labels = [str(r['dia']) for r in tendencia_qs]
+    tendencia_data   = [int(r['total']) for r in tendencia_qs]
 
-    # Filtrar las ventas por vendedor
-    ventas_por_vendedor = Venta.objects.values('vendedor').annotate(total_ventas=Sum('monto')).order_by('-total_ventas')
+    # ── Top 5 números más apostados hoy ───────────────────────────────
+    top5_qs = (
+        ventas_hoy_qs
+        .values('numero')
+        .annotate(total=Coalesce(Sum('monto'), 0, output_field=IntegerField()))
+        .order_by('-total')[:5]
+    )
+    top5_numeros = list(top5_qs)
 
-    # Filtrar las ventas por tendencia (última semana, por ejemplo)
-    fecha_inicio = ahora - timedelta(days=7)
-    ventas_tendencia = Venta.objects.filter(fecha_venta__gte=fecha_inicio).values('fecha_venta').annotate(total_ventas=Sum('monto')).order_by('fecha_venta')
+    # ── Semana actual vs semana anterior (admin) ───────────────────────
+    lunes_actual  = hoy - timedelta(days=hoy.weekday())
+    lunes_anterior = lunes_actual - timedelta(days=7)
+    if request.user.is_staff:
+        venta_semana_actual   = Venta.objects.filter(fecha_venta__date__gte=lunes_actual, fecha_venta__date__lte=hoy).aggregate(t=Coalesce(Sum('monto'), 0, output_field=IntegerField()))['t']
+        venta_semana_anterior = Venta.objects.filter(fecha_venta__date__gte=lunes_anterior, fecha_venta__date__lt=lunes_actual).aggregate(t=Coalesce(Sum('monto'), 0, output_field=IntegerField()))['t']
+    else:
+        venta_semana_actual   = Venta.objects.filter(vendedor=request.user, fecha_venta__date__gte=lunes_actual, fecha_venta__date__lte=hoy).aggregate(t=Coalesce(Sum('monto'), 0, output_field=IntegerField()))['t']
+        venta_semana_anterior = Venta.objects.filter(vendedor=request.user, fecha_venta__date__gte=lunes_anterior, fecha_venta__date__lt=lunes_actual).aggregate(t=Coalesce(Sum('monto'), 0, output_field=IntegerField()))['t']
+
+    delta_semana = venta_semana_actual - venta_semana_anterior
 
     return render(request, 'core/home.html', {
-        'total_ventas': total_ventas,
-        'promedio_diario': promedio_diario,
-        'ventas_por_vendedor': ventas_por_vendedor,
-        'ventas_tendencia': ventas_tendencia,
+        'total_ventas': total_ventas_hoy,
+        'tendencia_labels': tendencia_labels,
+        'tendencia_data': tendencia_data,
+        'top5_numeros': top5_numeros,
+        'venta_semana_actual': venta_semana_actual,
+        'venta_semana_anterior': venta_semana_anterior,
+        'delta_semana': delta_semana,
         'es_descargue': _es_descargue(request.user),
         'es_admin': request.user.is_staff,
     })
@@ -1244,6 +1281,29 @@ def premios_reporte_rango(request):
         writer.writerow(['TOTALES', '', totales['cantidad_premios'], '', totales['loterias'], totales['total_apostado'], totales['total_premios']])
         return response
 
+    # --- Exportar Excel ---
+    if request.GET.get('export') == 'excel':
+        from openpyxl import Workbook
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Premios"
+        fill, hfont, halign = _excel_header_style()
+        headers = ['Vendedor', 'Usuario', 'Premios', 'Días', 'Loterías', 'Total apostado (COP)', 'Total premio (COP)']
+        ws.append(headers)
+        for col_idx, _ in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col_idx)
+            cell.fill = fill; cell.font = hfont; cell.alignment = halign
+        for r in rows:
+            ws.append([r['vendedor_nombre'], r['username'], r['cantidad_premios'],
+                       r['dias_con_premios'], r['loterias_distintas'], r['total_apostado'], r['total_premio']])
+        ws.append([])
+        ws.append(['TOTALES', '', totales['cantidad_premios'], '', totales['loterias'], totales['total_apostado'], totales['total_premios']])
+        for col in ws.columns:
+            ws.column_dimensions[col[0].column_letter].width = max(len(str(col[0].value or '')), 12) + 2
+        resp = _excel_response(f"premios_{fecha_inicio}_{fecha_fin}.xlsx")
+        wb.save(resp)
+        return resp
+
     context = {
         'fecha_inicio': fecha_inicio,
         'fecha_fin': fecha_fin,
@@ -1442,6 +1502,26 @@ def reporte_descargas(request):
             ])
         return response
 
+    # ── Exportar Excel ─────────────────────────────
+    if request.GET.get('export') == 'excel':
+        from openpyxl import Workbook
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Descargas"
+        fill, hfont, halign = _excel_header_style()
+        headers = ['Lotería', 'Número', 'Veces apostado', 'Valor total (COP)']
+        ws.append(headers)
+        for col_idx, _ in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col_idx)
+            cell.fill = fill; cell.font = hfont; cell.alignment = halign
+        for row in report:
+            ws.append([row['loterias__nombre'], row['numero_clean'], row['veces_apostado'], row['total_ventas']])
+        for col in ws.columns:
+            ws.column_dimensions[col[0].column_letter].width = max(len(str(col[0].value or '')), 12) + 2
+        resp = _excel_response(f"reporte_descargas_{fecha}.xlsx")
+        wb.save(resp)
+        return resp
+
     # ── Totales resumen ───────────────────────────
     total_general  = sum(r['total_ventas']   for r in report)
     total_apuestas = sum(r['veces_apostado'] for r in report)
@@ -1521,6 +1601,25 @@ def importar_resultados_via_get(request):
 
 RETENCION_PCT = Decimal('0.10')   # 10%
 COMISION_PCT  = Decimal('0.35')   # 35%
+
+
+def _excel_response(filename: str):
+    """Devuelve un HttpResponse listo para adjuntar un workbook openpyxl."""
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response
+
+
+def _excel_header_style():
+    """Estilo para encabezados de tabla Excel."""
+    from openpyxl.styles import PatternFill, Font, Alignment
+    fill = PatternFill("solid", fgColor="4F46E5")
+    font = Font(bold=True, color="FFFFFF", size=11)
+    align = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    return fill, font, align
+
 
 def _round_cop(n) -> int:
     if not isinstance(n, Decimal):
@@ -1609,6 +1708,28 @@ def reportes(request):
         writer.writerow([])
         writer.writerow(['TOTALES', total_general_bruta, total_general_neta, total_general_comision, total_general_liquidacion])
         return response
+
+    # --- Exportar Excel ---
+    if request.GET.get('export') == 'excel':
+        from openpyxl import Workbook
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Liquidación"
+        fill, hfont, halign = _excel_header_style()
+        headers = ['Vendedor', 'Total bruto (COP)', 'Venta neta (COP)', 'Comisión (COP)', 'Liquidación (COP)']
+        ws.append(headers)
+        for col_idx, _ in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col_idx)
+            cell.fill = fill; cell.font = hfont; cell.alignment = halign
+        for r in rows:
+            ws.append([r['vendedor'], r['total'], r['venta_neta'], r['comision'], r['liquidacion']])
+        ws.append([])
+        ws.append(['TOTALES', total_general_bruta, total_general_neta, total_general_comision, total_general_liquidacion])
+        for col in ws.columns:
+            ws.column_dimensions[col[0].column_letter].width = max(len(str(col[0].value or '')), 14) + 2
+        resp = _excel_response(f"reporte_liquidacion_{start_date}_{end_date}.xlsx")
+        wb.save(resp)
+        return resp
 
     total_vendedores = len(rows)
 
@@ -1801,6 +1922,28 @@ def reporte_ventas_vs_premios(request):
         writer.writerow(['TOTALES', '', total_neta, total_liquidacion, total_premios, '', total_diferencia])
         return response
 
+    # --- Exportar Excel ---
+    if request.GET.get('export') == 'excel':
+        from openpyxl import Workbook
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Ventas vs Premios"
+        fill, hfont, halign = _excel_header_style()
+        headers = ['Vendedor', 'Usuario', 'Venta neta (COP)', 'Liquidación (COP)', 'Premios (COP)', 'Cant. premios', 'Diferencia (COP)']
+        ws.append(headers)
+        for col_idx, _ in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col_idx)
+            cell.fill = fill; cell.font = hfont; cell.alignment = halign
+        for r in rows:
+            ws.append([r['vendedor'], r['username'], r['venta_neta'], r['liquidacion'], r['premios'], r['cantidad_premios'], r['diferencia']])
+        ws.append([])
+        ws.append(['TOTALES', '', total_neta, total_liquidacion, total_premios, '', total_diferencia])
+        for col in ws.columns:
+            ws.column_dimensions[col[0].column_letter].width = max(len(str(col[0].value or '')), 12) + 2
+        resp = _excel_response(f"ventas_vs_premios_{start}_{end}.xlsx")
+        wb.save(resp)
+        return resp
+
     return render(request, 'core/reporte_ventas_vs_premios.html', {
         'start_date': str(start),
         'end_date': str(end),
@@ -1815,4 +1958,176 @@ def reporte_ventas_vs_premios(request):
         'total_premios': total_premios,
         'total_diferencia': total_diferencia,
     })
+
+
+# ── 4.2 Notificaciones ─────────────────────────────────────────────────────
+
+@login_required
+def notificaciones_count_api(request):
+    """Devuelve el conteo de notificaciones no leídas del usuario."""
+    count = Notificacion.objects.filter(usuario=request.user, leida=False).count()
+    return JsonResponse({"count": count})
+
+
+@login_required
+def notificaciones_list(request):
+    """Lista las últimas 30 notificaciones y marca todas como leídas."""
+    qs = Notificacion.objects.filter(usuario=request.user).order_by('-creada_en')[:30]
+    notifs = list(qs.values('id', 'titulo', 'mensaje', 'tipo', 'leida', 'url', 'creada_en'))
+    # Marca las no leídas como leídas
+    Notificacion.objects.filter(usuario=request.user, leida=False).update(leida=True)
+    return JsonResponse({"notificaciones": notifs}, json_dumps_params={"default": str})
+
+
+# ── 4.7 Reporte de conciliación ────────────────────────────────────────────
+
+@user_passes_test(lambda u: u.is_superuser)
+@login_required
+def reporte_conciliacion(request):
+    """
+    Reporte de conciliación diaria:
+    Muestra por cada lotería y fecha el total vendido versus los premios pagados.
+    """
+    hoy = timezone.localdate()
+    fecha_inicio_raw = request.GET.get('fecha_inicio')
+    fecha_fin_raw = request.GET.get('fecha_fin')
+
+    fecha_fin = parse_date(fecha_fin_raw) if fecha_fin_raw else hoy
+    fecha_inicio = parse_date(fecha_inicio_raw) if fecha_inicio_raw else (fecha_fin - timedelta(days=6))
+
+    if not fecha_fin:
+        fecha_fin = hoy
+    if not fecha_inicio:
+        fecha_inicio = fecha_fin - timedelta(days=6)
+    if fecha_fin > hoy:
+        fecha_fin = hoy
+    if fecha_inicio > fecha_fin:
+        fecha_inicio, fecha_fin = fecha_fin, fecha_inicio
+
+    ok, msg = validar_rango_fechas(fecha_inicio, fecha_fin)
+    if not ok:
+        messages.error(request, msg)
+        return redirect(request.path)
+
+    # Ventas por lotería+fecha (monto real = monto × cant loterias ya está separado por lotería)
+    ventas_raw = (
+        Venta.objects
+        .filter(fecha_venta__date__range=(fecha_inicio, fecha_fin))
+        .annotate(fecha_dia=TruncDate('fecha_venta'))
+        .values('fecha_dia', 'loterias__id', 'loterias__nombre')
+        .annotate(total_ventas=Coalesce(Sum('monto'), 0, output_field=IntegerField()))
+        .exclude(loterias__isnull=True)
+        .order_by('fecha_dia', 'loterias__nombre')
+    )
+
+    premios_raw = (
+        Premio.objects
+        .filter(fecha__range=(fecha_inicio, fecha_fin))
+        .values('fecha', 'loteria__id', 'loteria__nombre')
+        .annotate(total_premios=Coalesce(Sum('premio'), 0, output_field=IntegerField()),
+                  cantidad=Count('id'))
+        .order_by('fecha', 'loteria__nombre')
+    )
+
+    # Indexar premios por (fecha, loteria_id)
+    premios_idx = {}
+    for p in premios_raw:
+        key = (str(p['fecha']), p['loteria__id'])
+        premios_idx[key] = {'total': int(p['total_premios']), 'cantidad': int(p['cantidad'])}
+
+    rows = []
+    for v in ventas_raw:
+        fecha_str = str(v['fecha_dia'])
+        key = (fecha_str, v['loterias__id'])
+        premio_data = premios_idx.get(key, {'total': 0, 'cantidad': 0})
+        ventas_val = int(v['total_ventas'])
+        premios_val = int(premio_data['total'])
+        rows.append({
+            'fecha': v['fecha_dia'],
+            'loteria': v['loterias__nombre'],
+            'total_ventas': ventas_val,
+            'total_premios': premios_val,
+            'cantidad_premios': premio_data['cantidad'],
+            'diferencia': ventas_val - premios_val,
+        })
+
+    # Totales globales
+    total_ventas = sum(r['total_ventas'] for r in rows)
+    total_premios = sum(r['total_premios'] for r in rows)
+    total_diferencia = total_ventas - total_premios
+
+    # Exportar CSV
+    if request.GET.get('export') == 'csv':
+        resp = HttpResponse(content_type='text/csv; charset=utf-8-sig')
+        resp['Content-Disposition'] = f'attachment; filename="conciliacion_{fecha_inicio}_{fecha_fin}.csv"'
+        writer = csv.writer(resp)
+        writer.writerow(['Fecha', 'Lotería', 'Total vendido (COP)', 'Premios pagados (COP)', 'Cant. premios', 'Diferencia (COP)'])
+        for r in rows:
+            writer.writerow([r['fecha'], r['loteria'], r['total_ventas'], r['total_premios'], r['cantidad_premios'], r['diferencia']])
+        writer.writerow([])
+        writer.writerow(['TOTALES', '', total_ventas, total_premios, '', total_diferencia])
+        return resp
+
+    # Exportar Excel
+    if request.GET.get('export') == 'excel':
+        from openpyxl import Workbook
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Conciliación"
+        fill, hfont, halign = _excel_header_style()
+        headers = ['Fecha', 'Lotería', 'Total vendido (COP)', 'Premios pagados (COP)', 'Cant. premios', 'Diferencia (COP)']
+        ws.append(headers)
+        for col_idx, _ in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col_idx)
+            cell.fill = fill; cell.font = hfont; cell.alignment = halign
+        for r in rows:
+            ws.append([str(r['fecha']), r['loteria'], r['total_ventas'], r['total_premios'], r['cantidad_premios'], r['diferencia']])
+        ws.append([])
+        ws.append(['TOTALES', '', total_ventas, total_premios, '', total_diferencia])
+        for col in ws.columns:
+            ws.column_dimensions[col[0].column_letter].width = max(len(str(col[0].value or '')), 12) + 2
+        resp = _excel_response(f"conciliacion_{fecha_inicio}_{fecha_fin}.xlsx")
+        wb.save(resp)
+        return resp
+
+    return render(request, 'core/reporte_conciliacion.html', {
+        'fecha_inicio': fecha_inicio,
+        'fecha_fin': fecha_fin,
+        'fecha_max': hoy,
+        'rows': rows,
+        'total_ventas': total_ventas,
+        'total_premios': total_premios,
+        'total_diferencia': total_diferencia,
+        'rango_dias': (fecha_fin - fecha_inicio).days + 1,
+    })
+
+
+# ── 4.8 API: límite disponible por número ──────────────────────────────────
+
+@login_required
+@require_http_methods(["GET"])
+def api_limite_disponible(request):
+    """
+    Retorna el monto disponible para apostar en un número dado para la fecha
+    actual, considerando el límite global configurado.
+    Params: ?numero=<str>&loteria_id=<int>
+    """
+    numero = (request.GET.get('numero') or '').strip()
+    loteria_id = (request.GET.get('loteria_id') or '').strip()
+
+    limite = _obtener_limite_apuesta_por_numero()
+    if not limite:
+        return JsonResponse({"limite": 0, "vendido": 0, "disponible": None, "activo": False})
+
+    if not numero or not loteria_id:
+        return JsonResponse({"limite": limite, "vendido": 0, "disponible": limite, "activo": True})
+
+    hoy = timezone.localdate()
+    vendido = (
+        Venta.objects
+        .filter(fecha_venta__date=hoy, loterias__id=loteria_id, numero=numero)
+        .aggregate(t=Coalesce(Sum('monto'), 0, output_field=IntegerField()))['t']
+    )
+    disponible = max(limite - int(vendido), 0)
+    return JsonResponse({"limite": limite, "vendido": int(vendido), "disponible": disponible, "activo": True})
 

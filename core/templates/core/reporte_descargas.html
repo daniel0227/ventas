@@ -239,8 +239,11 @@
         <i class="bi bi-arrow-counterclockwise"></i> Limpiar
       </a>
       {% if report %}
-        <a href="?fecha={{ fecha }}&export=csv" class="btn-excel">
-          <i class="bi bi-file-earmark-spreadsheet"></i> Descargar Excel
+        <a href="?fecha={{ fecha }}&export=csv" class="btn-excel" style="background:#10b981;">
+          <i class="bi bi-filetype-csv"></i> CSV
+        </a>
+        <a href="?fecha={{ fecha }}&export=excel" class="btn-excel">
+          <i class="bi bi-file-earmark-excel"></i> Excel
         </a>
       {% endif %}
     </div>

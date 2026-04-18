@@ -311,9 +311,14 @@
     </div>
   </div>
   {% if rows %}
-  <a href="?fecha_inicio={{ fecha_inicio|date:'Y-m-d' }}&fecha_fin={{ fecha_fin|date:'Y-m-d' }}&export=csv" class="btn-export">
-    <i class="bi bi-file-earmark-excel"></i> Descargar Excel
-  </a>
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="?fecha_inicio={{ fecha_inicio|date:'Y-m-d' }}&fecha_fin={{ fecha_fin|date:'Y-m-d' }}&export=csv" class="btn-export" style="background:#10b981;">
+      <i class="bi bi-filetype-csv"></i> CSV
+    </a>
+    <a href="?fecha_inicio={{ fecha_inicio|date:'Y-m-d' }}&fecha_fin={{ fecha_fin|date:'Y-m-d' }}&export=excel" class="btn-export">
+      <i class="bi bi-file-earmark-excel"></i> Excel
+    </a>
+  </div>
   {% endif %}
 </div>
 

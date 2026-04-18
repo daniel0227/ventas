@@ -1,0 +1,143 @@
+{# core/templates/core/reporte_conciliacion.html #}
+{% extends "core/base.html" %}
+{% load format_filters %}
+
+{% block breadcrumbs %}
+<nav class="breadcrumb-lottia" aria-label="Ruta de navegación">
+  <a href="{% url 'home' %}"><i class="bi bi-house-fill me-1"></i>Inicio</a>
+  <span class="sep"><i class="bi bi-chevron-right"></i></span>
+  <span class="current">Conciliación Diaria</span>
+</nav>
+{% endblock %}
+
+{% block content %}
+<style>
+  :root {
+    --primary: #4f46e5; --primary-dark: #3730a3; --primary-light: #eef2ff;
+    --success: #10b981; --success-light: #ecfdf5;
+    --danger: #ef4444; --danger-light: #fef2f2;
+    --border: #e5e7eb; --muted: #6b7280;
+    --card-radius: 16px; --shadow: 0 2px 12px rgba(0,0,0,.07);
+  }
+  .page-header { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.6rem; margin-bottom:1.25rem; }
+  .page-header h1 { font-size:1.35rem; font-weight:700; color:#1f2937; margin:0; }
+  .filter-card { background:#fff; border-radius:var(--card-radius); box-shadow:var(--shadow); padding:1rem 1.25rem; margin-bottom:1.25rem; border:1px solid var(--border); }
+  .btn-primary-custom { background:var(--primary); color:#fff; border:0; border-radius:8px; padding:.45rem 1.1rem; font-size:.84rem; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:.4rem; }
+  .btn-primary-custom:hover { background:var(--primary-dark); color:#fff; }
+  .btn-export { display:inline-flex; align-items:center; gap:.35rem; background:var(--primary); color:#fff; border-radius:8px; padding:.4rem .9rem; font-size:.8rem; font-weight:600; text-decoration:none; }
+  .btn-export:hover { background:var(--primary-dark); color:#fff; }
+  .stat-card { background:#fff; border-radius:14px; box-shadow:var(--shadow); padding:1rem 1.25rem; border:1px solid var(--border); }
+  .stat-label { font-size:.72rem; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin-bottom:.2rem; }
+  .stat-value { font-size:1.45rem; font-weight:700; color:#1f2937; }
+  .table-card { background:#fff; border-radius:var(--card-radius); box-shadow:var(--shadow); border:1px solid var(--border); overflow:hidden; }
+  .table-card table { width:100%; border-collapse:collapse; }
+  .table-card thead th { background:#f8f9fa; font-size:.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); padding:.75rem 1rem; border-bottom:2px solid var(--border); white-space:nowrap; }
+  .table-card tbody td { padding:.65rem 1rem; font-size:.85rem; border-bottom:1px solid #f3f4f6; }
+  .table-card tbody tr:last-child td { border-bottom:0; }
+  .table-card tbody tr:hover { background:#fafafa; }
+  .pos { color:var(--success); font-weight:700; }
+  .neg { color:var(--danger); font-weight:700; }
+  .text-right { text-align:right; }
+</style>
+
+<!-- Header -->
+<div class="page-header">
+  <div>
+    <h1><i class="bi bi-arrow-left-right me-2" style="color:var(--primary);"></i>Conciliación Diaria</h1>
+    <div style="font-size:.82rem; color:var(--muted); margin-top:.1rem;">Ventas vendidas vs premios pagados por lotería y fecha</div>
+  </div>
+  {% if rows %}
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="?fecha_inicio={{ fecha_inicio|date:'Y-m-d' }}&fecha_fin={{ fecha_fin|date:'Y-m-d' }}&export=csv" class="btn-export" style="background:#10b981;">
+      <i class="bi bi-filetype-csv"></i> CSV
+    </a>
+    <a href="?fecha_inicio={{ fecha_inicio|date:'Y-m-d' }}&fecha_fin={{ fecha_fin|date:'Y-m-d' }}&export=excel" class="btn-export">
+      <i class="bi bi-file-earmark-excel"></i> Excel
+    </a>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Filtro -->
+<div class="filter-card">
+  <form method="get" class="d-flex flex-wrap gap-2 align-items-end">
+    <div>
+      <label style="font-size:.72rem; font-weight:600; color:var(--muted); text-transform:uppercase; display:block; margin-bottom:.25rem;">Fecha inicio</label>
+      <input type="date" name="fecha_inicio" value="{{ fecha_inicio|date:'Y-m-d' }}" max="{% now 'Y-m-d' %}" class="form-control form-control-sm" style="min-width:150px;">
+    </div>
+    <div>
+      <label style="font-size:.72rem; font-weight:600; color:var(--muted); text-transform:uppercase; display:block; margin-bottom:.25rem;">Fecha fin</label>
+      <input type="date" name="fecha_fin" value="{{ fecha_fin|date:'Y-m-d' }}" max="{% now 'Y-m-d' %}" class="form-control form-control-sm" style="min-width:150px;">
+    </div>
+    <button type="submit" class="btn-primary-custom"><i class="bi bi-search"></i> Consultar</button>
+  </form>
+</div>
+
+{% if rows %}
+<!-- Tarjetas de totales -->
+<div class="row g-3 mb-3">
+  <div class="col-6 col-md-4">
+    <div class="stat-card">
+      <div class="stat-label">Total vendido</div>
+      <div class="stat-value">${{ total_ventas|formatpesos }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4">
+    <div class="stat-card">
+      <div class="stat-label">Total premios</div>
+      <div class="stat-value" style="color:var(--danger);">${{ total_premios|formatpesos }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4">
+    <div class="stat-card">
+      <div class="stat-label">Diferencia neta</div>
+      <div class="stat-value {% if total_diferencia >= 0 %}pos{% else %}neg{% endif %}">${{ total_diferencia|formatpesos }}</div>
+    </div>
+  </div>
+</div>
+
+<!-- Tabla -->
+<div class="table-card">
+  <div style="overflow-x:auto;">
+    <table>
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Lotería</th>
+          <th class="text-right">Vendido (COP)</th>
+          <th class="text-right">Premios (COP)</th>
+          <th class="text-right">Cant. premios</th>
+          <th class="text-right">Diferencia (COP)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td>{{ r.fecha }}</td>
+          <td>{{ r.loteria }}</td>
+          <td class="text-right">${{ r.total_ventas|formatpesos }}</td>
+          <td class="text-right">${{ r.total_premios|formatpesos }}</td>
+          <td class="text-right">{{ r.cantidad_premios }}</td>
+          <td class="text-right {% if r.diferencia >= 0 %}pos{% else %}neg{% endif %}">${{ r.diferencia|formatpesos }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr style="background:#f8f9fa; font-weight:700; font-size:.84rem;">
+          <td colspan="2">TOTALES</td>
+          <td class="text-right">${{ total_ventas|formatpesos }}</td>
+          <td class="text-right">${{ total_premios|formatpesos }}</td>
+          <td class="text-right">—</td>
+          <td class="text-right {% if total_diferencia >= 0 %}pos{% else %}neg{% endif %}">${{ total_diferencia|formatpesos }}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="text-center py-5" style="color:var(--muted);">
+  <i class="bi bi-inbox" style="font-size:2.5rem; display:block; margin-bottom:.5rem;"></i>
+  Sin datos para el rango seleccionado.
+</div>
+{% endif %}
+{% endblock %}
