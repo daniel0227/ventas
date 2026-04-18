@@ -30,7 +30,6 @@ urlpatterns = [
     path("api/importar_resultados/", views.importar_resultados_api, name="importar_resultados_api"),
     path("api/notificaciones/count/", views.notificaciones_count_api, name="notificaciones_count"),
     path("api/notificaciones/", views.notificaciones_list, name="notificaciones_list"),
-    path("api/limite-disponible/", views.api_limite_disponible, name="api_limite_disponible"),
 ]
 
 if settings.DEBUG:

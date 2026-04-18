@@ -2042,32 +2042,3 @@ def reporte_conciliacion(request):
     })
 
 
-# ── 4.8 API: límite disponible por número ──────────────────────────────────
-
-@login_required
-@require_http_methods(["GET"])
-def api_limite_disponible(request):
-    """
-    Retorna el monto disponible para apostar en un número dado para la fecha
-    actual, considerando el límite global configurado.
-    Params: ?numero=<str>&loteria_id=<int>
-    """
-    numero = (request.GET.get('numero') or '').strip()
-    loteria_id = (request.GET.get('loteria_id') or '').strip()
-
-    limite = _obtener_limite_apuesta_por_numero()
-    if not limite:
-        return JsonResponse({"limite": 0, "vendido": 0, "disponible": None, "activo": False})
-
-    if not numero or not loteria_id:
-        return JsonResponse({"limite": limite, "vendido": 0, "disponible": limite, "activo": True})
-
-    hoy = timezone.localdate()
-    vendido = (
-        Venta.objects
-        .filter(fecha_venta__date=hoy, loterias__id=loteria_id, numero=numero)
-        .aggregate(t=Coalesce(Sum('monto'), 0, output_field=IntegerField()))['t']
-    )
-    disponible = max(limite - int(vendido), 0)
-    return JsonResponse({"limite": limite, "vendido": int(vendido), "disponible": disponible, "activo": True})
-
