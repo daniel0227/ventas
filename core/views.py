@@ -19,7 +19,7 @@ from .models import (
     _safe_create_venta_audit_log,
 )
 from django.db import transaction, IntegrityError
-from core.utils import importar_resultados  # ← añade esta línea
+from core.utils import importar_resultados, dia_es, total_monto, validar_rango_fechas
 from django.contrib import messages
 from django.db.models import Case, When, BooleanField, Sum, Count, F, Q, ExpressionWrapper, IntegerField, Value
 from collections import defaultdict
@@ -70,14 +70,22 @@ def _loteria_esta_abierta_para_venta(loteria, ahora_local):
     return loteria.esta_disponible_en(ahora_local, cierre_buffer_segundos=VENTA_CIERRE_BUFFER_SEGUNDOS)
 
 
-def _obtener_limite_apuesta_por_numero():
-    limite = (
-        ConfiguracionVenta.objects
-        .filter(clave=ConfiguracionVenta.CLAVE_GLOBAL)
-        .values_list("limite_apuesta_por_numero", flat=True)
-        .first()
-    )
-    return int(limite or 0)
+_LIMITE_CACHE_KEY = "config_venta_limite_por_numero"
+_LIMITE_CACHE_TTL = 60  # segundos
+
+
+def _obtener_limite_apuesta_por_numero() -> int:
+    from django.core.cache import cache
+    valor = cache.get(_LIMITE_CACHE_KEY)
+    if valor is None:
+        valor = int(
+            ConfiguracionVenta.objects
+            .filter(clave=ConfiguracionVenta.CLAVE_GLOBAL)
+            .values_list("limite_apuesta_por_numero", flat=True)
+            .first() or 0
+        )
+        cache.set(_LIMITE_CACHE_KEY, valor, _LIMITE_CACHE_TTL)
+    return valor
 
 
 def _es_descargue(user):
@@ -156,16 +164,7 @@ def _build_descargues_context(
     bulk_errors=None,
 ):
     ahora = timezone.localtime(timezone.now())
-    dias_map = {
-        "Monday": "Lunes",
-        "Tuesday": "Martes",
-        "Wednesday": "Miércoles",
-        "Thursday": "Jueves",
-        "Friday": "Viernes",
-        "Saturday": "Sábado",
-        "Sunday": "Domingo",
-    }
-    dia_actual_nombre_es = dias_map.get(ahora.strftime("%A"))
+    dia_actual_nombre_es = dia_es(ahora)
     dia_actual = Dia.objects.filter(nombre=dia_actual_nombre_es).first()
 
     loterias_disponibles = []
@@ -185,9 +184,6 @@ def _build_descargues_context(
     if loteria_id:
         ventas_qs = ventas_qs.filter(loteria_id=loteria_id)
 
-    total_monto = ventas_qs.aggregate(
-        total=Coalesce(Sum("monto"), 0, output_field=IntegerField())
-    )["total"] or 0
     paginator = Paginator(ventas_qs, 100)
     page_obj = paginator.get_page(page_number)
 
@@ -196,7 +192,7 @@ def _build_descargues_context(
         "usuarios_descargue": usuarios_descargue_qs,
         "loterias_disponibles": loterias_disponibles,
         "ventas_descargue": page_obj,
-        "total_monto": total_monto,
+        "total_monto": total_monto(ventas_qs),
         "descargue_id": descargue_id,
         "loteria_id": loteria_id,
         "bulk_jugadas_raw": bulk_jugadas_raw,
@@ -289,20 +285,8 @@ def home(request):
 def loteria(request):
     # Obtener la fecha y hora actuales ajustadas a la zona horaria local
     ahora = timezone.localtime(timezone.now())  # Hora local en Bogotá
-    dia_actual_nombre = ahora.strftime('%A')  # Nombre del día en inglés
 
-    # Mapeo de los días en inglés a español
-    dias_map = {
-        'Monday': 'Lunes',
-        'Tuesday': 'Martes',
-        'Wednesday': 'Miércoles',
-        'Thursday': 'Jueves',
-        'Friday': 'Viernes',
-        'Saturday': 'Sábado',
-        'Sunday': 'Domingo',
-    }
-
-    dia_actual_nombre_es = dias_map.get(dia_actual_nombre)
+    dia_actual_nombre_es = dia_es(ahora)
     fecha_actual = ahora.date()  # Fecha actual ajustada a la zona horaria local
 
     try:
@@ -375,12 +359,7 @@ def crear_venta(request):
     ahora = timezone.localtime(timezone.now())
 
     # -------- Obtener día de la semana (ES) --------
-    dias_map = {
-        'Monday':    'Lunes', 'Tuesday':   'Martes', 'Wednesday': 'Miércoles',
-        'Thursday':  'Jueves', 'Friday':  'Viernes', 'Saturday':  'Sábado',
-        'Sunday':    'Domingo',
-    }
-    dia_actual_nombre_es = dias_map.get(ahora.strftime('%A'))
+    dia_actual_nombre_es = dia_es(ahora)
     if not dia_actual_nombre_es:
         return JsonResponse(
             {'success': False, 'error': 'Día actual no válido.'}, status=400
@@ -866,10 +845,6 @@ def mis_descargues(request):
     if search:
         ventas_qs = ventas_qs.filter(numero__icontains=search)
 
-    total_monto = ventas_qs.aggregate(
-        total=Coalesce(Sum("monto"), 0, output_field=IntegerField())
-    )["total"] or 0
-
     paginator = Paginator(ventas_qs, 100)
     page_obj = paginator.get_page(request.GET.get("page"))
 
@@ -886,7 +861,7 @@ def mis_descargues(request):
         "core/mis_descargues.html",
         {
             "ventas": page_obj,
-            "total_ventas": total_monto,
+            "total_ventas": total_monto(ventas_qs),
             "search": search,
             "filter_date": filter_date,
             "loteria_id": loteria_id,
@@ -1017,17 +992,7 @@ def premios(request):
         fecha = ahora.date()
 
     # -------- Día ES --------
-    dia_actual_nombre_en = fecha.strftime('%A')
-    dias_map = {
-        'Monday': 'Lunes',
-        'Tuesday': 'Martes',
-        'Wednesday': 'Miércoles',
-        'Thursday': 'Jueves',
-        'Friday': 'Viernes',
-        'Saturday': 'Sábado',
-        'Sunday': 'Domingo',
-    }
-    dia_nombre_es = dias_map.get(dia_actual_nombre_en)
+    dia_nombre_es = dia_es(fecha)
     try:
         dia_obj = Dia.objects.get(nombre=dia_nombre_es)
     except Dia.DoesNotExist:
@@ -1204,6 +1169,11 @@ def premios_reporte_rango(request):
     if fecha_inicio > fecha_fin:
         fecha_inicio, fecha_fin = fecha_fin, fecha_inicio
 
+    ok, msg = validar_rango_fechas(fecha_inicio, fecha_fin)
+    if not ok:
+        messages.error(request, msg)
+        return redirect(request.path)
+
     premios_qs = Premio.objects.filter(
         fecha__range=(fecha_inicio, fecha_fin)
     )
@@ -1323,12 +1293,7 @@ def registro_resultados(request):
         return redirect(f"{request.path}?fecha={fecha_actual.isoformat()}")
 
     # ---------- 3. Día de la semana ----------
-    dias_map = {
-        'Monday': 'Lunes', 'Tuesday': 'Martes', 'Wednesday': 'Miércoles',
-        'Thursday': 'Jueves', 'Friday': 'Viernes', 'Saturday': 'Sábado',
-        'Sunday': 'Domingo',
-    }
-    dia_actual_nombre_es = dias_map.get(fecha_actual.strftime('%A'))
+    dia_actual_nombre_es = dia_es(fecha_actual)
 
     try:
         dia_obj = Dia.objects.get(nombre=dia_actual_nombre_es)
@@ -1403,18 +1368,8 @@ def resultados(request):
     else:
         fecha_actual = ahora.date()
 
-    # Convertir la fecha a nombre del día en inglés y luego a español
-    dia_actual_nombre_en = fecha_actual.strftime('%A')
-    dias_map = {
-        'Monday': 'Lunes',
-        'Tuesday': 'Martes',
-        'Wednesday': 'Miércoles',
-        'Thursday': 'Jueves',
-        'Friday': 'Viernes',
-        'Saturday': 'Sábado',
-        'Sunday': 'Domingo',
-    }
-    dia_actual_nombre_es = dias_map.get(dia_actual_nombre_en)
+    # Convertir la fecha a nombre del día en español
+    dia_actual_nombre_es = dia_es(fecha_actual)
 
     # Obtener el objeto Dia correspondiente
     try:
@@ -1589,6 +1544,11 @@ def reportes(request):
         start = end = timezone.localdate()
         start_date = end_date = str(start)
 
+    ok, msg = validar_rango_fechas(start, end)
+    if not ok:
+        messages.error(request, msg)
+        return redirect(request.path)
+
     # --- por venta: monto × #loterías ---
     ventas_qs = (
         Venta.objects
@@ -1697,6 +1657,11 @@ def reporte_ventas_vs_premios(request):
     if start > end:
         start, end = end, start
         start_date, end_date = str(start), str(end)
+
+    ok, msg = validar_rango_fechas(start, end)
+    if not ok:
+        messages.error(request, msg)
+        return redirect(request.path)
 
     if end > hoy:
         end = hoy

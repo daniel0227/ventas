@@ -69,7 +69,11 @@ class ConfiguracionVenta(models.Model):
 
     def save(self, *args, **kwargs):
         self.clave = self.CLAVE_GLOBAL
-        return super().save(*args, **kwargs)
+        result = super().save(*args, **kwargs)
+        # Invalida el cache del limite para que la proxima consulta lea el valor actualizado
+        from django.core.cache import cache
+        cache.delete("config_venta_limite_por_numero")
+        return result
 
     def __str__(self):
         if not self.limite_apuesta_por_numero:
@@ -120,6 +124,12 @@ class Venta(models.Model):
     numero = models.CharField(max_length=50, db_index=True)
     monto = models.IntegerField()  # Cambiado a IntegerField
     es_combinado = models.BooleanField(default=False)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["vendedor"], name="venta_vendedor_idx"),
+            models.Index(fields=["vendedor", "fecha_venta"], name="venta_vendedor_fecha_idx"),
+        ]
 
     def __str__(self):
         return f"{self.vendedor} - {self.numero} - {self.fecha_venta}"
@@ -325,6 +335,10 @@ class Premio(models.Model):
     actualizado_en = models.DateTimeField(auto_now=True)
 
     class Meta:
+        indexes = [
+            models.Index(fields=["vendedor"], name="premio_vendedor_idx"),
+            models.Index(fields=["vendedor", "fecha"], name="premio_vendedor_fecha_idx"),
+        ]
         # Evita duplicados por el mismo día/venta/lotería
         constraints = [
             models.UniqueConstraint(

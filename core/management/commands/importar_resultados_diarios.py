@@ -3,7 +3,7 @@ from django.core.management.base import BaseCommand
 from django.utils.timezone import localtime, now
 from datetime import timedelta
 from django.contrib.auth import get_user_model
-from core.utils import importar_resultados, enviar_whatsapp_callmebot
+from core.utils import importar_resultados, enviar_whatsapp_callmebot, dia_es
 from core.models import Resultado, Venta, Dia, Loteria
 
 User = get_user_model()
@@ -36,13 +36,8 @@ class Command(BaseCommand):
         )
 
         # Detectar premios
-        dia_nombre = fecha_objetivo.strftime('%A')
-        map_dia = {
-            'Monday': 'Lunes', 'Tuesday': 'Martes', 'Wednesday': 'Miércoles',
-            'Thursday': 'Jueves', 'Friday': 'Viernes', 'Saturday': 'Sábado', 'Sunday': 'Domingo'
-        }
         try:
-            dia_obj = Dia.objects.get(nombre=map_dia[dia_nombre])
+            dia_obj = Dia.objects.get(nombre=dia_es(fecha_objetivo))
         except Dia.DoesNotExist:
             self.stdout.write("⚠️ Día no registrado.")
             return
