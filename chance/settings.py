@@ -68,6 +68,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'core.middleware.ActivityLogMiddleware',
+    'core.middleware.ContentSecurityPolicyMiddleware',
 ]
 
 ROOT_URLCONF = 'chance.urls'

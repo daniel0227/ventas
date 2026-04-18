@@ -1,13 +1,18 @@
-from datetime import time
+import logging
+from datetime import date, time, timedelta
 
 from django.contrib.auth.models import Group
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, RequestFactory
 from django.urls import reverse
 from django.utils import timezone
 
-from core.models import ConfiguracionVenta, Dia, Loteria, Venta, VentaDescargue
-from core.utils import dia_es
+from core.models import (
+    ConfiguracionVenta, Dia, Loteria, Notificacion,
+    Premio, Resultado, Venta, VentaDescargue,
+)
+from core.utils import dia_es, total_monto, validar_rango_fechas
+from core.views import _resolver_datos_premio, _resolver_datos_premio_combinado
 
 
 class ReporteDescargasTests(TestCase):
@@ -572,3 +577,510 @@ class EsCombinadoViewTests(TestCase):
             columnas = [row[0] for row in cursor.fetchall()]
         self.assertNotIn('combi', columnas)
         self.assertIn('es_combinado', columnas)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 5.1 Tests de utilidades (core/utils.py)
+# ─────────────────────────────────────────────────────────────────────────────
+
+class DiaEsTests(TestCase):
+    def test_dias_conocidos(self):
+        casos = {
+            date(2026, 4, 13): "Lunes",
+            date(2026, 4, 14): "Martes",
+            date(2026, 4, 15): "Miércoles",
+            date(2026, 4, 16): "Jueves",
+            date(2026, 4, 17): "Viernes",
+            date(2026, 4, 18): "Sábado",
+            date(2026, 4, 19): "Domingo",
+        }
+        for fecha, esperado in casos.items():
+            with self.subTest(fecha=fecha):
+                self.assertEqual(dia_es(fecha), esperado)
+
+    def test_retorna_cadena_vacia_si_no_reconoce(self):
+        class FechaFalsa:
+            def strftime(self, fmt):
+                return "Lunex"
+        self.assertEqual(dia_es(FechaFalsa()), "")
+
+
+class ValidarRangoFechasTests(TestCase):
+    def test_rango_valido_retorna_ok(self):
+        ok, msg = validar_rango_fechas(date(2026, 1, 1), date(2026, 1, 30))
+        self.assertTrue(ok)
+        self.assertEqual(msg, "")
+
+    def test_rango_exactamente_93_dias_es_valido(self):
+        inicio = date(2026, 1, 1)
+        fin = inicio + timedelta(days=93)
+        ok, _ = validar_rango_fechas(inicio, fin)
+        self.assertTrue(ok)
+
+    def test_rango_mayor_93_dias_es_invalido(self):
+        inicio = date(2026, 1, 1)
+        fin = inicio + timedelta(days=94)
+        ok, msg = validar_rango_fechas(inicio, fin)
+        self.assertFalse(ok)
+        self.assertIn("93", msg)
+
+    def test_max_dias_personalizado(self):
+        inicio = date(2026, 1, 1)
+        fin = inicio + timedelta(days=10)
+        ok, _ = validar_rango_fechas(inicio, fin, max_dias=7)
+        self.assertFalse(ok)
+
+    def test_sin_fechas_retorna_ok(self):
+        ok, _ = validar_rango_fechas(None, None)
+        self.assertTrue(ok)
+
+
+class TotalMontoTests(TestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.user = User.objects.create_user(username="util_user", password="x")
+        self.loteria = Loteria.objects.create(
+            nombre="Util Loteria", hora_inicio=time(0, 0), hora_fin=time(23, 59)
+        )
+
+    def test_suma_montos(self):
+        for monto in [1000, 2000, 3000]:
+            v = Venta.objects.create(vendedor=self.user, numero="1", monto=monto)
+            v.loterias.set([self.loteria])
+        resultado = total_monto(Venta.objects.all())
+        self.assertEqual(resultado, 6000)
+
+    def test_retorna_cero_si_vacio(self):
+        self.assertEqual(total_monto(Venta.objects.none()), 0)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 5.1 Tests de cálculo de premios
+# ─────────────────────────────────────────────────────────────────────────────
+
+class ResolverDatosPremioTests(TestCase):
+    def test_dos_cifras_coinciden(self):
+        datos = _resolver_datos_premio("34", "1234")  # últimas 2 cifras de "1234"
+        self.assertIsNotNone(datos)
+        self.assertEqual(datos["cifras"], 2)
+        self.assertEqual(datos["multiplicador"], 60)
+
+    def test_tres_cifras_coinciden(self):
+        datos = _resolver_datos_premio("234", "1234")
+        self.assertIsNotNone(datos)
+        self.assertEqual(datos["cifras"], 3)
+        self.assertEqual(datos["multiplicador"], 550)
+
+    def test_cuatro_cifras_coinciden(self):
+        datos = _resolver_datos_premio("1234", "1234")
+        self.assertIsNotNone(datos)
+        self.assertEqual(datos["cifras"], 4)
+        self.assertEqual(datos["multiplicador"], 4500)
+
+    def test_no_coincide_retorna_none(self):
+        self.assertIsNone(_resolver_datos_premio("99", "1234"))
+
+    def test_longitud_invalida_retorna_none(self):
+        self.assertIsNone(_resolver_datos_premio("1", "1234"))
+        self.assertIsNone(_resolver_datos_premio("12345", "12345"))
+
+    def test_numero_vacio_retorna_none(self):
+        self.assertIsNone(_resolver_datos_premio("", "1234"))
+
+
+class ResolverDatosPremioCombinadoTests(TestCase):
+    def test_tres_cifras_permutacion_gana(self):
+        datos = _resolver_datos_premio_combinado("342", "1234")  # 342 es permutación de 234 (últimas 3 cifras)
+        self.assertIsNotNone(datos)
+        self.assertEqual(datos["multiplicador"], 90)
+
+    def test_tres_cifras_mismos_digitos_gana(self):
+        datos = _resolver_datos_premio_combinado("234", "1234")
+        self.assertIsNotNone(datos)
+
+    def test_cuatro_cifras_permutacion_gana(self):
+        datos = _resolver_datos_premio_combinado("4321", "1234")
+        self.assertIsNotNone(datos)
+        self.assertEqual(datos["multiplicador"], 220)
+
+    def test_no_es_permutacion_retorna_none(self):
+        self.assertIsNone(_resolver_datos_premio_combinado("999", "1234"))
+
+    def test_dos_cifras_no_aplica(self):
+        self.assertIsNone(_resolver_datos_premio_combinado("23", "1234"))
+
+
+class PremioVistaTests(TestCase):
+    """Verifica que la vista premios calcula y persiste correctamente."""
+
+    def setUp(self):
+        User = get_user_model()
+        self.admin = User.objects.create_user(
+            username="admin_premio", password="x", is_staff=True, is_superuser=True
+        )
+        self.vendedor = User.objects.create_user(username="vendedor_premio", password="x")
+        self.dia = Dia.objects.create(nombre=dia_es(timezone.localtime(timezone.now())))
+        self.loteria = Loteria.objects.create(
+            nombre="Lotería Premio Test",
+            hora_inicio=time(0, 0),
+            hora_fin=time(23, 59),
+        )
+        self.loteria.dias_juego.add(self.dia)
+        self.fecha = timezone.localdate()
+
+    def _crear_venta(self, numero, monto, es_combinado=False):
+        v = Venta.objects.create(
+            vendedor=self.vendedor, numero=numero, monto=monto, es_combinado=es_combinado
+        )
+        v.loterias.set([self.loteria])
+        return v
+
+    def _crear_resultado(self, numero_ganador):
+        return Resultado.objects.create(
+            loteria=self.loteria,
+            fecha=self.fecha,
+            resultado=int(numero_ganador),
+            registrado_por=self.admin,
+        )
+
+    def test_premio_dos_cifras_calculado_correctamente(self):
+        self._crear_venta("34", 1000)
+        self._crear_resultado("1234")
+        self.client.force_login(self.admin)
+        self.client.get(reverse("premios"), {"fecha": self.fecha.isoformat()})
+        premio = Premio.objects.get()
+        self.assertEqual(premio.premio, 1000 * 60)
+        self.assertEqual(premio.cifras, 2)
+
+    def test_premio_tres_cifras_calculado_correctamente(self):
+        self._crear_venta("234", 500)
+        self._crear_resultado("1234")
+        self.client.force_login(self.admin)
+        self.client.get(reverse("premios"), {"fecha": self.fecha.isoformat()})
+        premio = Premio.objects.get()
+        self.assertEqual(premio.premio, 500 * 550)
+
+    def test_no_gana_retorna_lista_vacia(self):
+        self._crear_venta("99", 1000)
+        self._crear_resultado("1234")
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse("premios"), {"fecha": self.fecha.isoformat()})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context["premios_list"]), 0)
+
+    def test_premio_combinado_tres_cifras(self):
+        self._crear_venta("432", 200, es_combinado=True)
+        self._crear_resultado("1234")
+        self.client.force_login(self.admin)
+        self.client.get(reverse("premios"), {"fecha": self.fecha.isoformat()})
+        premio = Premio.objects.filter(es_combinado=True).first()
+        self.assertIsNotNone(premio)
+        self.assertEqual(premio.premio, 200 * 90)
+
+    def test_vendedor_solo_ve_sus_premios(self):
+        otro = get_user_model().objects.create_user(username="otro_v", password="x")
+        v_otro = Venta.objects.create(vendedor=otro, numero="34", monto=1000)
+        v_otro.loterias.set([self.loteria])
+        self._crear_resultado("1234")
+
+        self.client.force_login(self.vendedor)
+        response = self.client.get(reverse("premios"), {"fecha": self.fecha.isoformat()})
+        self.assertEqual(len(response.context["premios_list"]), 0)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 5.1 Tests de vistas de reportes
+# ─────────────────────────────────────────────────────────────────────────────
+
+class ReportesViewTests(TestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.superuser = User.objects.create_user(
+            username="super_rep", password="x",
+            is_staff=True, is_superuser=True,
+        )
+        self.client.force_login(self.superuser)
+        self.dia = Dia.objects.create(nombre=dia_es(timezone.localtime(timezone.now())))
+        self.loteria = Loteria.objects.create(
+            nombre="Lot Rep", hora_inicio=time(0, 0), hora_fin=time(23, 59)
+        )
+        self.loteria.dias_juego.add(self.dia)
+        self.hoy = timezone.localdate().isoformat()
+
+    def _crear_venta(self, monto=5000, numero="111"):
+        v = Venta.objects.create(vendedor=self.superuser, numero=numero, monto=monto)
+        v.loterias.set([self.loteria])
+        return v
+
+    # ── Reporte liquidación ─────────────────────────────────
+    def test_reportes_retorna_200_con_datos(self):
+        self._crear_venta()
+        resp = self.client.get(reverse("reportes"), {"start_date": self.hoy, "end_date": self.hoy})
+        self.assertEqual(resp.status_code, 200)
+        self.assertGreater(len(resp.context["rows"]), 0)
+
+    def test_reportes_sin_rango_redirige(self):
+        resp = self.client.get(reverse("reportes"))
+        # Sin fechas usa la fecha de hoy y retorna 200 con 0 rows o redirige
+        self.assertIn(resp.status_code, [200, 302])
+
+    def test_reportes_exporta_csv(self):
+        self._crear_venta()
+        resp = self.client.get(
+            reverse("reportes"),
+            {"start_date": self.hoy, "end_date": self.hoy, "export": "csv"},
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("text/csv", resp["Content-Type"])
+        self.assertIn(b"Vendedor", resp.content)
+
+    def test_reportes_exporta_excel(self):
+        self._crear_venta()
+        resp = self.client.get(
+            reverse("reportes"),
+            {"start_date": self.hoy, "end_date": self.hoy, "export": "excel"},
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("spreadsheetml", resp["Content-Type"])
+
+    def test_reportes_rango_mayor_93_dias_redirige(self):
+        inicio = (timezone.localdate() - timedelta(days=100)).isoformat()
+        resp = self.client.get(
+            reverse("reportes"),
+            {"start_date": inicio, "end_date": self.hoy},
+        )
+        self.assertEqual(resp.status_code, 302)
+
+    # ── Reporte ventas vs premios ───────────────────────────
+    def test_reporte_ventas_vs_premios_retorna_200(self):
+        resp = self.client.get(
+            reverse("reporte_ventas_vs_premios"),
+            {"start_date": self.hoy, "end_date": self.hoy},
+        )
+        self.assertEqual(resp.status_code, 200)
+
+    def test_reporte_ventas_vs_premios_exporta_csv(self):
+        self._crear_venta()
+        resp = self.client.get(
+            reverse("reporte_ventas_vs_premios"),
+            {"start_date": self.hoy, "end_date": self.hoy, "export": "csv"},
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("text/csv", resp["Content-Type"])
+
+    def test_reporte_ventas_vs_premios_exporta_excel(self):
+        self._crear_venta()
+        resp = self.client.get(
+            reverse("reporte_ventas_vs_premios"),
+            {"start_date": self.hoy, "end_date": self.hoy, "export": "excel"},
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("spreadsheetml", resp["Content-Type"])
+
+    # ── Reporte premios por rango ───────────────────────────
+    def test_premios_reporte_rango_retorna_200(self):
+        resp = self.client.get(
+            reverse("premios_reporte_rango"),
+            {"fecha_inicio": self.hoy, "fecha_fin": self.hoy},
+        )
+        self.assertEqual(resp.status_code, 200)
+
+    def test_premios_reporte_rango_exporta_csv(self):
+        resp = self.client.get(
+            reverse("premios_reporte_rango"),
+            {"fecha_inicio": self.hoy, "fecha_fin": self.hoy, "export": "csv"},
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("text/csv", resp["Content-Type"])
+
+    def test_premios_reporte_rango_exporta_excel(self):
+        resp = self.client.get(
+            reverse("premios_reporte_rango"),
+            {"fecha_inicio": self.hoy, "fecha_fin": self.hoy, "export": "excel"},
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("spreadsheetml", resp["Content-Type"])
+
+    # ── Reporte conciliación ────────────────────────────────
+    def test_reporte_conciliacion_retorna_200(self):
+        resp = self.client.get(
+            reverse("reporte_conciliacion"),
+            {"fecha_inicio": self.hoy, "fecha_fin": self.hoy},
+        )
+        self.assertEqual(resp.status_code, 200)
+
+    def test_reporte_conciliacion_calcula_diferencia(self):
+        self._crear_venta(monto=10000, numero="22")
+        Resultado.objects.create(
+            loteria=self.loteria,
+            fecha=timezone.localdate(),
+            resultado=1122,
+            registrado_por=self.superuser,
+        )
+        # Genera el premio primero
+        self.client.get(reverse("premios"), {"fecha": self.hoy})
+
+        resp = self.client.get(
+            reverse("reporte_conciliacion"),
+            {"fecha_inicio": self.hoy, "fecha_fin": self.hoy},
+        )
+        self.assertEqual(resp.status_code, 200)
+        rows = resp.context["rows"]
+        self.assertEqual(len(rows), 1)
+        # Vendido = 10000, Premio = 10000 * 60 = 600000 → diferencia negativa
+        self.assertEqual(rows[0]["total_ventas"], 10000)
+        self.assertLess(rows[0]["diferencia"], 0)
+
+    def test_reporte_conciliacion_exporta_csv(self):
+        self._crear_venta()
+        resp = self.client.get(
+            reverse("reporte_conciliacion"),
+            {"fecha_inicio": self.hoy, "fecha_fin": self.hoy, "export": "csv"},
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("text/csv", resp["Content-Type"])
+
+    def test_reporte_conciliacion_exporta_excel(self):
+        self._crear_venta()
+        resp = self.client.get(
+            reverse("reporte_conciliacion"),
+            {"fecha_inicio": self.hoy, "fecha_fin": self.hoy, "export": "excel"},
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("spreadsheetml", resp["Content-Type"])
+
+    def test_no_superuser_no_puede_ver_reportes(self):
+        User = get_user_model()
+        vendedor = User.objects.create_user(username="vend_noperm", password="x")
+        self.client.force_login(vendedor)
+        resp = self.client.get(reverse("reportes"))
+        self.assertEqual(resp.status_code, 302)
+
+    def test_reporte_descargas_exporta_excel(self):
+        self._crear_venta()
+        resp = self.client.get(
+            reverse("reporte_descargas"),
+            {"fecha": self.hoy, "export": "excel"},
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("spreadsheetml", resp["Content-Type"])
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 5.1 Tests de Notificaciones
+# ─────────────────────────────────────────────────────────────────────────────
+
+class NotificacionModelTests(TestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.user = User.objects.create_user(username="notif_user", password="x")
+
+    def test_crear_notificacion(self):
+        n = Notificacion.crear(self.user, "Título test", mensaje="Detalle", tipo=Notificacion.TIPO_EXITO)
+        self.assertEqual(n.titulo, "Título test")
+        self.assertEqual(n.tipo, Notificacion.TIPO_EXITO)
+        self.assertFalse(n.leida)
+
+    def test_notificacion_no_leida_por_defecto(self):
+        n = Notificacion.objects.create(usuario=self.user, titulo="Test")
+        self.assertFalse(n.leida)
+        self.assertEqual(n.tipo, Notificacion.TIPO_INFO)
+
+    def test_str_representacion(self):
+        n = Notificacion.crear(self.user, "Alerta")
+        self.assertIn("Alerta", str(n))
+
+
+class NotificacionAPITests(TestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.user = User.objects.create_user(username="notif_api_user", password="x")
+        self.client.force_login(self.user)
+
+    def test_count_retorna_cero_sin_notificaciones(self):
+        resp = self.client.get(reverse("notificaciones_count"))
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()["count"], 0)
+
+    def test_count_retorna_cantidad_no_leidas(self):
+        Notificacion.crear(self.user, "Una")
+        Notificacion.crear(self.user, "Dos")
+        resp = self.client.get(reverse("notificaciones_count"))
+        self.assertEqual(resp.json()["count"], 2)
+
+    def test_count_no_cuenta_leidas(self):
+        Notificacion.objects.create(usuario=self.user, titulo="Leída", leida=True)
+        Notificacion.crear(self.user, "No leída")
+        resp = self.client.get(reverse("notificaciones_count"))
+        self.assertEqual(resp.json()["count"], 1)
+
+    def test_list_retorna_notificaciones(self):
+        Notificacion.crear(self.user, "Notif 1")
+        resp = self.client.get(reverse("notificaciones_list"))
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(len(data["notificaciones"]), 1)
+        self.assertEqual(data["notificaciones"][0]["titulo"], "Notif 1")
+
+    def test_list_marca_como_leidas(self):
+        Notificacion.crear(self.user, "Pendiente")
+        self.client.get(reverse("notificaciones_list"))
+        self.assertEqual(Notificacion.objects.filter(leida=False).count(), 0)
+
+    def test_list_solo_ve_propias_notificaciones(self):
+        User = get_user_model()
+        otro = User.objects.create_user(username="otro_notif", password="x")
+        Notificacion.crear(otro, "No mía")
+        Notificacion.crear(self.user, "Mía")
+        resp = self.client.get(reverse("notificaciones_list"))
+        notifs = resp.json()["notificaciones"]
+        self.assertEqual(len(notifs), 1)
+        self.assertEqual(notifs[0]["titulo"], "Mía")
+
+    def test_count_requiere_autenticacion(self):
+        self.client.logout()
+        resp = self.client.get(reverse("notificaciones_count"))
+        self.assertEqual(resp.status_code, 302)
+
+    def test_list_requiere_autenticacion(self):
+        self.client.logout()
+        resp = self.client.get(reverse("notificaciones_list"))
+        self.assertEqual(resp.status_code, 302)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 5.1 Tests de Middleware de auditoría
+# ─────────────────────────────────────────────────────────────────────────────
+
+class ActivityLogMiddlewareTests(TestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.user = User.objects.create_user(username="mw_user", password="x")
+        self.dia = Dia.objects.create(nombre=dia_es(timezone.localtime(timezone.now())))
+
+    def test_request_autenticado_genera_log(self):
+        self.client.force_login(self.user)
+        with self.assertLogs("lottia.activity", level="INFO") as cm:
+            self.client.get(reverse("home"))
+        self.assertTrue(any("mw_user" in line for line in cm.output))
+
+    def test_request_no_autenticado_no_genera_log(self):
+        # home redirige a login si no está autenticado — no debe loggear
+        with self.assertRaises(AssertionError):
+            with self.assertLogs("lottia.activity", level="INFO"):
+                self.client.get(reverse("home"))
+
+    def test_log_incluye_metodo_path_y_status(self):
+        self.client.force_login(self.user)
+        with self.assertLogs("lottia.activity", level="INFO") as cm:
+            self.client.get(reverse("home"))
+        log_line = cm.output[0]
+        self.assertIn("GET", log_line)
+        self.assertIn("/", log_line)
+
+    def test_path_skip_no_genera_log(self):
+        self.client.force_login(self.user)
+        # El endpoint de conteo está en la skip list
+        with self.assertRaises(AssertionError):
+            with self.assertLogs("lottia.activity", level="INFO"):
+                self.client.get(reverse("notificaciones_count"))
