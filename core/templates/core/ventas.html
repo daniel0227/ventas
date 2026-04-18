@@ -111,8 +111,8 @@
         <thead>
           <tr>
             <th style="text-align: center;">Número</th>
-            <th style="text-align: center; width:70px;">Combi</th>
-            <th style="text-align: center;">Monto</th>
+            <th style="text-align: center;">Valor</th>
+            <th style="text-align: center; width:90px;">Combinado</th>
             <th style="width:44px;"></th>
           </tr>
         </thead>
@@ -120,15 +120,15 @@
           {# Se generan 5 filas por defecto #}
           {% for i in "12345"|make_list %}
             <tr>
-              <td data-label="Numero"><input type="number" name="numero" class="form-control ventas-input" inputmode="numeric" min="0" step="1"></td>
-              <td data-label="Combi" class="cell-combi">
+              <td data-label="Numero"><input type="text" name="numero" class="form-control ventas-input" inputmode="numeric" pattern="[0-9]{1,4}" maxlength="4"></td>
+              <td data-label="Valor"><input type="number" name="monto" class="form-control ventas-input monto" inputmode="decimal" min="0" step="any"></td>
+              <td data-label="Combinado" class="cell-combi">
                 <input type="hidden" name="es_combinado" value="0" class="es-combinado-hidden">
                 <label class="combi-check-wrap">
                   <input type="checkbox" class="combi-check">
                   <span class="combi-check-ui"></span>
                 </label>
               </td>
-              <td data-label="Monto"><input type="number" name="monto" class="form-control ventas-input monto" inputmode="decimal" min="0" step="any"></td>
               <td class="cell-remove" data-label="Accion">
                 <button type="button" class="btn remove-row remove-row-btn" title="Eliminar fila">
                   <i class="bi bi-x-lg"></i>
@@ -1209,16 +1209,19 @@
       transition: border-color .15s;
     }
 
-    .combi-check:checked + .combi-check-ui {
+    /* Estado activo: manejado por JS (.is-checked) para repintado inmediato en móvil */
+    .combi-check:checked + .combi-check-ui,
+    .combi-check-ui.is-checked {
       background: var(--ventas-primary);
       border-color: var(--ventas-primary);
     }
 
-    .combi-check:checked + .combi-check-ui::after {
+    .combi-check:checked + .combi-check-ui::after,
+    .combi-check-ui.is-checked::after {
       border-color: #fff;
     }
 
-    .combi-check-wrap:hover .combi-check-ui {
+    .combi-check-wrap:hover .combi-check-ui:not(.is-checked) {
       border-color: var(--ventas-primary);
       background: var(--ventas-primary-light);
     }
@@ -1590,12 +1593,16 @@
         row.querySelectorAll('input').forEach(input => {
           input.addEventListener('input', updateTotal);
         });
-        // Sincronizar checkbox con el hidden input
+        // Sincronizar checkbox con el hidden input y forzar repintado inmediato en móvil
         const check = row.querySelector('.combi-check');
         const hidden = row.querySelector('.es-combinado-hidden');
-        if (check && hidden) {
+        const ui    = row.querySelector('.combi-check-ui');
+        if (check && hidden && ui) {
+          // Estado inicial (filas pre-renderizadas con checked)
+          ui.classList.toggle('is-checked', check.checked);
           check.addEventListener('change', () => {
             hidden.value = check.checked ? '1' : '0';
+            ui.classList.toggle('is-checked', check.checked);
           });
         }
       }
@@ -1605,15 +1612,15 @@
         const esCombi = values?.es_combinado ? '1' : '0';
         const monto = values?.monto || '';
         return `
-          <td data-label="Numero"><input type="number" name="numero" class="form-control ventas-input" value="${numero}" inputmode="numeric" min="0" step="1"></td>
-          <td data-label="Combi" class="cell-combi">
+          <td data-label="Numero"><input type="text" name="numero" class="form-control ventas-input" value="${numero}" inputmode="numeric" pattern="[0-9]{1,4}" maxlength="4"></td>
+          <td data-label="Valor"><input type="number" name="monto" class="form-control ventas-input monto" value="${monto}" inputmode="decimal" min="0" step="any"></td>
+          <td data-label="Combinado" class="cell-combi">
             <input type="hidden" name="es_combinado" value="${esCombi}" class="es-combinado-hidden">
             <label class="combi-check-wrap">
               <input type="checkbox" class="combi-check"${esCombi === '1' ? ' checked' : ''}>
               <span class="combi-check-ui"></span>
             </label>
           </td>
-          <td data-label="Monto"><input type="number" name="monto" class="form-control ventas-input monto" value="${monto}" inputmode="decimal" min="0" step="any"></td>
           <td class="cell-remove" data-label="Accion">
             <button type="button" class="btn remove-row remove-row-btn" title="Eliminar fila">
               <i class="bi bi-x-lg"></i>

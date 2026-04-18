@@ -234,6 +234,13 @@
     white-space: nowrap;
     letter-spacing: .01em;
   }
+  .chip-numero--combi {
+    background: #f5f3ff;
+    color: #7c3aed;
+    border-color: #ddd6fe;
+    font-style: italic;
+  }
+
   .chip-id {
     display: inline-block;
     padding: .22rem .55rem;
@@ -544,11 +551,9 @@
         </div>
       </div>
       <div class="venta-row-bottom">
-        {% if venta.numero %}
-          <span class="chip-numero"><i class="bi bi-hash" style="font-size:.7rem;"></i>{{ venta.numero }}</span>
-        {% else %}
-          <span class="chip-numero">{{ venta.combi }}</span>
-        {% endif %}
+        <span class="chip-numero {% if venta.es_combinado %}chip-numero--combi{% endif %}">
+          <i class="bi bi-hash" style="font-size:.7rem;"></i>{% if venta.es_combinado %}({{ venta.numero }}){% else %}{{ venta.numero }}{% endif %}
+        </span>
         {% if user.is_staff %}
           <span class="chip-id">ID {{ venta.id }}</span>
         {% endif %}
@@ -577,11 +582,9 @@
           <td class="td-nombre">{{ venta.vendedor.username|capfirst }}</td>
           <td>{{ venta.loterias.all|join:", " }}</td>
           <td>
-            {% if venta.numero %}
-              <span class="chip-numero"><i class="bi bi-hash" style="font-size:.7rem;"></i>{{ venta.numero }}</span>
-            {% else %}
-              <span class="chip-numero">{{ venta.combi }}</span>
-            {% endif %}
+            <span class="chip-numero {% if venta.es_combinado %}chip-numero--combi{% endif %}">
+              <i class="bi bi-hash" style="font-size:.7rem;"></i>{% if venta.es_combinado %}({{ venta.numero }}){% else %}{{ venta.numero }}{% endif %}
+            </span>
           </td>
           <td class="td-monto">${{ venta.monto|format_colombian }}</td>
           <td style="color:var(--muted);font-size:.85rem;">{{ venta.fecha_venta }}</td>
