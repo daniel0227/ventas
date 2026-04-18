@@ -2,6 +2,14 @@
 {% extends 'core/base.html' %}
 {% load static %}
 {% load format_filters %}
+{% block breadcrumbs %}
+<nav class="breadcrumb-lottia" aria-label="Ruta de navegación">
+  <a href="{% url 'home' %}"><i class="bi bi-house-fill me-1"></i>Inicio</a>
+  <span class="sep"><i class="bi bi-chevron-right"></i></span>
+  <span class="current">Reporte de Liquidación</span>
+</nav>
+{% endblock %}
+
 {% block content %}
 
 <style>
@@ -502,6 +510,10 @@
 </div>
 {% endif %}
 
+{% if rows %}
+{{ labels|json_script:"chart-labels" }}
+{{ data|json_script:"chart-data" }}
+{% endif %}
 <script src="https://cdn.jsdelivr.net/npm/highcharts@12.4.0/highcharts.js"></script>
 <script>
 (() => {
@@ -582,6 +594,8 @@
 
   {% if rows %}
   // ── Highcharts ────────────────────────────────────────
+  const chartLabels = JSON.parse(document.getElementById('chart-labels').textContent);
+  const chartData   = JSON.parse(document.getElementById('chart-data').textContent);
   Highcharts.chart('ventasChart', {
     chart: {
       type: 'column',
@@ -592,7 +606,7 @@
     title: { text: null },
     credits: { enabled: false },
     xAxis: {
-      categories: {{ labels|safe }},
+      categories: chartLabels,
       labels: { style: { fontSize: '12px', color: '#6b7280' } },
       lineColor: '#e5e7eb',
       tickColor: 'transparent',
@@ -647,7 +661,7 @@
     legend: { enabled: false },
     series: [{
       name: 'Ventas',
-      data: {{ data|safe }},
+      data: chartData,
     }],
     responsive: {
       rules: [{
