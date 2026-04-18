@@ -1852,41 +1852,67 @@
   </script>
 
   <!-- ── Indicador de límite disponible por número (4.8) ──────────── -->
+  <style>
+    .limite-hint-bubble {
+      position: absolute;
+      top: calc(100% + 2px);
+      left: 0;
+      z-index: 200;
+      white-space: nowrap;
+      font-size: .72rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 6px;
+      pointer-events: none;
+      box-shadow: 0 2px 8px rgba(0,0,0,.12);
+    }
+    .limite-hint-bubble.disponible { background: #ecfdf5; color: #065f46; border: 1px solid #6ee7b7; }
+    .limite-hint-bubble.tope       { background: #fef2f2; color: #991b1b; border: 1px solid #fca5a5; }
+  </style>
   <script>
   (function () {
     const LIMITE_API = "{% url 'api_limite_disponible' %}";
-    const debounceMs = 500;
+    const debounceMs = 600;
     const timers = new WeakMap();
 
     function getSelectedLotteriaIds() {
       return Array.from(document.querySelectorAll('input[name="loterias"]:checked')).map(el => el.value);
     }
 
-    function getOrCreateHint(input) {
-      let hint = input.parentElement.querySelector('.limite-hint');
-      if (!hint) {
-        hint = document.createElement('div');
-        hint.className = 'limite-hint';
-        hint.style.cssText = 'font-size:.72rem; margin-top:.25rem; font-weight:600; min-height:1rem;';
-        input.parentElement.appendChild(hint);
+    // El bubble se pone relativo al td (padre del input)
+    function getOrCreateBubble(input) {
+      const td = input.parentElement;
+      td.style.position = 'relative';
+      let bubble = td.querySelector('.limite-hint-bubble');
+      if (!bubble) {
+        bubble = document.createElement('span');
+        bubble.className = 'limite-hint-bubble';
+        td.appendChild(bubble);
       }
-      return hint;
+      return bubble;
     }
 
-    function fetchLimite(numero, loteriaId, hint) {
+    function hideBubble(input) {
+      const b = input.parentElement && input.parentElement.querySelector('.limite-hint-bubble');
+      if (b) b.textContent = '';
+    }
+
+    function fetchLimite(numero, loteriaId, input) {
       fetch(`${LIMITE_API}?numero=${encodeURIComponent(numero)}&loteria_id=${encodeURIComponent(loteriaId)}`, { credentials: 'same-origin' })
         .then(r => r.ok ? r.json() : null)
         .then(d => {
-          if (!d || !d.activo) { hint.textContent = ''; return; }
+          if (!d || !d.activo) { hideBubble(input); return; }
+          const bubble = getOrCreateBubble(input);
+          bubble.classList.remove('disponible', 'tope');
           if (d.disponible === 0) {
-            hint.style.color = '#ef4444';
-            hint.textContent = `⛔ Tope alcanzado (${d.limite.toLocaleString('es-CO')})`;
+            bubble.classList.add('tope');
+            bubble.textContent = `⛔ Tope: $${d.limite.toLocaleString('es-CO')}`;
           } else {
-            hint.style.color = '#10b981';
-            hint.textContent = `✓ Disponible: $${d.disponible.toLocaleString('es-CO')}`;
+            bubble.classList.add('disponible');
+            bubble.textContent = `✓ Disp: $${d.disponible.toLocaleString('es-CO')}`;
           }
         })
-        .catch(() => { hint.textContent = ''; });
+        .catch(() => hideBubble(input));
     }
 
     function attachLimiteListener(input) {
@@ -1894,31 +1920,41 @@
       input.dataset.limiteWired = '1';
       input.addEventListener('input', () => {
         clearTimeout(timers.get(input));
-        const hint = getOrCreateHint(input);
-        hint.textContent = '';
+        hideBubble(input);
         const numero = input.value.trim();
         if (numero.length < 2) return;
         const ids = getSelectedLotteriaIds();
         if (!ids.length) return;
-        timers.set(input, setTimeout(() => fetchLimite(numero, ids[0], hint), debounceMs));
+        timers.set(input, setTimeout(() => fetchLimite(numero, ids[0], input), debounceMs));
+      });
+      input.addEventListener('blur', () => {
+        clearTimeout(timers.get(input));
+        // Oculta el bubble al salir del campo
+        setTimeout(() => hideBubble(input), 1500);
       });
     }
 
-    // Conectar inputs existentes
-    document.querySelectorAll('input[name="numero"]').forEach(attachLimiteListener);
-
-    // Observar nuevas filas agregadas dinámicamente
-    const tbody = document.querySelector('#dynamic-table tbody');
-    if (tbody) {
-      new MutationObserver(mutations => {
-        mutations.forEach(m => {
-          m.addedNodes.forEach(node => {
-            if (node.nodeType === 1) {
-              node.querySelectorAll('input[name="numero"]').forEach(attachLimiteListener);
-            }
+    // Conectar inputs existentes (espera que el DOM esté listo)
+    function init() {
+      document.querySelectorAll('input[name="numero"]').forEach(attachLimiteListener);
+      const tbody = document.querySelector('#dynamic-table tbody');
+      if (tbody) {
+        new MutationObserver(mutations => {
+          mutations.forEach(m => {
+            m.addedNodes.forEach(node => {
+              if (node.nodeType === 1) {
+                node.querySelectorAll('input[name="numero"]').forEach(attachLimiteListener);
+              }
+            });
           });
-        });
-      }).observe(tbody, { childList: true });
+        }).observe(tbody, { childList: true });
+      }
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
     }
   })();
   </script>
