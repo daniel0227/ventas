@@ -48,33 +48,12 @@
         </h5>
 
         <!-- Contenedor de botones -->
-        <div class="btn-container d-flex gap-2 align-items-center">
+        <div class="btn-container d-flex gap-2">
           <!-- Botón Inicio con ícono de Bootstrap Icons -->
           <a href="{% url 'home' %}" class="btn btn-outline-primary d-flex align-items-center fw-semibold">
             <i class="bi bi-house me-1"></i>
             Inicio
           </a>
-
-          <!-- Campana de notificaciones -->
-          <div class="dropdown notif-bell-wrapper" title="Notificaciones">
-            <button id="notifBellBtn" class="btn btn-outline-secondary notif-bell-btn position-relative"
-                    type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Notificaciones">
-              <i class="bi bi-bell"></i>
-              <span id="notifBadge" class="notif-badge d-none">0</span>
-            </button>
-            <div class="dropdown-menu dropdown-menu-end notif-dropdown p-0" id="notifDropdown">
-              <div class="notif-header d-flex justify-content-between align-items-center px-3 py-2 border-bottom">
-                <span class="fw-bold" style="font-size:.85rem;">Notificaciones</span>
-                <span id="notifHeaderCount" class="badge bg-primary rounded-pill" style="font-size:.7rem;"></span>
-              </div>
-              <div id="notifList" style="max-height:320px; overflow-y:auto;">
-                <div class="text-center text-muted py-4" style="font-size:.82rem;">
-                  <i class="bi bi-bell-slash me-1"></i> Sin notificaciones
-                </div>
-              </div>
-            </div>
-          </div>
-
           <!-- Botón Salir con ícono de Bootstrap Icons -->
           <form method="post" action="{% url 'logout' %}" class="d-inline">
             {% csrf_token %}
@@ -101,27 +80,6 @@
       line-height: 1;
       padding: 0.5rem 0.8rem;
     }
-    /* ── Campana de notificaciones ───────────────── */
-    .notif-bell-btn { padding: .4rem .65rem; border-radius: 8px; }
-    .notif-badge {
-      position: absolute; top: 2px; right: 2px;
-      background: #ef4444; color: #fff; font-size: .6rem; font-weight: 700;
-      border-radius: 999px; min-width: 16px; height: 16px;
-      display: flex; align-items: center; justify-content: center;
-      line-height: 1; padding: 0 3px;
-    }
-    .notif-dropdown { width: 320px; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.12); border: 1px solid #e5e7eb; }
-    .notif-item { padding: .65rem 1rem; border-bottom: 1px solid #f3f4f6; cursor: default; transition: background .15s; }
-    .notif-item:last-child { border-bottom: 0; }
-    .notif-item:hover { background: #f9fafb; }
-    .notif-item.no-leida { background: #f0f4ff; }
-    .notif-item .notif-title { font-size: .82rem; font-weight: 600; color: #1f2937; margin-bottom: .15rem; }
-    .notif-item .notif-msg { font-size: .76rem; color: #6b7280; margin: 0; }
-    .notif-item .notif-time { font-size: .7rem; color: #9ca3af; margin-top: .2rem; }
-    .notif-dot-info    { color: #3b82f6; }
-    .notif-dot-exito   { color: #10b981; }
-    .notif-dot-alerta  { color: #f59e0b; }
-    .notif-dot-error   { color: #ef4444; }
     /* ── Breadcrumbs ─────────────────────────────── */
     .breadcrumb-lottia {
       display: flex;
@@ -181,83 +139,5 @@
 
     <!-- Volt JS -->
     <script src="{% static 'core/js/volt.js' %}"></script>
-
-    <!-- Notificaciones en-app -->
-    <script>
-    (function () {
-      const POLL_MS = 60000; // cada 60 segundos
-      const countUrl = "{% url 'notificaciones_count' %}";
-      const listUrl  = "{% url 'notificaciones_list' %}";
-      const badge    = document.getElementById('notifBadge');
-      const btn      = document.getElementById('notifBellBtn');
-      const listEl   = document.getElementById('notifList');
-      const headerCount = document.getElementById('notifHeaderCount');
-      let pollTimer = null;
-
-      const tipoIcon = { info: 'bi-info-circle', exito: 'bi-check-circle', alerta: 'bi-exclamation-triangle', error: 'bi-x-circle' };
-      const tipoClass = { info: 'notif-dot-info', exito: 'notif-dot-exito', alerta: 'notif-dot-alerta', error: 'notif-dot-error' };
-
-      function fmtDate(iso) {
-        try {
-          return new Date(iso).toLocaleString('es-CO', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' });
-        } catch { return iso; }
-      }
-
-      function updateBadge(count) {
-        if (count > 0) {
-          badge.textContent = count > 99 ? '99+' : count;
-          badge.classList.remove('d-none');
-        } else {
-          badge.classList.add('d-none');
-        }
-      }
-
-      function pollCount() {
-        fetch(countUrl, { credentials: 'same-origin' })
-          .then(r => r.ok ? r.json() : null)
-          .then(d => d && updateBadge(d.count))
-          .catch(() => {});
-      }
-
-      function renderList(notifs) {
-        if (!notifs.length) {
-          listEl.innerHTML = '<div class="text-center text-muted py-4" style="font-size:.82rem;"><i class="bi bi-bell-slash me-1"></i> Sin notificaciones</div>';
-          headerCount.textContent = '';
-          return;
-        }
-        const noLeidas = notifs.filter(n => !n.leida).length;
-        headerCount.textContent = noLeidas ? noLeidas : '';
-        listEl.innerHTML = notifs.map(n => {
-          const icon = tipoIcon[n.tipo] || 'bi-bell';
-          const cls  = tipoClass[n.tipo] || '';
-          const wrap = n.url ? `<a href="${n.url}" style="text-decoration:none;color:inherit;">` : '<div>';
-          const end  = n.url ? '</a>' : '</div>';
-          return `${wrap}<div class="notif-item${n.leida ? '' : ' no-leida'}">
-            <div class="notif-title"><i class="bi ${icon} me-1 ${cls}"></i>${n.titulo}</div>
-            ${n.mensaje ? `<p class="notif-msg">${n.mensaje}</p>` : ''}
-            <div class="notif-time">${fmtDate(n.creada_en)}</div>
-          </div>${end}`;
-        }).join('');
-      }
-
-      // Al abrir el dropdown: cargar lista y marcar como leídas
-      if (btn) {
-        btn.addEventListener('shown.bs.dropdown', () => {
-          clearInterval(pollTimer);
-          fetch(listUrl, { credentials: 'same-origin' })
-            .then(r => r.ok ? r.json() : null)
-            .then(d => { if (d) { renderList(d.notificaciones); updateBadge(0); } })
-            .catch(() => {});
-        });
-        btn.addEventListener('hidden.bs.dropdown', () => {
-          pollTimer = setInterval(pollCount, POLL_MS);
-        });
-      }
-
-      // Polling inicial
-      pollCount();
-      pollTimer = setInterval(pollCount, POLL_MS);
-    })();
-    </script>
 
 </html>

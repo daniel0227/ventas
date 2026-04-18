@@ -8,79 +8,6 @@
     <p class="home-subtitle mb-0">Accede rapidamente a las operaciones del sistema.</p>
   </header>
 
-  <!-- ── Analíticas rápidas ────────────────────────────────── -->
-  {% if tendencia_data %}
-  <div class="row g-3 mb-4">
-    <!-- Ventas hoy -->
-    <div class="col-6 col-md-3">
-      <div class="analytics-card">
-        <div class="analytics-label">Ventas hoy</div>
-        <div class="analytics-value">${{ total_ventas|floatformat:0 }}</div>
-      </div>
-    </div>
-    <!-- Semana actual -->
-    <div class="col-6 col-md-3">
-      <div class="analytics-card">
-        <div class="analytics-label">Esta semana</div>
-        <div class="analytics-value">${{ venta_semana_actual|floatformat:0 }}</div>
-      </div>
-    </div>
-    <!-- Vs semana anterior -->
-    <div class="col-6 col-md-3">
-      <div class="analytics-card">
-        <div class="analytics-label">vs sem. anterior</div>
-        <div class="analytics-value {% if delta_semana >= 0 %}analytics-pos{% else %}analytics-neg{% endif %}">
-          {% if delta_semana >= 0 %}+{% endif %}${{ delta_semana|floatformat:0 }}
-        </div>
-      </div>
-    </div>
-    <!-- Top 1 número -->
-    {% if top5_numeros %}
-    <div class="col-6 col-md-3">
-      <div class="analytics-card">
-        <div class="analytics-label">N° más apostado hoy</div>
-        <div class="analytics-value">{{ top5_numeros.0.numero }}</div>
-        <div style="font-size:.72rem; color:#6b7280; margin-top:.1rem;">${{ top5_numeros.0.total|floatformat:0 }}</div>
-      </div>
-    </div>
-    {% endif %}
-  </div>
-
-  <!-- Tendencia 30 días + Top 5 -->
-  <div class="row g-3 mb-4">
-    <div class="col-lg-8">
-      <div class="analytics-chart-card">
-        <div class="analytics-chart-title">Tendencia de ventas — últimos 30 días</div>
-        <canvas id="tendenciaChart" height="90"></canvas>
-      </div>
-    </div>
-    <div class="col-lg-4">
-      <div class="analytics-chart-card h-100">
-        <div class="analytics-chart-title">Top 5 números hoy</div>
-        {% if top5_numeros %}
-        {% with max_top=top5_numeros.0.total %}
-        <ul class="top5-list">
-          {% for item in top5_numeros %}
-          {% widthratio item.total max_top 100 as pct %}
-          <li class="top5-item">
-            <span class="top5-num">{{ item.numero }}</span>
-            <div class="top5-bar-wrap">
-              <div class="top5-bar" style="width:{{ pct }}%;"></div>
-            </div>
-            <span class="top5-val">${{ item.total|floatformat:0 }}</span>
-          </li>
-          {% endfor %}
-        </ul>
-        {% endwith %}
-        {% else %}
-        <p style="color:#9ca3af; font-size:.82rem; margin-top:1rem;">Sin apuestas hoy.</p>
-        {% endif %}
-      </div>
-    </div>
-  </div>
-  {% endif %}
-  <!-- ── Fin analíticas ─────────────────────────────────────── -->
-
   <div class="row g-3 g-md-4">
     {% if not es_descargue %}
       <div class="col-12 col-sm-6 col-xl-3">
@@ -229,64 +156,10 @@
   </div>
 </section>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-{{ tendencia_labels|json_script:"tendencia-labels" }}
-{{ tendencia_data|json_script:"tendencia-data" }}
-<script>
-(function() {
-  const labels = JSON.parse(document.getElementById('tendencia-labels').textContent);
-  const data   = JSON.parse(document.getElementById('tendencia-data').textContent);
-  const ctx = document.getElementById('tendenciaChart');
-  if (!ctx || !labels.length) return;
-  new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels,
-      datasets: [{
-        label: 'Ventas (COP)',
-        data,
-        borderColor: '#4f46e5',
-        backgroundColor: 'rgba(79,70,229,.08)',
-        borderWidth: 2,
-        pointRadius: 2,
-        tension: 0.35,
-        fill: true,
-      }]
-    },
-    options: {
-      responsive: true,
-      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => '$' + ctx.parsed.y.toLocaleString('es-CO') } } },
-      scales: {
-        x: { ticks: { font: { size: 10 }, maxTicksLimit: 10 }, grid: { display: false } },
-        y: { ticks: { font: { size: 10 }, callback: v => '$' + v.toLocaleString('es-CO') }, grid: { color: '#f3f4f6' } }
-      }
-    }
-  });
-})();
-</script>
-
 <style>
   .home-menu {
     max-width: 1200px;
   }
-
-  /* ── Analíticas ───────────── */
-  .analytics-card {
-    background: #fff; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,.07);
-    border: 1px solid #e5e7eb; padding: .85rem 1rem;
-  }
-  .analytics-label { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #6b7280; margin-bottom: .2rem; }
-  .analytics-value { font-size: 1.3rem; font-weight: 700; color: #1f2937; }
-  .analytics-pos { color: #10b981; }
-  .analytics-neg { color: #ef4444; }
-  .analytics-chart-card { background: #fff; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,.07); border: 1px solid #e5e7eb; padding: 1rem 1.1rem; }
-  .analytics-chart-title { font-size: .78rem; font-weight: 700; color: #374151; margin-bottom: .75rem; }
-  .top5-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: .55rem; }
-  .top5-item { display: flex; align-items: center; gap: .55rem; }
-  .top5-num { font-size: .82rem; font-weight: 700; color: #1f2937; min-width: 36px; }
-  .top5-bar-wrap { flex: 1; background: #f3f4f6; border-radius: 4px; height: 8px; overflow: hidden; }
-  .top5-bar { height: 8px; background: #4f46e5; border-radius: 4px; transition: width .5s ease; }
-  .top5-val { font-size: .75rem; color: #6b7280; white-space: nowrap; min-width: 60px; text-align: right; }
 
   .home-title {
     font-size: 1.6rem;

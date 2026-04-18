@@ -252,67 +252,7 @@ def _resolver_datos_premio_combinado(numero_apostado, numero_ganador):
 # Vista Home
 @login_required
 def home(request):
-    ahora = localtime()
-    hoy = ahora.date()
-    hace_30 = hoy - timedelta(days=29)
-
-    # ── Totales del día ────────────────────────────────────────────────
-    ventas_hoy_qs = Venta.objects.filter(fecha_venta__date=hoy)
-    if not request.user.is_staff:
-        ventas_hoy_qs = ventas_hoy_qs.filter(vendedor=request.user)
-    total_ventas_hoy = ventas_hoy_qs.aggregate(t=Coalesce(Sum('monto'), 0, output_field=IntegerField()))['t']
-
-    # ── Tendencia 30 días (solo admin ve todos los vendedores) ─────────
-    if request.user.is_staff:
-        tendencia_qs = (
-            Venta.objects
-            .filter(fecha_venta__date__range=(hace_30, hoy))
-            .annotate(dia=TruncDate('fecha_venta'))
-            .values('dia')
-            .annotate(total=Coalesce(Sum('monto'), 0, output_field=IntegerField()))
-            .order_by('dia')
-        )
-    else:
-        tendencia_qs = (
-            Venta.objects
-            .filter(fecha_venta__date__range=(hace_30, hoy), vendedor=request.user)
-            .annotate(dia=TruncDate('fecha_venta'))
-            .values('dia')
-            .annotate(total=Coalesce(Sum('monto'), 0, output_field=IntegerField()))
-            .order_by('dia')
-        )
-    tendencia_labels = [str(r['dia']) for r in tendencia_qs]
-    tendencia_data   = [int(r['total']) for r in tendencia_qs]
-
-    # ── Top 5 números más apostados hoy ───────────────────────────────
-    top5_qs = (
-        ventas_hoy_qs
-        .values('numero')
-        .annotate(total=Coalesce(Sum('monto'), 0, output_field=IntegerField()))
-        .order_by('-total')[:5]
-    )
-    top5_numeros = list(top5_qs)
-
-    # ── Semana actual vs semana anterior (admin) ───────────────────────
-    lunes_actual  = hoy - timedelta(days=hoy.weekday())
-    lunes_anterior = lunes_actual - timedelta(days=7)
-    if request.user.is_staff:
-        venta_semana_actual   = Venta.objects.filter(fecha_venta__date__gte=lunes_actual, fecha_venta__date__lte=hoy).aggregate(t=Coalesce(Sum('monto'), 0, output_field=IntegerField()))['t']
-        venta_semana_anterior = Venta.objects.filter(fecha_venta__date__gte=lunes_anterior, fecha_venta__date__lt=lunes_actual).aggregate(t=Coalesce(Sum('monto'), 0, output_field=IntegerField()))['t']
-    else:
-        venta_semana_actual   = Venta.objects.filter(vendedor=request.user, fecha_venta__date__gte=lunes_actual, fecha_venta__date__lte=hoy).aggregate(t=Coalesce(Sum('monto'), 0, output_field=IntegerField()))['t']
-        venta_semana_anterior = Venta.objects.filter(vendedor=request.user, fecha_venta__date__gte=lunes_anterior, fecha_venta__date__lt=lunes_actual).aggregate(t=Coalesce(Sum('monto'), 0, output_field=IntegerField()))['t']
-
-    delta_semana = venta_semana_actual - venta_semana_anterior
-
     return render(request, 'core/home.html', {
-        'total_ventas': total_ventas_hoy,
-        'tendencia_labels': tendencia_labels,
-        'tendencia_data': tendencia_data,
-        'top5_numeros': top5_numeros,
-        'venta_semana_actual': venta_semana_actual,
-        'venta_semana_anterior': venta_semana_anterior,
-        'delta_semana': delta_semana,
         'es_descargue': _es_descargue(request.user),
         'es_admin': request.user.is_staff,
     })
