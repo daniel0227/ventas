@@ -318,6 +318,7 @@ class Premio(models.Model):
     valor = models.PositiveIntegerField()                         # valor apostado (monto)
     cifras = models.PositiveSmallIntegerField()                   # 2, 3 o 4
     premio = models.PositiveBigIntegerField()                     # valor del premio (payout)
+    es_combinado = models.BooleanField(default=False)             # True si el premio fue por modalidad combinado
     fecha = models.DateField(db_index=True)
 
     creado_en = models.DateTimeField(auto_now_add=True)

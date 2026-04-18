@@ -4,7 +4,9 @@
       "Bash(pip show:*)",
       "Bash(python manage.py test core)",
       "Bash(python manage.py test core -v 2)",
-      "Bash(python manage.py test core --noinput)"
+      "Bash(python manage.py test core --noinput)",
+      "Bash(python manage.py migrate --run-syncdb)",
+      "Bash(python manage.py test core --verbosity=1)"
     ]
   }
 }

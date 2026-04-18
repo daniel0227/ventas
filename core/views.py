@@ -224,6 +224,32 @@ def _resolver_datos_premio(numero_apostado, numero_ganador):
         "multiplicador": multiplicadores[cifras],
     }
 
+
+def _resolver_datos_premio_combinado(numero_apostado, numero_ganador):
+    """
+    Verifica si el número apostado en modalidad COMBINADO coincide con el resultado.
+    Solo aplica para apuestas de 3 o 4 cifras.
+    Gana si los dígitos del número apostado son una permutación de los últimos
+    N dígitos del número ganador (N = cifras de la apuesta).
+    Multiplicadores: 3 cifras × 90, 4 cifras × 220.
+    """
+    numero_limpio = str(numero_apostado or "").strip()
+    cifras = len(numero_limpio)
+    if cifras not in (3, 4):
+        return None
+
+    segmento_ganador = numero_ganador[-cifras:]
+    if sorted(numero_limpio) != sorted(segmento_ganador):
+        return None
+
+    multiplicadores = {3: 90, 4: 220}
+    return {
+        "numero": numero_limpio,
+        "cifras": cifras,
+        "multiplicador": multiplicadores[cifras],
+    }
+
+
 # Vista Home
 @login_required
 def home(request):
@@ -1041,6 +1067,10 @@ def premios(request):
 
             for venta in ventas_qs.select_related('vendedor'):
                 premio_data = _resolver_datos_premio(venta.numero, winning_number)
+                es_combinado_premio = False
+                if not premio_data and venta.es_combinado:
+                    premio_data = _resolver_datos_premio_combinado(venta.numero, winning_number)
+                    es_combinado_premio = bool(premio_data)
                 if not premio_data:
                     continue
 
@@ -1057,6 +1087,7 @@ def premios(request):
                         'valor': int(venta.monto),
                         'cifras': premio_data["cifras"],
                         'premio': premio_valor,
+                        'es_combinado': es_combinado_premio,
                     }
                 )
 
@@ -1119,7 +1150,8 @@ def premios(request):
             'valor': p.premio,            # lo que muestras en la UI (payout)
             'vendedor': p.vendedor,
             'cifras': p.cifras,
-            'valor_apostado': p.valor,    # por si necesitas mostrarlo más adelante
+            'valor_apostado': p.valor,    # monto apostado
+            'es_combinado': p.es_combinado,
         }
         for p in premios_qs
     ]
