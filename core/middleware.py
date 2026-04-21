@@ -65,3 +65,42 @@ class ActivityLogMiddleware:
         if forwarded:
             return forwarded.split(",")[0].strip()
         return request.META.get("REMOTE_ADDR", "-")
+
+
+# ---------------------------------------------------------------------------
+# Content Security Policy
+# ---------------------------------------------------------------------------
+_CSP_DIRECTIVES = "; ".join([
+    "default-src 'self'",
+    # Estilos: propios + Bootstrap Icons (jsdelivr) + Google Fonts
+    "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com",
+    # Scripts: propios + Moment.js CDN + GitHub buttons
+    "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://buttons.github.io",
+    # Fuentes: propias + Bootstrap Icons (jsdelivr) + Google Fonts (gstatic)
+    "font-src 'self' data: https://cdn.jsdelivr.net https://fonts.gstatic.com",
+    # Imágenes: propias + data URIs
+    "img-src 'self' data:",
+    # Conexiones fetch/XHR: origen propio + cdnjs
+    "connect-src 'self' https://cdnjs.cloudflare.com",
+    "frame-src 'none'",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+])
+
+
+class ContentSecurityPolicyMiddleware:
+    """
+    Inyecta la cabecera Content-Security-Policy en todas las respuestas HTML.
+    No interfiere con descargas CSV/XLSX ni respuestas JSON.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        content_type = response.get("Content-Type", "")
+        if "text/html" in content_type:
+            response["Content-Security-Policy"] = _CSP_DIRECTIVES
+        return response

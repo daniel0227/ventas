@@ -16,3 +16,9 @@ def format_colombian(value):
         return value
     # Formatea usando la función format() y reemplaza las comas por puntos
     return format(value, ",d").replace(",", ".")
+
+
+@register.filter
+def formatpesos(value):
+    """Alias de format_colombian para compatibilidad de plantillas."""
+    return format_colombian(value)
