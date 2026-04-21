@@ -1851,4 +1851,76 @@
     })();
   </script>
 
+  <!-- ── Indicador de límite disponible por número (4.8) ──────────── -->
+  <script>
+  (function () {
+    const LIMITE_API = "{% url 'api_limite_disponible' %}";
+    const debounceMs = 500;
+    const timers = new WeakMap();
+
+    function getSelectedLotteriaIds() {
+      return Array.from(document.querySelectorAll('input[name="loterias"]:checked')).map(el => el.value);
+    }
+
+    function getOrCreateHint(input) {
+      let hint = input.parentElement.querySelector('.limite-hint');
+      if (!hint) {
+        hint = document.createElement('div');
+        hint.className = 'limite-hint';
+        hint.style.cssText = 'font-size:.72rem; margin-top:.25rem; font-weight:600; min-height:1rem;';
+        input.parentElement.appendChild(hint);
+      }
+      return hint;
+    }
+
+    function fetchLimite(numero, loteriaId, hint) {
+      fetch(`${LIMITE_API}?numero=${encodeURIComponent(numero)}&loteria_id=${encodeURIComponent(loteriaId)}`, { credentials: 'same-origin' })
+        .then(r => r.ok ? r.json() : null)
+        .then(d => {
+          if (!d || !d.activo) { hint.textContent = ''; return; }
+          if (d.disponible === 0) {
+            hint.style.color = '#ef4444';
+            hint.textContent = `⛔ Tope alcanzado (${d.limite.toLocaleString('es-CO')})`;
+          } else {
+            hint.style.color = '#10b981';
+            hint.textContent = `✓ Disponible: $${d.disponible.toLocaleString('es-CO')}`;
+          }
+        })
+        .catch(() => { hint.textContent = ''; });
+    }
+
+    function attachLimiteListener(input) {
+      if (input.dataset.limiteWired) return;
+      input.dataset.limiteWired = '1';
+      input.addEventListener('input', () => {
+        clearTimeout(timers.get(input));
+        const hint = getOrCreateHint(input);
+        hint.textContent = '';
+        const numero = input.value.trim();
+        if (numero.length < 2) return;
+        const ids = getSelectedLotteriaIds();
+        if (!ids.length) return;
+        timers.set(input, setTimeout(() => fetchLimite(numero, ids[0], hint), debounceMs));
+      });
+    }
+
+    // Conectar inputs existentes
+    document.querySelectorAll('input[name="numero"]').forEach(attachLimiteListener);
+
+    // Observar nuevas filas agregadas dinámicamente
+    const tbody = document.querySelector('#dynamic-table tbody');
+    if (tbody) {
+      new MutationObserver(mutations => {
+        mutations.forEach(m => {
+          m.addedNodes.forEach(node => {
+            if (node.nodeType === 1) {
+              node.querySelectorAll('input[name="numero"]').forEach(attachLimiteListener);
+            }
+          });
+        });
+      }).observe(tbody, { childList: true });
+    }
+  })();
+  </script>
+
 {% endblock %}

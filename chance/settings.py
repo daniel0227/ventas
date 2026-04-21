@@ -67,6 +67,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'core.middleware.ActivityLogMiddleware',
 ]
 
 ROOT_URLCONF = 'chance.urls'
@@ -150,6 +151,62 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = 'home'
 LOGOUT_REDIRECT_URL = 'login'
+
+
+# ---------------------------------------------------------------------------
+# Logging — actividad de usuarios via lottia.activity
+# ---------------------------------------------------------------------------
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "activity": {
+            "format": "%(asctime)s %(levelname)s %(message)s",
+            "datefmt": "%Y-%m-%d %H:%M:%S",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "activity",
+        },
+    },
+    "loggers": {
+        "lottia.activity": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "django": {
+            "handlers": ["console"],
+            "level": os.environ.get("DJANGO_LOG_LEVEL", "WARNING"),
+            "propagate": False,
+        },
+    },
+}
+
+
+# ---------------------------------------------------------------------------
+# Email — usa console backend en DEBUG, SMTP en produccion
+# Variables requeridas en Railway: EMAIL_HOST, EMAIL_PORT, EMAIL_HOST_USER,
+#   EMAIL_HOST_PASSWORD, EMAIL_USE_TLS, NOTIFY_EMAIL_RECIPIENTS
+# ---------------------------------------------------------------------------
+if DEBUG:
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+else:
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+
+EMAIL_HOST          = os.environ.get('EMAIL_HOST', 'smtp.gmail.com')
+EMAIL_PORT          = int(os.environ.get('EMAIL_PORT', '587'))
+EMAIL_USE_TLS       = os.environ.get('EMAIL_USE_TLS', 'True') == 'True'
+EMAIL_HOST_USER     = os.environ.get('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+DEFAULT_FROM_EMAIL  = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'noreply@lottia.app')
+
+# Destinatarios de alertas del sistema (separados por coma)
+NOTIFY_EMAIL_RECIPIENTS = [
+    e.strip() for e in os.environ.get('NOTIFY_EMAIL_RECIPIENTS', '').split(',') if e.strip()
+]
 
 
 # ---------------------------------------------------------------------------

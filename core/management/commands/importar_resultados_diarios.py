@@ -94,3 +94,40 @@ class Command(BaseCommand):
                 apikey=d["apikey"]
             )
             self.stdout.write(f"📤 Mensaje enviado a {d['telefono']} ➜ {respuesta}")
+
+        # ── Email de resumen ──────────────────────────────────────────
+        from django.conf import settings as django_settings
+        from django.core.mail import send_mail
+
+        destinatarios_email = getattr(django_settings, "NOTIFY_EMAIL_RECIPIENTS", [])
+        if destinatarios_email:
+            n_premios = len(premios_detectados)
+            asunto = (
+                f"[Lottia] ⚠️ {n_premios} premio(s) detectado(s) — {fecha_objetivo}"
+                if premios_detectados
+                else f"[Lottia] ✅ Sin premios — {fecha_objetivo}"
+            )
+            cuerpo_texto = (
+                f"Resumen de importación — {fecha_objetivo}\n\n"
+                f"Importados : {resumen['importados']}\n"
+                f"Omitidos   : {resumen['omitidos']}\n"
+                f"Errores    : {resumen['errores']}\n\n"
+            )
+            if premios_detectados:
+                cuerpo_texto += "PREMIOS DETECTADOS:\n" + "\n".join(
+                    p.replace("*", "").replace("💥", "").replace("🧨", "") for p in premios_detectados
+                )
+            else:
+                cuerpo_texto += "Sin jugadas ganadoras en las ventas del día."
+
+            try:
+                send_mail(
+                    subject=asunto,
+                    message=cuerpo_texto,
+                    from_email=getattr(django_settings, "DEFAULT_FROM_EMAIL", None),
+                    recipient_list=destinatarios_email,
+                    fail_silently=True,
+                )
+                self.stdout.write(f"📧 Email de resumen enviado a {destinatarios_email}")
+            except Exception as exc:
+                self.stderr.write(f"⚠️ No se pudo enviar email: {exc}")
