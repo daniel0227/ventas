@@ -40,31 +40,26 @@
         <!-- Se asume que ya tienes Bootstrap 5 y Bootstrap Icons incluidos en tu plantilla base -->
 <!-- Ejemplo de uso de Bootstrap 5 y Bootstrap Icons -->
 
-      <div class="welcome-container d-flex justify-content-between align-items-center p-3 shadow-sm" style="margin-top: 3%; background-color: #fff; border-radius: 8px;">
-        <!-- Texto de bienvenida con un emoji -->
-        <h5 class="m-0" style="font-weight: 600; color: #333; font-size: 16px;">
-          Bienvenido, {{ user.username }} 
-          <span role="img" aria-label="wave">👋</span>
+      <div class="welcome-container d-flex justify-content-between align-items-center p-3 shadow-sm">
+        <h5 class="welcome-greeting m-0">
+          Bienvenido, {{ user.username }}
+          <span role="img" aria-label="Saludo">👋</span>
         </h5>
 
-        <!-- Contenedor de botones -->
         <div class="btn-container d-flex gap-2">
-          <!-- Botón Inicio con ícono de Bootstrap Icons -->
-          <a href="{% url 'home' %}" class="btn btn-outline-primary d-flex align-items-center fw-semibold">
-            <i class="bi bi-house me-1"></i>
-            Inicio
+          <a href="{% url 'home' %}" class="btn btn-outline-primary welcome-btn d-flex align-items-center fw-semibold" aria-label="Ir al inicio">
+            <i class="bi bi-house"></i>
+            <span class="welcome-btn-text ms-1">Inicio</span>
           </a>
-          <!-- Botón Salir con ícono de Bootstrap Icons -->
           <form method="post" action="{% url 'logout' %}" class="d-inline">
             {% csrf_token %}
-            <button class="btn btn-outline-danger d-flex align-items-center fw-semibold" type="submit">
-              <i class="bi bi-box-arrow-right me-1"></i>
-              Salir
+            <button class="btn btn-outline-danger welcome-btn d-flex align-items-center fw-semibold" type="submit" aria-label="Cerrar sesión">
+              <i class="bi bi-box-arrow-right"></i>
+              <span class="welcome-btn-text ms-1">Salir</span>
             </button>
           </form>
         </div>
       </div>
-      <br>
 
       {% block breadcrumbs %}{% endblock %}
 
@@ -76,6 +71,47 @@
 
   </body>
   <style>
+    .welcome-container {
+      margin-top: 1.25rem;
+      margin-bottom: 1rem;
+      background-color: #fff;
+      border-radius: 10px;
+    }
+
+    .welcome-greeting {
+      font-weight: 600;
+      color: #1f2937;
+      font-size: 1rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 55%;
+    }
+
+    .welcome-btn {
+      min-height: 40px;
+      font-size: 0.95rem;
+      touch-action: manipulation;
+    }
+
+    @media (max-width: 399.98px) {
+      .welcome-btn-text {
+        display: none;
+      }
+
+      .welcome-btn {
+        min-width: 44px;
+        min-height: 44px;
+        justify-content: center;
+        padding: 0.5rem 0.75rem;
+      }
+
+      .welcome-greeting {
+        font-size: 0.92rem;
+        max-width: 50%;
+      }
+    }
+
     .btn {
       line-height: 1;
       padding: 0.5rem 0.8rem;

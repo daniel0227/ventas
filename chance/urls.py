@@ -32,5 +32,5 @@ urlpatterns = [
     path("api/notificaciones/", views.notificaciones_list, name="notificaciones_list"),
 ]
 
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+# Servir archivos de media siempre (Railway no usa CDN externo para media)
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
