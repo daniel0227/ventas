@@ -1,8 +1,45 @@
 import requests
-from datetime import date, timedelta
+from datetime import date
 from django.utils import timezone
-from .models import Loteria, Resultado, Dia, Venta
-from django.utils.timezone import localtime, now
+from .models import Loteria, Resultado
+from django.db.models import Sum, IntegerField
+from django.db.models.functions import Coalesce
+
+# ---------------------------------------------------------------------------
+# Utilidades compartidas
+# ---------------------------------------------------------------------------
+
+_DIAS_EN_ES = {
+    "Monday": "Lunes",
+    "Tuesday": "Martes",
+    "Wednesday": "Miércoles",
+    "Thursday": "Jueves",
+    "Friday": "Viernes",
+    "Saturday": "Sábado",
+    "Sunday": "Domingo",
+}
+
+
+def dia_es(fecha) -> str:
+    """Retorna el nombre del dia de la semana en español para una fecha o datetime."""
+    return _DIAS_EN_ES.get(fecha.strftime("%A"), "")
+
+
+def total_monto(queryset) -> int:
+    """Suma el campo 'monto' de un queryset de Venta/VentaDescargue. Retorna 0 si no hay registros."""
+    return queryset.aggregate(
+        t=Coalesce(Sum("monto"), 0, output_field=IntegerField())
+    )["t"]
+
+
+def validar_rango_fechas(start, end, max_dias: int = 93):
+    """
+    Valida que el rango (start, end) no supere max_dias.
+    Retorna (ok: bool, mensaje: str).
+    """
+    if start and end and (end - start).days > max_dias:
+        return False, f"El rango máximo permitido es {max_dias} días. Por favor ajusta las fechas."
+    return True, ""
 
 URL = "https://api-resultadosloterias.com/api/results/{fecha}"
 
