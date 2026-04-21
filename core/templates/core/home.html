@@ -1,6 +1,10 @@
 {% extends "core/base.html" %}
 {% load static %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'core/css/home.css' %}">
+{% endblock %}
+
 {% block content %}
 <section class="home-menu container py-4 py-md-5">
   <header class="mb-4">
@@ -13,7 +17,10 @@
         <a href="{% url 'ventas' %}" class="menu-link">
           <article class="card menu-card menu-card-sales h-100">
             <div class="card-body menu-item">
-              <img src="{% static 'core/img/sales.png' %}" alt="" class="menu-icon" aria-hidden="true">
+              <picture>
+                <source srcset="{% static 'core/img/sales.webp' %}" type="image/webp">
+                <img src="{% static 'core/img/sales.png' %}" alt="" class="menu-icon" aria-hidden="true">
+              </picture>
               <h3 class="menu-label">Venta Directa</h3>
             </div>
           </article>
@@ -25,7 +32,10 @@
       <a href="{% url 'loterias' %}" class="menu-link">
         <article class="card menu-card menu-card-lotteries h-100">
           <div class="card-body menu-item">
-            <img src="{% static 'core/img/lottery.png' %}" alt="" class="menu-icon" aria-hidden="true">
+            <picture>
+              <source srcset="{% static 'core/img/lottery.webp' %}" type="image/webp">
+              <img src="{% static 'core/img/lottery.png' %}" alt="" class="menu-icon" aria-hidden="true">
+            </picture>
             <h3 class="menu-label">Loterias</h3>
           </div>
         </article>
@@ -37,7 +47,10 @@
         <a href="{% url 'mis_descargues' %}" class="menu-link">
           <article class="card menu-card menu-card-sales-report h-100">
             <div class="card-body menu-item">
-              <img src="{% static 'core/img/report.png' %}" alt="" class="menu-icon" aria-hidden="true">
+              <picture>
+                <source srcset="{% static 'core/img/report.webp' %}" type="image/webp">
+                <img src="{% static 'core/img/report.png' %}" alt="" class="menu-icon" aria-hidden="true">
+              </picture>
               <h3 class="menu-label">Mis Descargues</h3>
             </div>
           </article>
@@ -48,7 +61,10 @@
         <a href="{% url 'ventas_list' %}" class="menu-link">
           <article class="card menu-card menu-card-sales-report h-100">
             <div class="card-body menu-item">
-              <img src="{% static 'core/img/report.png' %}" alt="" class="menu-icon" aria-hidden="true">
+              <picture>
+                <source srcset="{% static 'core/img/report.webp' %}" type="image/webp">
+                <img src="{% static 'core/img/report.png' %}" alt="" class="menu-icon" aria-hidden="true">
+              </picture>
               <h3 class="menu-label">Reporte de Ventas</h3>
             </div>
           </article>
@@ -60,7 +76,10 @@
       <a href="{% url 'premios' %}" class="menu-link">
         <article class="card menu-card menu-card-prizes h-100">
           <div class="card-body menu-item">
-            <img src="{% static 'core/img/dollar.png' %}" alt="" class="menu-icon" aria-hidden="true">
+            <picture>
+              <source srcset="{% static 'core/img/dollar.webp' %}" type="image/webp">
+              <img src="{% static 'core/img/dollar.png' %}" alt="" class="menu-icon" aria-hidden="true">
+            </picture>
             <h3 class="menu-label">Premios</h3>
           </div>
         </article>
@@ -71,7 +90,10 @@
       <a href="{% url 'resultados' %}" class="menu-link">
         <article class="card menu-card menu-card-results h-100">
           <div class="card-body menu-item">
-            <img src="{% static 'core/img/results.png' %}" alt="" class="menu-icon" aria-hidden="true">
+            <picture>
+              <source srcset="{% static 'core/img/results.webp' %}" type="image/webp">
+              <img src="{% static 'core/img/results.png' %}" alt="" class="menu-icon" aria-hidden="true">
+            </picture>
             <h3 class="menu-label">Resultados</h3>
           </div>
         </article>
@@ -83,7 +105,10 @@
         <a href="{% url 'registro_resultados' %}" class="menu-link">
           <article class="card menu-card menu-card-register h-100">
             <div class="card-body menu-item">
-              <img src="{% static 'core/img/register.png' %}" alt="" class="menu-icon" aria-hidden="true">
+              <picture>
+                <source srcset="{% static 'core/img/register.webp' %}" type="image/webp">
+                <img src="{% static 'core/img/register.png' %}" alt="" class="menu-icon" aria-hidden="true">
+              </picture>
               <h3 class="menu-label">Registrar Resultados</h3>
             </div>
           </article>
@@ -94,7 +119,10 @@
         <a href="{% url 'descargues' %}" class="menu-link">
           <article class="card menu-card menu-card-management h-100">
             <div class="card-body menu-item">
-              <img src="{% static 'core/img/descargues.png' %}" alt="" class="menu-icon" aria-hidden="true">
+              <picture>
+                <source srcset="{% static 'core/img/descargues.webp' %}" type="image/webp">
+                <img src="{% static 'core/img/descargues.png' %}" alt="" class="menu-icon" aria-hidden="true">
+              </picture>
               <h3 class="menu-label">Descargues</h3>
             </div>
           </article>
@@ -105,7 +133,10 @@
         <a href="{% url 'reporte_descargas' %}" class="menu-link">
           <article class="card menu-card menu-card-downloads h-100">
             <div class="card-body menu-item">
-              <img src="{% static 'core/img/descargues.png' %}" alt="" class="menu-icon" aria-hidden="true">
+              <picture>
+                <source srcset="{% static 'core/img/descargues.webp' %}" type="image/webp">
+                <img src="{% static 'core/img/descargues.png' %}" alt="" class="menu-icon" aria-hidden="true">
+              </picture>
               <h3 class="menu-label">Reporte Descargas</h3>
             </div>
           </article>
@@ -123,7 +154,10 @@
               aria-expanded="false"
               aria-controls="homeReportsCollapse">
               <span class="menu-collapse-main">
-                <img src="{% static 'core/img/report.png' %}" alt="" class="menu-icon" aria-hidden="true">
+                <picture>
+                  <source srcset="{% static 'core/img/report.webp' %}" type="image/webp">
+                  <img src="{% static 'core/img/report.png' %}" alt="" class="menu-icon" aria-hidden="true">
+                </picture>
                 <h3 class="menu-label">Reportes</h3>
               </span>
               <span class="menu-collapse-chevron" aria-hidden="true">&#9662;</span>
@@ -144,7 +178,11 @@
                 </a>
                 <a href="{% url 'reporte_conciliacion' %}" class="menu-collapse-link">
                   <span class="menu-collapse-dot"></span>
-                  <span>Conciliación Diaria</span>
+                  <span>Rentabilidad Mensual</span>
+                </a>
+                <a href="{% url 'reporte_riesgo_ventas' %}" class="menu-collapse-link">
+                  <span class="menu-collapse-dot"></span>
+                  <span>Riesgo de Ventas</span>
                 </a>
               </div>
             </div>
@@ -154,215 +192,4 @@
     {% endif %}
   </div>
 </section>
-
-<style>
-  .home-menu {
-    max-width: 1200px;
-  }
-
-  .home-title {
-    font-size: 1.6rem;
-    font-weight: 700;
-    color: #1f2937;
-  }
-
-  .home-subtitle {
-    color: #4b5563;
-  }
-
-  .menu-link {
-    display: block;
-    text-decoration: none;
-    touch-action: manipulation;
-  }
-
-  .menu-link:active .menu-card {
-    transform: scale(0.97);
-    box-shadow: 0 4px 10px rgba(15, 23, 42, 0.1);
-    transition: transform 0.08s ease, box-shadow 0.08s ease;
-  }
-
-  .menu-card {
-    border: 0;
-    border-radius: 14px;
-    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-  }
-
-  .menu-link:hover .menu-card,
-  .menu-link:focus-visible .menu-card {
-    transform: translateY(-3px);
-    box-shadow: 0 14px 26px rgba(15, 23, 42, 0.14);
-  }
-
-  .menu-link:focus-visible {
-    outline: none;
-  }
-
-  .menu-link:focus-visible .menu-card {
-    box-shadow:
-      0 0 0 3px rgba(2, 132, 199, 0.35),
-      0 14px 26px rgba(15, 23, 42, 0.14);
-  }
-
-  .menu-item {
-    display: flex;
-    align-items: center;
-    gap: 0.9rem;
-    padding: 0.3rem 1.1rem;
-    min-height: 38px;
-  }
-
-  .menu-icon {
-    width: 36px;
-    height: 36px;
-    flex: 0 0 auto;
-  }
-
-  .menu-label {
-    margin: 0;
-    font-size: 1.05rem;
-    font-weight: 600;
-    line-height: 1.3;
-    color: #1f2937;
-  }
-
-  .menu-card-sales { background-color: #ffe8d6; }
-  .menu-card-lotteries { background-color: #ffdce5; }
-  .menu-card-sales-report { background-color: #deebff; }
-  .menu-card-prizes { background-color: #e8e7ff; }
-  .menu-card-prizes-report { background-color: #ede9fe; }
-  .menu-card-results { background-color: #dcfce7; }
-  .menu-card-register { background-color: #fef3c7; }
-  .menu-card-downloads { background-color: #e0f2fe; }
-  .menu-card-management { background-color: #dbeafe; }
-  .menu-card-reports-group { background-color: #e8f1ff; overflow: hidden; }
-
-  .menu-collapse-toggle {
-    width: 100%;
-    border: 0;
-    background: transparent;
-    text-align: left;
-    justify-content: space-between;
-    cursor: pointer;
-  }
-
-  .menu-collapse-main {
-    display: flex;
-    align-items: center;
-    gap: 0.9rem;
-    min-width: 0;
-  }
-
-  .menu-collapse-chevron {
-    color: #1f2937;
-    font-size: 1rem;
-    line-height: 1;
-    flex: 0 0 auto;
-    margin-left: 0.4rem;
-    transition: transform 0.2s ease;
-  }
-
-  .menu-collapse-toggle[aria-expanded="true"] .menu-collapse-chevron {
-    transform: rotate(180deg);
-  }
-
-  .menu-collapse-panel {
-    border-top: 1px solid rgba(31, 41, 55, 0.08);
-    background: rgba(255, 255, 255, 0.45);
-  }
-
-  .menu-collapse-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.3rem;
-    padding: 0.6rem 0.75rem 0.75rem;
-  }
-
-  .menu-collapse-link {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    text-decoration: none;
-    color: #1f2937;
-    font-size: 0.95rem;
-    font-weight: 600;
-    padding: 0.7rem 0.75rem;
-    border-radius: 10px;
-    background: rgba(255, 255, 255, 0.7);
-    border: 1px solid rgba(31, 41, 55, 0.06);
-    transition: background-color 0.18s ease, transform 0.18s ease;
-    touch-action: manipulation;
-    min-height: 48px;
-  }
-
-  .menu-collapse-link:hover,
-  .menu-collapse-link:focus-visible {
-    background: rgba(255, 255, 255, 0.95);
-    color: #111827;
-    transform: translateY(-1px);
-    outline: none;
-  }
-
-  .menu-collapse-dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: #2563eb;
-    flex: 0 0 auto;
-  }
-
-  @media (max-width: 575.98px) {
-    .home-menu {
-      padding-top: 1rem !important;
-      padding-bottom: 1rem !important;
-    }
-
-    .home-title {
-      font-size: 1.5rem;
-    }
-
-    .home-subtitle {
-      font-size: 1rem;
-    }
-
-    .menu-item {
-      gap: 0.75rem;
-      padding: 0.6rem 1rem;
-      min-height: 50px;
-    }
-
-    .menu-icon {
-      width: 36px;
-      height: 36px;
-    }
-
-    .menu-label {
-      font-size: 1.05rem;
-      line-height: 1.25;
-    }
-
-    .menu-collapse-main {
-      gap: 0.75rem;
-    }
-
-    .menu-collapse-list {
-      gap: 0.4rem;
-      padding: 0.6rem 0.65rem 0.75rem;
-    }
-
-    .menu-collapse-link {
-      font-size: 0.95rem;
-      padding: 0.7rem 0.65rem;
-      border-radius: 8px;
-      min-height: 48px;
-    }
-  }
-
-  @media (max-width: 399.98px) {
-    .col-sm-6 {
-      width: 100%;
-    }
-  }
-</style>
 {% endblock %}

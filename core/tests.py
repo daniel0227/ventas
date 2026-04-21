@@ -1084,3 +1084,153 @@ class ActivityLogMiddlewareTests(TestCase):
         with self.assertRaises(AssertionError):
             with self.assertLogs("lottia.activity", level="INFO"):
                 self.client.get(reverse("notificaciones_count"))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 5.1 Tests para reporte_riesgo_ventas
+# ─────────────────────────────────────────────────────────────────────────────
+
+class ReporteRiesgoVentasTests(TestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.staff = User.objects.create_user(
+            username='staff_riesgo',
+            password='segura123',
+            is_staff=True,
+        )
+        self.user = User.objects.create_user(
+            username='vendedor_riesgo',
+            password='segura123',
+            is_staff=False,
+        )
+        self.loteria = Loteria.objects.create(
+            nombre='Riesgo Test',
+            hora_inicio=time(8, 0),
+            hora_fin=time(23, 0),
+        )
+
+    def _crear_resultado(self, numero, fecha=None):
+        from datetime import date as ddate
+        Resultado.objects.create(
+            loteria=self.loteria,
+            fecha=fecha or ddate.today(),
+            resultado=numero,
+            registrado_por=self.staff,
+        )
+
+    def test_redirige_si_no_autenticado(self):
+        response = self.client.get(reverse('reporte_riesgo_ventas'))
+        self.assertIn(response.status_code, [302, 301])
+
+    def test_redirige_si_no_es_staff(self):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse('reporte_riesgo_ventas'))
+        self.assertEqual(response.status_code, 302)
+
+    def test_muestra_formulario_vacio_sin_parametros(self):
+        self.client.force_login(self.staff)
+        response = self.client.get(reverse('reporte_riesgo_ventas'))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['tabla'], [])
+
+    def test_calcula_riesgo_pct_correctamente(self):
+        from datetime import date as ddate
+        hoy = ddate.today()
+        # Crear resultados individuales para evitar unique_together
+        Resultado.objects.filter(loteria=self.loteria).delete()
+        for i in range(8):
+            Resultado.objects.create(
+                loteria=self.loteria,
+                fecha=ddate(2024, 1, i + 1),
+                resultado=9999,
+                registrado_por=self.staff,
+            )
+        Resultado.objects.create(
+            loteria=self.loteria,
+            fecha=ddate(2024, 2, 1),
+            resultado=1234,
+            registrado_por=self.staff,
+        )
+        Resultado.objects.create(
+            loteria=self.loteria,
+            fecha=ddate(2024, 2, 2),
+            resultado=1234,
+            registrado_por=self.staff,
+        )
+        # total_sorteos = 10, 1234 ganó 2 → riesgo_pct = 20.0
+
+        venta = Venta.objects.create(
+            vendedor=self.staff,
+            numero='1234',
+            monto=5000,
+            es_combinado=False,
+        )
+        venta.loterias.set([self.loteria])
+
+        self.client.force_login(self.staff)
+        response = self.client.get(reverse('reporte_riesgo_ventas'), {
+            'loteria': self.loteria.pk,
+            'fecha_desde': str(hoy),
+            'fecha_hasta': str(hoy),
+        })
+        self.assertEqual(response.status_code, 200)
+        tabla = response.context['tabla']
+        self.assertEqual(len(tabla), 1)
+        row = tabla[0]
+        self.assertEqual(row['numero'], '1234')
+        self.assertEqual(row['veces_ganado'], 2)
+        self.assertAlmostEqual(row['riesgo_pct'], 20.0, places=1)
+        self.assertEqual(row['nivel'], 'ALTO')
+
+    def test_nivel_bajo_si_nunca_gano(self):
+        from datetime import date as ddate
+        hoy = ddate.today()
+        Resultado.objects.create(
+            loteria=self.loteria,
+            fecha=ddate(2024, 3, 1),
+            resultado=9999,
+            registrado_por=self.staff,
+        )
+        venta = Venta.objects.create(
+            vendedor=self.staff,
+            numero='1234',
+            monto=1000,
+            es_combinado=False,
+        )
+        venta.loterias.set([self.loteria])
+
+        self.client.force_login(self.staff)
+        response = self.client.get(reverse('reporte_riesgo_ventas'), {
+            'loteria': self.loteria.pk,
+            'fecha_desde': str(hoy),
+            'fecha_hasta': str(hoy),
+        })
+        self.assertEqual(response.status_code, 200)
+        tabla = response.context['tabla']
+        self.assertEqual(len(tabla), 1)
+        self.assertEqual(tabla[0]['nivel'], 'BAJO')
+        self.assertEqual(tabla[0]['veces_ganado'], 0)
+
+    def test_export_csv_retorna_contenido_correcto(self):
+        from datetime import date as ddate
+        hoy = ddate.today()
+        venta = Venta.objects.create(
+            vendedor=self.staff,
+            numero='5678',
+            monto=3000,
+            es_combinado=False,
+        )
+        venta.loterias.set([self.loteria])
+
+        self.client.force_login(self.staff)
+        response = self.client.get(reverse('reporte_riesgo_ventas'), {
+            'loteria': self.loteria.pk,
+            'fecha_desde': str(hoy),
+            'fecha_hasta': str(hoy),
+            'export': 'csv',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('text/csv', response['Content-Type'])
+        content = response.content.decode('utf-8-sig')
+        self.assertIn('Número', content)
+        self.assertIn('5678', content)

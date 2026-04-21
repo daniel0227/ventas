@@ -1,0 +1,242 @@
+{# core/templates/core/reporte_riesgo_ventas.html #}
+{% extends "core/base.html" %}
+{% load format_filters %}
+
+{% block breadcrumbs %}
+<nav class="breadcrumb-lottia" aria-label="Ruta de navegación">
+  <a href="{% url 'home' %}"><i class="bi bi-house-fill me-1"></i>Inicio</a>
+  <span class="sep"><i class="bi bi-chevron-right"></i></span>
+  <span class="current">Análisis de Riesgo</span>
+</nav>
+{% endblock %}
+
+{% block content %}
+<style>
+  :root {
+    --primary:       #4f46e5;
+    --primary-dark:  #3730a3;
+    --primary-light: #eef2ff;
+    --danger:        #ef4444;
+    --danger-light:  #fef2f2;
+    --warning:       #f59e0b;
+    --warning-light: #fffbeb;
+    --success:       #10b981;
+    --success-light: #ecfdf5;
+    --border:        #e5e7eb;
+    --muted:         #6b7280;
+    --card-radius:   16px;
+    --shadow:        0 2px 12px rgba(0,0,0,.07);
+  }
+
+  @keyframes fadeUp {
+    from { opacity:0; transform:translateY(12px); }
+    to   { opacity:1; transform:translateY(0); }
+  }
+  .fade-up { animation: fadeUp .35s ease both; }
+
+  .page-header { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.6rem; margin-bottom:1.25rem; }
+  .page-header h1 { font-size:1.35rem; font-weight:700; color:#1f2937; margin:0; }
+  .page-header .subtitle { font-size:.82rem; color:var(--muted); margin-top:.15rem; }
+
+  .filter-card { background:#fff; border-radius:var(--card-radius); box-shadow:var(--shadow); padding:1rem 1.25rem; margin-bottom:1.25rem; border:1px solid var(--border); }
+  .filter-label { font-size:.75rem; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; margin-bottom:.4rem; display:block; }
+  .filter-select, .filter-input {
+    appearance:none; -webkit-appearance:none;
+    border:1.5px solid var(--border); border-radius:10px;
+    font-size:.92rem; padding:.52rem .85rem;
+    background:#fafafa; width:100%; min-height:44px;
+    color:#1f2937;
+  }
+  .filter-select { background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 16 16'%3E%3Cpath fill='%236b7280' d='M7.247 11.14L2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right .85rem center; padding-right:2.5rem; }
+
+  .btn-primary-action {
+    display:inline-flex; align-items:center; gap:.4rem;
+    background:var(--primary); color:#fff; border:none; border-radius:10px;
+    font-size:.9rem; font-weight:600; padding:.52rem 1.25rem;
+    cursor:pointer; min-height:44px; text-decoration:none;
+  }
+  .btn-primary-action:hover { background:var(--primary-dark); color:#fff; }
+
+  .btn-export {
+    display:inline-flex; align-items:center; gap:.4rem;
+    border-radius:10px; font-size:.85rem; font-weight:600;
+    padding:.45rem 1rem; text-decoration:none; min-height:38px;
+    background:#10b981; color:#fff;
+  }
+  .btn-export:hover { opacity:.88; color:#fff; }
+
+  .table-card { background:#fff; border-radius:var(--card-radius); box-shadow:var(--shadow); border:1px solid var(--border); margin-bottom:1.5rem; overflow:hidden; }
+  .table-card-header {
+    background:linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    color:#fff; padding:.85rem 1.25rem;
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.5rem;
+  }
+  .table-card-header .title { font-size:.95rem; font-weight:700; }
+
+  .desktop-table { display:none; }
+  @media (min-width:576px) { .desktop-table { display:block; } }
+  .desktop-table table { width:100%; border-collapse:collapse; }
+  .desktop-table thead tr { background:#f8fafc; }
+  .desktop-table thead th { font-size:.75rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; padding:.7rem 1rem; border-bottom:1px solid var(--border); white-space:nowrap; }
+  .desktop-table tbody tr { border-bottom:1px solid #f3f4f6; transition:background .12s; }
+  .desktop-table tbody tr:last-child { border-bottom:none; }
+  .desktop-table tbody tr:hover { background:#fafbff; }
+  .desktop-table tbody td { padding:.75rem 1rem; font-size:.9rem; color:#374151; vertical-align:middle; }
+
+  .mobile-cards { display:block; }
+  @media (min-width:576px) { .mobile-cards { display:none; } }
+  .mob-row { border-bottom:1px solid var(--border); padding:.85rem 1rem; }
+  .mob-row:last-child { border-bottom:none; }
+  .mob-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:.4rem; }
+  .mob-numero { font-size:1rem; font-weight:800; color:#1f2937; }
+  .mob-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:.3rem .5rem; }
+  .mob-item { display:flex; flex-direction:column; }
+  .mob-label { font-size:.68rem; font-weight:600; color:var(--muted); text-transform:uppercase; }
+  .mob-value { font-size:.83rem; font-weight:600; color:#374151; }
+
+  .badge-riesgo { display:inline-flex; align-items:center; gap:.3rem; border-radius:8px; font-size:.78rem; font-weight:700; padding:.2rem .6rem; }
+  .badge-alto   { background:var(--danger-light);  color:var(--danger); }
+  .badge-medio  { background:var(--warning-light); color:var(--warning); }
+  .badge-bajo   { background:var(--success-light); color:var(--success); }
+
+  .empty-state { text-align:center; padding:3rem 1.5rem; color:var(--muted); }
+  .empty-state i { font-size:3rem; opacity:.35; margin-bottom:.75rem; display:block; }
+  .empty-state p { font-size:.9rem; margin:0; }
+</style>
+
+<!-- Header -->
+<div class="page-header fade-up">
+  <div>
+    <h1><i class="bi bi-shield-exclamation me-2" style="color:var(--danger);"></i>Análisis de Riesgo de Ventas</h1>
+    {% if loteria_sel %}
+    <div class="subtitle">{{ loteria_sel.nombre }} · {{ fecha_desde }} — {{ fecha_hasta }}</div>
+    {% else %}
+    <div class="subtitle">Selecciona una lotería y rango de fechas</div>
+    {% endif %}
+  </div>
+  {% if tabla %}
+  <a href="?loteria={{ loteria_id }}&fecha_desde={{ fecha_desde }}&fecha_hasta={{ fecha_hasta }}&export=csv" class="btn-export">
+    <i class="bi bi-filetype-csv"></i> Exportar CSV
+  </a>
+  {% endif %}
+</div>
+
+<!-- Filtro -->
+<div class="filter-card fade-up">
+  <form method="get" action="">
+    <div class="row g-2 align-items-end">
+      <div class="col-12 col-sm-4">
+        <label class="filter-label">Lotería</label>
+        <select name="loteria" class="filter-select" required>
+          <option value="">— Selecciona —</option>
+          {% for lot in loterias %}
+          <option value="{{ lot.pk }}" {% if lot.pk|stringformat:"s" == loteria_id %}selected{% endif %}>{{ lot.nombre }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-6 col-sm-3">
+        <label class="filter-label">Desde</label>
+        <input type="date" name="fecha_desde" class="filter-input" value="{{ fecha_desde }}" required>
+      </div>
+      <div class="col-6 col-sm-3">
+        <label class="filter-label">Hasta</label>
+        <input type="date" name="fecha_hasta" class="filter-input" value="{{ fecha_hasta }}" required>
+      </div>
+      <div class="col-12 col-sm-2">
+        <button type="submit" class="btn-primary-action w-100">
+          <i class="bi bi-search"></i> Consultar
+        </button>
+      </div>
+    </div>
+  </form>
+</div>
+
+{% if messages %}
+{% for msg in messages %}
+<div class="alert alert-{{ msg.tags }} mb-3">{{ msg }}</div>
+{% endfor %}
+{% endif %}
+
+{% if loteria_sel %}
+<!-- Tabla de riesgo -->
+<div class="table-card fade-up">
+  <div class="table-card-header">
+    <span class="title"><i class="bi bi-table me-2"></i>Números en riesgo — {{ tabla|length }} número{{ tabla|length|pluralize:"s" }}</span>
+    {% if total_sorteos > 0 %}
+    <span style="font-size:.8rem;opacity:.85;">{{ total_sorteos }} sorteo{{ total_sorteos|pluralize:"s" }} histórico{{ total_sorteos|pluralize:"s" }}</span>
+    {% endif %}
+  </div>
+
+  {% if tabla %}
+  <!-- Desktop -->
+  <div class="desktop-table">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Número</th>
+          <th>Veces apostado</th>
+          <th>Valor apostado</th>
+          <th>Veces ganado</th>
+          <th>Riesgo %</th>
+          <th>Nivel</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in tabla %}
+        <tr>
+          <td style="color:var(--muted);font-size:.8rem;">{{ forloop.counter }}</td>
+          <td style="font-weight:700;font-size:1rem;letter-spacing:.05em;">{{ row.numero }}</td>
+          <td>{{ row.veces_apostado }}</td>
+          <td>${{ row.valor_apostado|floatformat:0 }}</td>
+          <td>{{ row.veces_ganado }}</td>
+          <td style="font-weight:700;">{{ row.riesgo_pct }}%</td>
+          <td>
+            {% if row.nivel == 'ALTO' %}
+            <span class="badge-riesgo badge-alto"><i class="bi bi-exclamation-triangle-fill"></i> ALTO</span>
+            {% elif row.nivel == 'MEDIO' %}
+            <span class="badge-riesgo badge-medio"><i class="bi bi-dash-circle-fill"></i> MEDIO</span>
+            {% else %}
+            <span class="badge-riesgo badge-bajo"><i class="bi bi-check-circle-fill"></i> BAJO</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Mobile -->
+  <div class="mobile-cards">
+    {% for row in tabla %}
+    <div class="mob-row">
+      <div class="mob-header">
+        <span class="mob-numero">{{ row.numero }}</span>
+        {% if row.nivel == 'ALTO' %}
+        <span class="badge-riesgo badge-alto"><i class="bi bi-exclamation-triangle-fill"></i> ALTO</span>
+        {% elif row.nivel == 'MEDIO' %}
+        <span class="badge-riesgo badge-medio"><i class="bi bi-dash-circle-fill"></i> MEDIO</span>
+        {% else %}
+        <span class="badge-riesgo badge-bajo"><i class="bi bi-check-circle-fill"></i> BAJO</span>
+        {% endif %}
+      </div>
+      <div class="mob-grid">
+        <div class="mob-item"><span class="mob-label">Veces apostado</span><span class="mob-value">{{ row.veces_apostado }}</span></div>
+        <div class="mob-item"><span class="mob-label">Valor apostado</span><span class="mob-value">${{ row.valor_apostado|floatformat:0 }}</span></div>
+        <div class="mob-item"><span class="mob-label">Veces ganado</span><span class="mob-value">{{ row.veces_ganado }}</span></div>
+        <div class="mob-item"><span class="mob-label">Riesgo %</span><span class="mob-value">{{ row.riesgo_pct }}%</span></div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {% else %}
+  <div class="empty-state">
+    <i class="bi bi-inbox"></i>
+    <p>No hay ventas registradas para {{ loteria_sel.nombre }} en el rango seleccionado.</p>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}

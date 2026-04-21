@@ -1925,120 +1925,300 @@ def notificaciones_list(request):
 @login_required
 def reporte_conciliacion(request):
     """
-    Reporte de conciliación diaria:
-    Muestra por cada lotería y fecha el total vendido versus los premios pagados.
+    Reporte de rentabilidad mensual por vendedor.
+    Calcula: venta bruta → neta (−10%) → liquidación (−35%) − premios = diferencia.
+    Ordenado de mayor pérdida a mayor ganancia.
     """
+    from calendar import monthrange
+    MESES_ES = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+                'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+
     hoy = timezone.localdate()
-    fecha_inicio_raw = request.GET.get('fecha_inicio')
-    fecha_fin_raw = request.GET.get('fecha_fin')
+    mes_raw = request.GET.get('mes', '')  # YYYY-MM
 
-    fecha_fin = parse_date(fecha_fin_raw) if fecha_fin_raw else hoy
-    fecha_inicio = parse_date(fecha_inicio_raw) if fecha_inicio_raw else (fecha_fin - timedelta(days=6))
+    # Generar lista de últimos 24 meses para el dropdown
+    meses_disponibles = []
+    cur_y, cur_m = hoy.year, hoy.month
+    for _ in range(24):
+        meses_disponibles.append({
+            'value': f"{cur_y:04d}-{cur_m:02d}",
+            'label': f"{MESES_ES[cur_m]} {cur_y}",
+        })
+        cur_m -= 1
+        if cur_m == 0:
+            cur_m = 12
+            cur_y -= 1
 
-    if not fecha_fin:
-        fecha_fin = hoy
-    if not fecha_inicio:
-        fecha_inicio = fecha_fin - timedelta(days=6)
+    try:
+        year, month = int(mes_raw[:4]), int(mes_raw[5:7])
+        if not (2020 <= year <= hoy.year + 1 and 1 <= month <= 12):
+            raise ValueError
+    except (ValueError, IndexError, TypeError):
+        year, month = hoy.year, hoy.month
+
+    fecha_inicio = date(year, month, 1)
+    fecha_fin = date(year, month, monthrange(year, month)[1])
     if fecha_fin > hoy:
         fecha_fin = hoy
-    if fecha_inicio > fecha_fin:
-        fecha_inicio, fecha_fin = fecha_fin, fecha_inicio
+    mes_str = f"{year:04d}-{month:02d}"
 
-    ok, msg = validar_rango_fechas(fecha_inicio, fecha_fin)
-    if not ok:
-        messages.error(request, msg)
-        return redirect(request.path)
-
-    # Ventas por lotería+fecha (monto real = monto × cant loterias ya está separado por lotería)
-    ventas_raw = (
+    # ── Ventas por vendedor ────────────────────────────────────────────────
+    ventas_qs = (
         Venta.objects
-        .filter(fecha_venta__date__range=(fecha_inicio, fecha_fin))
-        .annotate(fecha_dia=TruncDate('fecha_venta'))
-        .values('fecha_dia', 'loterias__id', 'loterias__nombre')
-        .annotate(total_ventas=Coalesce(Sum('monto'), 0, output_field=IntegerField()))
-        .exclude(loterias__isnull=True)
-        .order_by('fecha_dia', 'loterias__nombre')
+        .annotate(fecha=TruncDate('fecha_venta'))
+        .filter(fecha__range=(fecha_inicio, fecha_fin))
+        .select_related('vendedor')
+        .prefetch_related('loterias')
+        .annotate(count_loterias=Count('loterias', distinct=True))
+        .annotate(
+            total_bruta=ExpressionWrapper(
+                F('monto') * F('count_loterias'),
+                output_field=IntegerField()
+            )
+        )
+        .values('vendedor_id', 'vendedor__username', 'vendedor__first_name', 'vendedor__last_name', 'total_bruta')
     )
 
-    premios_raw = (
+    ventas_por_vendedor = {}
+    for v in ventas_qs:
+        vid = v.get('vendedor_id')
+        if not vid:
+            continue
+        item = ventas_por_vendedor.setdefault(vid, {
+            'vendedor_id': vid,
+            'username': v.get('vendedor__username') or '',
+            'first_name': (v.get('vendedor__first_name') or '').strip(),
+            'last_name': (v.get('vendedor__last_name') or '').strip(),
+            'venta_bruta': 0,
+        })
+        item['venta_bruta'] += int(v.get('total_bruta') or 0)
+
+    # ── Premios por vendedor ───────────────────────────────────────────────
+    premios_qs = (
         Premio.objects
         .filter(fecha__range=(fecha_inicio, fecha_fin))
-        .values('fecha', 'loteria__id', 'loteria__nombre')
-        .annotate(total_premios=Coalesce(Sum('premio'), 0, output_field=IntegerField()),
-                  cantidad=Count('id'))
-        .order_by('fecha', 'loteria__nombre')
+        .values('vendedor_id', 'vendedor__username', 'vendedor__first_name', 'vendedor__last_name')
+        .annotate(
+            total_premios=Coalesce(Sum('premio'), 0, output_field=IntegerField()),
+            cantidad_premios=Count('id'),
+        )
     )
 
-    # Indexar premios por (fecha, loteria_id)
-    premios_idx = {}
-    for p in premios_raw:
-        key = (str(p['fecha']), p['loteria__id'])
-        premios_idx[key] = {'total': int(p['total_premios']), 'cantidad': int(p['cantidad'])}
+    premios_por_vendedor = {}
+    for p in premios_qs:
+        vid = p.get('vendedor_id')
+        if not vid:
+            continue
+        premios_por_vendedor[vid] = {
+            'vendedor_id': vid,
+            'username': p.get('vendedor__username') or '',
+            'first_name': (p.get('vendedor__first_name') or '').strip(),
+            'last_name': (p.get('vendedor__last_name') or '').strip(),
+            'total_premios': int(p.get('total_premios') or 0),
+            'cantidad_premios': int(p.get('cantidad_premios') or 0),
+        }
 
+    # ── Merge y cálculo financiero ─────────────────────────────────────────
+    all_ids = set(ventas_por_vendedor) | set(premios_por_vendedor)
     rows = []
-    for v in ventas_raw:
-        fecha_str = str(v['fecha_dia'])
-        key = (fecha_str, v['loterias__id'])
-        premio_data = premios_idx.get(key, {'total': 0, 'cantidad': 0})
-        ventas_val = int(v['total_ventas'])
-        premios_val = int(premio_data['total'])
+    total_bruta = total_neta = total_liquidacion = total_premios_g = total_diferencia = 0
+
+    for vid in all_ids:
+        vd = ventas_por_vendedor.get(vid, {})
+        pd = premios_por_vendedor.get(vid, {})
+
+        username = vd.get('username') or pd.get('username') or ''
+        first_name = vd.get('first_name') or pd.get('first_name') or ''
+        last_name = vd.get('last_name') or pd.get('last_name') or ''
+        nombre = f"{first_name} {last_name}".strip() or username or f"Vendedor {vid}"
+
+        bruta = int(vd.get('venta_bruta') or 0)
+        neta = _round_cop(Decimal(bruta) * (Decimal('1') - RETENCION_PCT))
+        comision = _round_cop(Decimal(neta) * COMISION_PCT)
+        liquidacion = neta - comision
+        premios_total = int(pd.get('total_premios') or 0)
+        diferencia = liquidacion - premios_total
+        cantidad_premios = int(pd.get('cantidad_premios') or 0)
+
         rows.append({
-            'fecha': v['fecha_dia'],
-            'loteria': v['loterias__nombre'],
-            'total_ventas': ventas_val,
-            'total_premios': premios_val,
-            'cantidad_premios': premio_data['cantidad'],
-            'diferencia': ventas_val - premios_val,
+            'vendedor': nombre,
+            'username': username,
+            'venta_bruta': bruta,
+            'venta_neta': neta,
+            'liquidacion': liquidacion,
+            'premios': premios_total,
+            'cantidad_premios': cantidad_premios,
+            'diferencia': diferencia,
         })
 
-    # Totales globales
-    total_ventas = sum(r['total_ventas'] for r in rows)
-    total_premios = sum(r['total_premios'] for r in rows)
-    total_diferencia = total_ventas - total_premios
+        total_bruta += bruta
+        total_neta += neta
+        total_liquidacion += liquidacion
+        total_premios_g += premios_total
+        total_diferencia += diferencia
 
-    # Exportar CSV
+    # Ordenar: mayor pérdida primero (diferencia más negativa primero)
+    rows.sort(key=lambda r: r['diferencia'])
+
+    # Calcular % para barras CSS y datos para gráfica
+    max_abs = max((abs(r['diferencia']) for r in rows), default=1) or 1
+    for r in rows:
+        r['pct'] = round(abs(r['diferencia']) / max_abs * 100, 1)
+
+    chart_labels = [r['vendedor'] for r in rows]
+    chart_diferencias = [r['diferencia'] for r in rows]
+
+    # ── Exportar CSV ───────────────────────────────────────────────────────
     if request.GET.get('export') == 'csv':
         resp = HttpResponse(content_type='text/csv; charset=utf-8-sig')
-        resp['Content-Disposition'] = f'attachment; filename="conciliacion_{fecha_inicio}_{fecha_fin}.csv"'
+        resp['Content-Disposition'] = f'attachment; filename="conciliacion_{mes_str}.csv"'
         writer = csv.writer(resp)
-        writer.writerow(['Fecha', 'Lotería', 'Total vendido (COP)', 'Premios pagados (COP)', 'Cant. premios', 'Diferencia (COP)'])
+        writer.writerow(['Vendedor', 'Usuario', 'Venta neta (COP)', 'Liquidación (COP)', 'Premios (COP)', 'Cant. premios', 'Diferencia (COP)'])
         for r in rows:
-            writer.writerow([r['fecha'], r['loteria'], r['total_ventas'], r['total_premios'], r['cantidad_premios'], r['diferencia']])
+            writer.writerow([r['vendedor'], r['username'], r['venta_neta'], r['liquidacion'], r['premios'], r['cantidad_premios'], r['diferencia']])
         writer.writerow([])
-        writer.writerow(['TOTALES', '', total_ventas, total_premios, '', total_diferencia])
+        writer.writerow(['TOTALES', '', total_neta, total_liquidacion, total_premios_g, '', total_diferencia])
         return resp
 
-    # Exportar Excel
+    # ── Exportar Excel ─────────────────────────────────────────────────────
     if request.GET.get('export') == 'excel':
         from openpyxl import Workbook
         wb = Workbook()
         ws = wb.active
         ws.title = "Conciliación"
         fill, hfont, halign = _excel_header_style()
-        headers = ['Fecha', 'Lotería', 'Total vendido (COP)', 'Premios pagados (COP)', 'Cant. premios', 'Diferencia (COP)']
+        headers = ['Vendedor', 'Usuario', 'Venta neta (COP)', 'Liquidación (COP)', 'Premios (COP)', 'Cant. premios', 'Diferencia (COP)']
         ws.append(headers)
         for col_idx, _ in enumerate(headers, 1):
             cell = ws.cell(row=1, column=col_idx)
             cell.fill = fill; cell.font = hfont; cell.alignment = halign
         for r in rows:
-            ws.append([str(r['fecha']), r['loteria'], r['total_ventas'], r['total_premios'], r['cantidad_premios'], r['diferencia']])
+            ws.append([r['vendedor'], r['username'], r['venta_neta'], r['liquidacion'], r['premios'], r['cantidad_premios'], r['diferencia']])
         ws.append([])
-        ws.append(['TOTALES', '', total_ventas, total_premios, '', total_diferencia])
+        ws.append(['TOTALES', '', total_neta, total_liquidacion, total_premios_g, '', total_diferencia])
         for col in ws.columns:
             ws.column_dimensions[col[0].column_letter].width = max(len(str(col[0].value or '')), 12) + 2
-        resp = _excel_response(f"conciliacion_{fecha_inicio}_{fecha_fin}.xlsx")
+        resp = _excel_response(f"conciliacion_{mes_str}.xlsx")
         wb.save(resp)
         return resp
 
     return render(request, 'core/reporte_conciliacion.html', {
-        'fecha_inicio': fecha_inicio,
-        'fecha_fin': fecha_fin,
-        'fecha_max': hoy,
+        'mes': mes_str,
+        'meses_disponibles': meses_disponibles,
         'rows': rows,
-        'total_ventas': total_ventas,
-        'total_premios': total_premios,
+        'chart_labels': chart_labels,
+        'chart_diferencias': chart_diferencias,
+        'total_neta': total_neta,
+        'total_liquidacion': total_liquidacion,
+        'total_premios': total_premios_g,
         'total_diferencia': total_diferencia,
-        'rango_dias': (fecha_fin - fecha_inicio).days + 1,
     })
 
+
+@login_required
+@user_passes_test(lambda u: u.is_staff)
+def reporte_riesgo_ventas(request):
+    hoy = timezone.localdate()
+    loterias_all = Loteria.objects.all().order_by('nombre')
+
+    loteria_id = request.GET.get('loteria', '').strip()
+    start_date = request.GET.get('fecha_desde', '').strip()
+    end_date = request.GET.get('fecha_hasta', '').strip()
+
+    tabla = []
+    loteria_sel = None
+    total_sorteos = 0
+
+    if loteria_id and start_date and end_date:
+        try:
+            loteria_sel = Loteria.objects.get(pk=loteria_id)
+            start = parse_date(start_date)
+            end = parse_date(end_date)
+            if not start or not end:
+                raise ValueError("fechas inválidas")
+            if start > end:
+                start, end = end, start
+                start_date, end_date = str(start), str(end)
+            ok, msg = validar_rango_fechas(start, end)
+            if not ok:
+                messages.error(request, msg)
+                return redirect(request.path)
+
+            # Query A: ventas en el rango agrupadas por número
+            ventas_qs = (
+                Venta.objects
+                .annotate(fecha=TruncDate('fecha_venta'))
+                .filter(loterias=loteria_sel, fecha__range=(start, end))
+                .values('numero')
+                .annotate(
+                    veces_apostado=Count('id'),
+                    valor_apostado=Sum('monto'),
+                )
+            )
+
+            # Query B: frecuencia histórica completa
+            total_sorteos = Resultado.objects.filter(loteria=loteria_sel).count()
+            freq_map = {
+                str(r['resultado']): r['apariciones']
+                for r in Resultado.objects
+                    .filter(loteria=loteria_sel)
+                    .values('resultado')
+                    .annotate(apariciones=Count('id'))
+            }
+
+            UMBRAL_ALTO = 3.0
+            UMBRAL_MEDIO = 1.0
+
+            for row in ventas_qs:
+                numero = str(row['numero']).strip()
+                apariciones = freq_map.get(numero, 0)
+                riesgo_pct = round(apariciones / total_sorteos * 100, 2) if total_sorteos > 0 else 0.0
+                if riesgo_pct > UMBRAL_ALTO:
+                    nivel = 'ALTO'
+                elif riesgo_pct >= UMBRAL_MEDIO:
+                    nivel = 'MEDIO'
+                else:
+                    nivel = 'BAJO'
+                tabla.append({
+                    'numero': numero,
+                    'veces_apostado': row['veces_apostado'],
+                    'valor_apostado': row['valor_apostado'],
+                    'veces_ganado': apariciones,
+                    'riesgo_pct': riesgo_pct,
+                    'nivel': nivel,
+                })
+
+            tabla.sort(key=lambda x: x['riesgo_pct'], reverse=True)
+
+            if request.GET.get('export') == 'csv':
+                resp = HttpResponse(content_type='text/csv; charset=utf-8-sig')
+                resp['Content-Disposition'] = (
+                    f'attachment; filename="riesgo_ventas_{loteria_sel.nombre}_{start}_{end}.csv"'
+                )
+                writer = csv.writer(resp)
+                writer.writerow(['Número', 'Veces apostado', 'Valor apostado', 'Veces ganado', 'Riesgo %', 'Nivel'])
+                for item in tabla:
+                    writer.writerow([
+                        item['numero'],
+                        item['veces_apostado'],
+                        item['valor_apostado'],
+                        item['veces_ganado'],
+                        item['riesgo_pct'],
+                        item['nivel'],
+                    ])
+                return resp
+
+        except Loteria.DoesNotExist:
+            messages.error(request, 'Lotería no encontrada.')
+            return redirect(request.path)
+
+    return render(request, 'core/reporte_riesgo_ventas.html', {
+        'loterias': loterias_all,
+        'loteria_sel': loteria_sel,
+        'loteria_id': loteria_id,
+        'fecha_desde': start_date,
+        'fecha_hasta': end_date or str(hoy),
+        'tabla': tabla,
+        'total_sorteos': total_sorteos,
+    })
 

@@ -23,6 +23,7 @@ urlpatterns = [
     path('reportes/', views.reportes, name='reportes'),
     path('reportes/ventas-vs-premios/', views.reporte_ventas_vs_premios, name='reporte_ventas_vs_premios'),
     path('reportes/conciliacion/', views.reporte_conciliacion, name='reporte_conciliacion'),
+    path('reportes/riesgo-ventas/', views.reporte_riesgo_ventas, name='reporte_riesgo_ventas'),
     path('admin/', admin.site.urls),
     path('login/', CustomLoginView.as_view(), name='login'),
     path('logout/', LogoutView.as_view(), name='logout'),
