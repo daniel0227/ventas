@@ -1,9 +1,8 @@
-import os
 from django.core.management.base import BaseCommand
 from django.utils.timezone import localtime, now
 from datetime import timedelta
 from django.contrib.auth import get_user_model
-from core.utils import importar_resultados, enviar_whatsapp_callmebot, dia_es
+from core.utils import importar_resultados, enviar_whatsapp_callmebot
 from core.models import Resultado, Venta, Dia, Loteria
 
 User = get_user_model()
@@ -14,12 +13,10 @@ class Command(BaseCommand):
     def handle(self, *args, **kwargs):
         fecha_objetivo = localtime(now()).date() - timedelta(days=1)
 
-        from django.conf import settings as django_settings
-        import_user = getattr(django_settings, "IMPORT_RESULT_USER", "daniel")
         try:
-            usuario = User.objects.get(username=import_user)
+            usuario = User.objects.get(username="daniel")
         except User.DoesNotExist:
-            self.stderr.write(f"❌ El usuario '{import_user}' no existe.")
+            self.stderr.write("❌ El usuario 'daniel' no existe.")
             return
 
         self.stdout.write(f"📦 Ejecutando importación del {fecha_objetivo}...")
@@ -36,8 +33,13 @@ class Command(BaseCommand):
         )
 
         # Detectar premios
+        dia_nombre = fecha_objetivo.strftime('%A')
+        map_dia = {
+            'Monday': 'Lunes', 'Tuesday': 'Martes', 'Wednesday': 'Miércoles',
+            'Thursday': 'Jueves', 'Friday': 'Viernes', 'Saturday': 'Sábado', 'Sunday': 'Domingo'
+        }
         try:
-            dia_obj = Dia.objects.get(nombre=dia_es(fecha_objetivo))
+            dia_obj = Dia.objects.get(nombre=map_dia[dia_nombre])
         except Dia.DoesNotExist:
             self.stdout.write("⚠️ Día no registrado.")
             return
@@ -78,14 +80,11 @@ class Command(BaseCommand):
                 f"🎉 Hoy no toca pagar. ¡Todo bajo control!"
             )
 
-        # 📲 Lista de destinatarios — configurar en variable de entorno:
-        # CALLMEBOT_RECIPIENTS=573002393652:2485881,573001212758:7858937
-        raw = os.environ.get("CALLMEBOT_RECIPIENTS", "")
-        destinatarios = []
-        for entry in raw.split(","):
-            parts = entry.strip().split(":")
-            if len(parts) == 2 and parts[0] and parts[1]:
-                destinatarios.append({"telefono": parts[0], "apikey": parts[1]})
+        # 📲 Lista de destinatarios
+        destinatarios = [
+            {"telefono": "573002393652", "apikey": "2485881"},
+            {"telefono": "573001212758", "apikey": "7858937"}
+        ]
 
         for d in destinatarios:
             respuesta = enviar_whatsapp_callmebot(
@@ -94,40 +93,3 @@ class Command(BaseCommand):
                 apikey=d["apikey"]
             )
             self.stdout.write(f"📤 Mensaje enviado a {d['telefono']} ➜ {respuesta}")
-
-        # ── Email de resumen ──────────────────────────────────────────
-        from django.conf import settings as django_settings
-        from django.core.mail import send_mail
-
-        destinatarios_email = getattr(django_settings, "NOTIFY_EMAIL_RECIPIENTS", [])
-        if destinatarios_email:
-            n_premios = len(premios_detectados)
-            asunto = (
-                f"[Lottia] ⚠️ {n_premios} premio(s) detectado(s) — {fecha_objetivo}"
-                if premios_detectados
-                else f"[Lottia] ✅ Sin premios — {fecha_objetivo}"
-            )
-            cuerpo_texto = (
-                f"Resumen de importación — {fecha_objetivo}\n\n"
-                f"Importados : {resumen['importados']}\n"
-                f"Omitidos   : {resumen['omitidos']}\n"
-                f"Errores    : {resumen['errores']}\n\n"
-            )
-            if premios_detectados:
-                cuerpo_texto += "PREMIOS DETECTADOS:\n" + "\n".join(
-                    p.replace("*", "").replace("💥", "").replace("🧨", "") for p in premios_detectados
-                )
-            else:
-                cuerpo_texto += "Sin jugadas ganadoras en las ventas del día."
-
-            try:
-                send_mail(
-                    subject=asunto,
-                    message=cuerpo_texto,
-                    from_email=getattr(django_settings, "DEFAULT_FROM_EMAIL", None),
-                    recipient_list=destinatarios_email,
-                    fail_silently=True,
-                )
-                self.stdout.write(f"📧 Email de resumen enviado a {destinatarios_email}")
-            except Exception as exc:
-                self.stderr.write(f"⚠️ No se pudo enviar email: {exc}")

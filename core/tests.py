@@ -7,7 +7,6 @@ from django.urls import reverse
 from django.utils import timezone
 
 from core.models import ConfiguracionVenta, Dia, Loteria, Venta, VentaDescargue
-from core.utils import dia_es
 
 
 class ReporteDescargasTests(TestCase):
@@ -65,7 +64,17 @@ class LimiteVentaPorNumeroTests(TestCase):
         )
         self.client.force_login(self.user)
 
-        self.dia_actual = Dia.objects.create(nombre=dia_es(timezone.localtime(timezone.now())))
+        dia_actual_en = timezone.localtime(timezone.now()).strftime('%A')
+        dias_map = {
+            'Monday': 'Lunes',
+            'Tuesday': 'Martes',
+            'Wednesday': 'Mi\u00e9rcoles',
+            'Thursday': 'Jueves',
+            'Friday': 'Viernes',
+            'Saturday': 'S\u00e1bado',
+            'Sunday': 'Domingo',
+        }
+        self.dia_actual = Dia.objects.create(nombre=dias_map[dia_actual_en])
 
         self.valle = Loteria.objects.create(
             nombre='Valle Limite',
@@ -175,7 +184,17 @@ class FlujoDescarguesTests(TestCase):
         grupo_descargue, _ = Group.objects.get_or_create(name='descargue')
         grupo_descargue.user_set.add(self.descargue)
 
-        self.dia_actual = Dia.objects.create(nombre=dia_es(timezone.localtime(timezone.now())))
+        dia_actual_en = timezone.localtime(timezone.now()).strftime('%A')
+        dias_map = {
+            'Monday': 'Lunes',
+            'Tuesday': 'Martes',
+            'Wednesday': 'Miércoles',
+            'Thursday': 'Jueves',
+            'Friday': 'Viernes',
+            'Saturday': 'Sábado',
+            'Sunday': 'Domingo',
+        }
+        self.dia_actual = Dia.objects.create(nombre=dias_map[dia_actual_en])
         self.loteria = Loteria.objects.create(
             nombre='Lotería Descargues',
             hora_inicio=time(0, 0),
@@ -440,7 +459,13 @@ class EsCombinadoViewTests(TestCase):
         self.user = User.objects.create_user(username='vendedor_view', password='pass')
         self.client.force_login(self.user)
 
-        self.dia = Dia.objects.create(nombre=dia_es(timezone.localtime(timezone.now())))
+        dia_actual_en = timezone.localtime(timezone.now()).strftime('%A')
+        dias_map = {
+            'Monday': 'Lunes', 'Tuesday': 'Martes', 'Wednesday': 'Miércoles',
+            'Thursday': 'Jueves', 'Friday': 'Viernes',
+            'Saturday': 'Sábado', 'Sunday': 'Domingo',
+        }
+        self.dia = Dia.objects.create(nombre=dias_map[dia_actual_en])
         self.loteria = Loteria.objects.create(
             nombre='Lotería Vista',
             hora_inicio=time(0, 0),

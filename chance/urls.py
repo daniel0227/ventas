@@ -13,7 +13,7 @@ urlpatterns = [
     path('ventas', views.crear_venta, name="ventas"),
     path('descargues/', views.descargues, name='descargues'),
     path('mis-descargues/', views.mis_descargues, name='mis_descargues'),
-    path('ventas_list/', views.ventas_list, name='ventas_list'),
+    path('ventas_list/', views.ventas_list, name='ventas_list'),  # Agrega la URL para la lista de ventas
     path('historico-ventas/', views.historico_ventas, name='historico_ventas'),
     path('premios/', views.premios, name='premios'),
     path('premios/reporte-rango/', views.premios_reporte_rango, name='premios_reporte_rango'),
@@ -22,14 +22,12 @@ urlpatterns = [
     path('reporte-descargas/', views.reporte_descargas, name='reporte_descargas'),
     path('reportes/', views.reportes, name='reportes'),
     path('reportes/ventas-vs-premios/', views.reporte_ventas_vs_premios, name='reporte_ventas_vs_premios'),
-    path('reportes/conciliacion/', views.reporte_conciliacion, name='reporte_conciliacion'),
     path('admin/', admin.site.urls),
     path('login/', CustomLoginView.as_view(), name='login'),
     path('logout/', LogoutView.as_view(), name='logout'),
     path('login-required/', views.login_required_view, name='login_required'),
     path("api/importar_resultados/", views.importar_resultados_api, name="importar_resultados_api"),
-    path("api/notificaciones/count/", views.notificaciones_count_api, name="notificaciones_count"),
-    path("api/notificaciones/", views.notificaciones_list, name="notificaciones_list"),
+
 ]
 
 if settings.DEBUG:

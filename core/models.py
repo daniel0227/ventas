@@ -69,11 +69,7 @@ class ConfiguracionVenta(models.Model):
 
     def save(self, *args, **kwargs):
         self.clave = self.CLAVE_GLOBAL
-        result = super().save(*args, **kwargs)
-        # Invalida el cache del limite para que la proxima consulta lea el valor actualizado
-        from django.core.cache import cache
-        cache.delete("config_venta_limite_por_numero")
-        return result
+        return super().save(*args, **kwargs)
 
     def __str__(self):
         if not self.limite_apuesta_por_numero:
@@ -124,12 +120,6 @@ class Venta(models.Model):
     numero = models.CharField(max_length=50, db_index=True)
     monto = models.IntegerField()  # Cambiado a IntegerField
     es_combinado = models.BooleanField(default=False)
-
-    class Meta:
-        indexes = [
-            models.Index(fields=["vendedor"], name="venta_vendedor_idx"),
-            models.Index(fields=["vendedor", "fecha_venta"], name="venta_vendedor_fecha_idx"),
-        ]
 
     def __str__(self):
         return f"{self.vendedor} - {self.numero} - {self.fecha_venta}"
@@ -335,10 +325,6 @@ class Premio(models.Model):
     actualizado_en = models.DateTimeField(auto_now=True)
 
     class Meta:
-        indexes = [
-            models.Index(fields=["vendedor"], name="premio_vendedor_idx"),
-            models.Index(fields=["vendedor", "fecha"], name="premio_vendedor_fecha_idx"),
-        ]
         # Evita duplicados por el mismo día/venta/lotería
         constraints = [
             models.UniqueConstraint(
@@ -366,51 +352,6 @@ class Premio(models.Model):
 
     def __str__(self):
         return f'{self.fecha} • {self.loteria} • {self.vendedor} • {self.numero} = {self.premio}'
-class Notificacion(models.Model):
-    TIPO_INFO = "info"
-    TIPO_EXITO = "exito"
-    TIPO_ALERTA = "alerta"
-    TIPO_ERROR = "error"
-
-    TIPO_CHOICES = [
-        (TIPO_INFO, "Información"),
-        (TIPO_EXITO, "Éxito"),
-        (TIPO_ALERTA, "Alerta"),
-        (TIPO_ERROR, "Error"),
-    ]
-
-    usuario = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name="notificaciones",
-    )
-    titulo = models.CharField(max_length=200)
-    mensaje = models.TextField(blank=True)
-    tipo = models.CharField(max_length=10, choices=TIPO_CHOICES, default=TIPO_INFO)
-    leida = models.BooleanField(default=False, db_index=True)
-    url = models.CharField(max_length=300, blank=True, help_text="URL opcional para redirigir al hacer click")
-    creada_en = models.DateTimeField(auto_now_add=True, db_index=True)
-
-    class Meta:
-        ordering = ("-creada_en",)
-        verbose_name = "Notificación"
-        verbose_name_plural = "Notificaciones"
-
-    def __str__(self):
-        return f"[{self.tipo}] {self.titulo} → {self.usuario}"
-
-    @classmethod
-    def crear(cls, usuario, titulo, mensaje="", tipo=None, url=""):
-        """Crea una notificación y la guarda. Útil para llamadas desde views/signals."""
-        return cls.objects.create(
-            usuario=usuario,
-            titulo=titulo,
-            mensaje=mensaje,
-            tipo=tipo or cls.TIPO_INFO,
-            url=url,
-        )
-
-
 def _safe_create_venta_audit_log(
     event_type,
     status,
