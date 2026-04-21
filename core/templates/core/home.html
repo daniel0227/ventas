@@ -5,6 +5,7 @@
 <section class="home-menu container py-4 py-md-5">
   <header class="mb-4">
     <h2 class="home-title mb-1">Panel Principal</h2>
+    <p class="home-subtitle mb-0">Accede rapidamente a las operaciones del sistema.</p>
   </header>
 
   <div class="row g-3 g-md-4">
@@ -167,19 +168,12 @@
   }
 
   .home-subtitle {
-    color: #4b5563;
+    color: #6b7280;
   }
 
   .menu-link {
     display: block;
     text-decoration: none;
-    touch-action: manipulation;
-  }
-
-  .menu-link:active .menu-card {
-    transform: scale(0.97);
-    box-shadow: 0 4px 10px rgba(15, 23, 42, 0.1);
-    transition: transform 0.08s ease, box-shadow 0.08s ease;
   }
 
   .menu-card {
@@ -209,19 +203,18 @@
     display: flex;
     align-items: center;
     gap: 0.9rem;
-    padding: 0.6rem 1.1rem;
-    min-height: 50px;
+    padding: 1rem 1.1rem;
   }
 
   .menu-icon {
-    width: 36px;
-    height: 36px;
+    width: 30px;
+    height: 30px;
     flex: 0 0 auto;
   }
 
   .menu-label {
     margin: 0;
-    font-size: 1.05rem;
+    font-size: 1rem;
     font-weight: 600;
     line-height: 1.3;
     color: #1f2937;
@@ -285,15 +278,13 @@
     gap: 0.5rem;
     text-decoration: none;
     color: #1f2937;
-    font-size: 0.95rem;
+    font-size: 0.92rem;
     font-weight: 600;
-    padding: 0.7rem 0.75rem;
+    padding: 0.5rem 0.55rem;
     border-radius: 10px;
     background: rgba(255, 255, 255, 0.7);
     border: 1px solid rgba(31, 41, 55, 0.06);
     transition: background-color 0.18s ease, transform 0.18s ease;
-    touch-action: manipulation;
-    min-height: 48px;
   }
 
   .menu-collapse-link:hover,
@@ -319,49 +310,42 @@
     }
 
     .home-title {
-      font-size: 1.5rem;
+      font-size: 1.35rem;
     }
 
     .home-subtitle {
-      font-size: 1rem;
+      font-size: 0.92rem;
     }
 
     .menu-item {
-      gap: 0.75rem;
-      padding: 0.75rem 1rem;
-      min-height: 56px;
+      gap: 0.45rem;
+      padding: 0.1rem 0.72rem;
+      min-height: 40px;
     }
 
     .menu-icon {
-      width: 36px;
-      height: 36px;
+      width: 20px;
+      height: 20px;
     }
 
     .menu-label {
-      font-size: 1.05rem;
-      line-height: 1.25;
+      font-size: 0.86rem;
+      line-height: 1.15;
     }
 
     .menu-collapse-main {
-      gap: 0.75rem;
+      gap: 0.45rem;
     }
 
     .menu-collapse-list {
-      gap: 0.4rem;
-      padding: 0.6rem 0.65rem 0.75rem;
+      gap: 0.22rem;
+      padding: 0.4rem 0.55rem 0.55rem;
     }
 
     .menu-collapse-link {
-      font-size: 0.95rem;
-      padding: 0.7rem 0.65rem;
+      font-size: 0.8rem;
+      padding: 0.36rem 0.45rem;
       border-radius: 8px;
-      min-height: 48px;
-    }
-  }
-
-  @media (max-width: 399.98px) {
-    .col-sm-6 {
-      width: 100%;
     }
   }
 </style>

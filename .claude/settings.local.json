@@ -6,12 +6,7 @@
       "Bash(python manage.py test core -v 2)",
       "Bash(python manage.py test core --noinput)",
       "Bash(python manage.py migrate --run-syncdb)",
-      "Bash(python manage.py test core --verbosity=1)",
-      "Bash(python -c \"from django.core.management.utils import get_random_secret_key; print\\(get_random_secret_key\\(\\)\\)\")",
-      "Bash(python -c \"import secrets; print\\(secrets.token_urlsafe\\(32\\)\\)\")",
-      "Bash(git add *)",
-      "Bash(git stash *)",
-      "Bash(git tag *)"
+      "Bash(python manage.py test core --verbosity=1)"
     ]
   }
 }

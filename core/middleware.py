@@ -75,16 +75,16 @@ class ActivityLogMiddleware:
 # ---------------------------------------------------------------------------
 _CSP_DIRECTIVES = "; ".join([
     "default-src 'self'",
-    # Estilos: propios + Bootstrap Icons (jsdelivr) + Google Fonts (importado desde volt.css)
-    "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com",
+    # Estilos: propios + Bootstrap Icons + Volt CSS (ya en static)
+    "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
     # Scripts: propios + Moment.js CDN + GitHub buttons
     "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://buttons.github.io",
-    # Fuentes: propias + Bootstrap Icons (jsdelivr) + Inter via Google Fonts (gstatic)
-    "font-src 'self' data: https://cdn.jsdelivr.net https://fonts.gstatic.com",
+    # Fuentes descargadas por Bootstrap Icons vía jsdelivr
+    "font-src 'self' data: https://cdn.jsdelivr.net",
     # Imágenes: propias + data URIs (avatares SVG inline)
     "img-src 'self' data:",
-    # Conexiones fetch/XHR: origen propio + cdnjs (source maps de Moment.js en devtools)
-    "connect-src 'self' https://cdnjs.cloudflare.com",
+    # Conexiones fetch/XHR — solo al propio origen
+    "connect-src 'self'",
     # No se usan frames
     "frame-src 'none'",
     "object-src 'none'",
