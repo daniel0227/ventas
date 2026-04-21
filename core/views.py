@@ -28,8 +28,9 @@ from .forms import VentaForm
 from django.core.paginator import Paginator
 from pytz import timezone as pytz_timezone
 from django.views.decorators.http import require_http_methods
-from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import get_user_model
+from django.utils.decorators import method_decorator
+from django_ratelimit.decorators import ratelimit
 from datetime import date, timedelta, datetime
 import csv
 from django.db.models.functions import TruncDate
@@ -341,7 +342,8 @@ def loteria(request):
 def ventas(request):
     return render(request, "core/ventas.html")
 
-# Vista de Login personalizada
+# Vista de Login personalizada — max 10 intentos POST por minuto por IP
+@method_decorator(ratelimit(key='ip', rate='10/m', block=True), name='post')
 class CustomLoginView(LoginView):
     template_name = 'core/login.html'
     redirect_authenticated_user = True  # Redirige si el usuario ya está autenticado
@@ -1501,43 +1503,63 @@ def reporte_descargas(request):
 def login_required_view(request):
     return render(request, 'core/login_required.html')
 
-@csrf_exempt
+@ratelimit(key='ip', rate='30/h', block=False)
 def importar_resultados_api(request):
+    """
+    Endpoint POST para importar resultados desde un agente externo (Railway cron, etc.).
+    Autenticacion: header  Authorization: Token <IMPORT_TOKEN>
+    """
+    import hmac
+    from django.conf import settings as django_settings
+
+    if getattr(request, 'limited', False):
+        return JsonResponse({"error": "Demasiadas solicitudes. Intente más tarde."}, status=429)
+
     if request.method != "POST":
         return JsonResponse({"error": "Método no permitido"}, status=405)
 
-    token_recibido = request.headers.get("Authorization")
-    token_esperado = os.getenv("IMPORT_TOKEN")  # o reemplaza por el string literal
+    token_recibido = request.headers.get("Authorization", "")
+    token_esperado = f"Token {os.environ.get('IMPORT_TOKEN', '')}"
 
-    if not token_recibido or token_recibido != f"Token 1234superclaveAPI5678":
+    # Comparacion segura en tiempo constante (evita timing attacks)
+    if not hmac.compare_digest(token_recibido, token_esperado):
         return JsonResponse({"error": "No autorizado"}, status=401)
 
     fecha_objetivo = localtime(now()).date() - timedelta(days=1)
 
+    import_user = getattr(django_settings, "IMPORT_RESULT_USER", "daniel")
     User = get_user_model()
     try:
-        user = User.objects.get(username="daniel")
+        user = User.objects.get(username=import_user)
     except User.DoesNotExist:
-        return JsonResponse({"error": "Usuario 'daniel' no encontrado"}, status=500)
+        return JsonResponse({"error": f"Usuario '{import_user}' no encontrado"}, status=500)
 
     resultado = importar_resultados(fecha_objetivo, user=user)
     return JsonResponse({"resultado": resultado}, status=200)
 
-@csrf_exempt
-def importar_resultados_via_get(request):
-    token_recibido = request.GET.get("token")
-    token_esperado = os.getenv("IMPORT_TOKEN")
 
-    if token_recibido != token_esperado:
+def importar_resultados_via_get(request):
+    """
+    Endpoint GET de compatibilidad — mantiene la validacion correcta con env var.
+    Preferir el endpoint POST para nuevas integraciones.
+    """
+    import hmac
+
+    token_recibido = request.GET.get("token", "")
+    token_esperado = os.environ.get("IMPORT_TOKEN", "")
+
+    if not token_esperado or not hmac.compare_digest(token_recibido, token_esperado):
         return JsonResponse({"error": "No autorizado"}, status=401)
 
     fecha = localtime(now()).date() - timedelta(days=1)
-    User = get_user_model()
 
+    from django.conf import settings as django_settings
+    import_user = getattr(django_settings, "IMPORT_RESULT_USER", "daniel")
+    User = get_user_model()
     try:
-        user = User.objects.get(username="daniel")
+        user = User.objects.get(username=import_user)
     except User.DoesNotExist:
-        return JsonResponse({"error": "Usuario no encontrado"}, status=500)
+        return JsonResponse({"error": f"Usuario '{import_user}' no encontrado"}, status=500)
 
     resultado = importar_resultados(fecha, user=user)
     return JsonResponse({"resultado": resultado})

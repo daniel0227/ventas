@@ -1,3 +1,4 @@
+import os
 from django.core.management.base import BaseCommand
 from django.utils.timezone import localtime, now
 from datetime import timedelta
@@ -13,10 +14,12 @@ class Command(BaseCommand):
     def handle(self, *args, **kwargs):
         fecha_objetivo = localtime(now()).date() - timedelta(days=1)
 
+        from django.conf import settings as django_settings
+        import_user = getattr(django_settings, "IMPORT_RESULT_USER", "daniel")
         try:
-            usuario = User.objects.get(username="daniel")
+            usuario = User.objects.get(username=import_user)
         except User.DoesNotExist:
-            self.stderr.write("❌ El usuario 'daniel' no existe.")
+            self.stderr.write(f"❌ El usuario '{import_user}' no existe.")
             return
 
         self.stdout.write(f"📦 Ejecutando importación del {fecha_objetivo}...")
@@ -80,11 +83,14 @@ class Command(BaseCommand):
                 f"🎉 Hoy no toca pagar. ¡Todo bajo control!"
             )
 
-        # 📲 Lista de destinatarios
-        destinatarios = [
-            {"telefono": "573002393652", "apikey": "2485881"},
-            {"telefono": "573001212758", "apikey": "7858937"}
-        ]
+        # 📲 Lista de destinatarios — configurar en variable de entorno:
+        # CALLMEBOT_RECIPIENTS=573002393652:2485881,573001212758:7858937
+        raw = os.environ.get("CALLMEBOT_RECIPIENTS", "")
+        destinatarios = []
+        for entry in raw.split(","):
+            parts = entry.strip().split(":")
+            if len(parts) == 2 and parts[0] and parts[1]:
+                destinatarios.append({"telefono": parts[0], "apikey": parts[1]})
 
         for d in destinatarios:
             respuesta = enviar_whatsapp_callmebot(
