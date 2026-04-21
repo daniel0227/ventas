@@ -1,15 +1,12 @@
 """
 core/middleware.py
 ──────────────────
-Middleware de auditoría de actividad de usuarios y Content Security Policy.
+Middleware de auditoría de actividad de usuarios.
+Registra cada request autenticado en el logger 'lottia.activity' usando el
+sistema de logging estándar de Python — sin overhead de BD por request.
 
-ActivityLogMiddleware:
-    Registra cada request autenticado en el logger 'lottia.activity' usando el
-    sistema de logging estándar de Python — sin overhead de BD por request.
-
-ContentSecurityPolicyMiddleware:
-    Añade la cabecera Content-Security-Policy a todas las respuestas HTML.
-    Cubre las fuentes externas (CDNs) usadas en las plantillas.
+Los logs pueden redirigirse a un archivo, sentry, o cualquier handler
+configurado en LOGGING de settings.py.
 """
 import logging
 import time
@@ -68,44 +65,3 @@ class ActivityLogMiddleware:
         if forwarded:
             return forwarded.split(",")[0].strip()
         return request.META.get("REMOTE_ADDR", "-")
-
-
-# ---------------------------------------------------------------------------
-# Content Security Policy
-# ---------------------------------------------------------------------------
-_CSP_DIRECTIVES = "; ".join([
-    "default-src 'self'",
-    # Estilos: propios + Bootstrap Icons + Volt CSS (ya en static)
-    "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
-    # Scripts: propios + Moment.js CDN + GitHub buttons
-    "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://buttons.github.io",
-    # Fuentes descargadas por Bootstrap Icons vía jsdelivr
-    "font-src 'self' data: https://cdn.jsdelivr.net",
-    # Imágenes: propias + data URIs (avatares SVG inline)
-    "img-src 'self' data:",
-    # Conexiones fetch/XHR — solo al propio origen
-    "connect-src 'self'",
-    # No se usan frames
-    "frame-src 'none'",
-    "object-src 'none'",
-    "base-uri 'self'",
-    "form-action 'self'",
-])
-
-
-class ContentSecurityPolicyMiddleware:
-    """
-    Inyecta la cabecera Content-Security-Policy en todas las respuestas.
-    Solo se aplica a respuestas HTML (text/html) para no interferir
-    con descargas CSV/XLSX ni respuestas JSON.
-    """
-
-    def __init__(self, get_response):
-        self.get_response = get_response
-
-    def __call__(self, request):
-        response = self.get_response(request)
-        content_type = response.get("Content-Type", "")
-        if "text/html" in content_type:
-            response["Content-Security-Policy"] = _CSP_DIRECTIVES
-        return response
