@@ -928,7 +928,7 @@ class ReportesViewTests(TestCase):
         rows = resp.context["rows"]
         self.assertEqual(len(rows), 1)
         # Vendido = 10000, Premio = 10000 * 60 = 600000 → diferencia negativa
-        self.assertEqual(rows[0]["total_ventas"], 10000)
+        self.assertEqual(rows[0]["venta_bruta"], 10000)
         self.assertLess(rows[0]["diferencia"], 0)
 
     def test_reporte_conciliacion_exporta_csv(self):
