@@ -75,7 +75,7 @@ _CSP_DIRECTIVES = "; ".join([
     # Estilos: propios + Bootstrap Icons (jsdelivr) + Google Fonts
     "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com",
     # Scripts: propios + Moment.js CDN + GitHub buttons
-    "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://buttons.github.io",
+    "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://buttons.github.io https://cdn.jsdelivr.net",
     # Fuentes: propias + Bootstrap Icons (jsdelivr) + Google Fonts (gstatic)
     "font-src 'self' data: https://cdn.jsdelivr.net https://fonts.gstatic.com",
     # Imágenes: propias + data URIs

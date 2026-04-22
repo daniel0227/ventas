@@ -1,0 +1,212 @@
+.home-menu {
+  max-width: 1200px;
+}
+
+.home-title {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.home-subtitle {
+  color: #4b5563;
+}
+
+.menu-link {
+  display: block;
+  text-decoration: none;
+  touch-action: manipulation;
+}
+
+.menu-link:active .menu-card {
+  transform: scale(0.97);
+  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.1);
+  transition: transform 0.08s ease, box-shadow 0.08s ease;
+}
+
+.menu-card {
+  border: 0;
+  border-radius: 14px;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+@media (hover: hover) {
+  .menu-link:hover .menu-card,
+  .menu-link:focus-visible .menu-card {
+    transform: translateY(-3px);
+    box-shadow: 0 14px 26px rgba(15, 23, 42, 0.14);
+  }
+}
+
+.menu-link:focus-visible {
+  outline: none;
+}
+
+.menu-link:focus-visible .menu-card {
+  box-shadow:
+    0 0 0 3px rgba(2, 132, 199, 0.35),
+    0 14px 26px rgba(15, 23, 42, 0.14);
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.3rem 1.1rem;
+  min-height: 38px;
+}
+
+.menu-icon {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+}
+
+.menu-label {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: #1f2937;
+}
+
+.menu-card-sales        { background-color: #ffe8d6; }
+.menu-card-lotteries    { background-color: #ffdce5; }
+.menu-card-sales-report { background-color: #deebff; }
+.menu-card-prizes       { background-color: #e8e7ff; }
+.menu-card-prizes-report{ background-color: #ede9fe; }
+.menu-card-results      { background-color: #dcfce7; }
+.menu-card-register     { background-color: #fef3c7; }
+.menu-card-downloads    { background-color: #e0f2fe; }
+.menu-card-management   { background-color: #dbeafe; }
+.menu-card-reports-group{ background-color: #e8f1ff; overflow: hidden; }
+
+.menu-collapse-toggle {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  justify-content: space-between;
+  cursor: pointer;
+}
+
+.menu-collapse-main {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  min-width: 0;
+}
+
+.menu-collapse-chevron {
+  color: #1f2937;
+  font-size: 1rem;
+  line-height: 1;
+  flex: 0 0 auto;
+  margin-left: 0.4rem;
+  transition: transform 0.2s ease;
+}
+
+.menu-collapse-toggle[aria-expanded="true"] .menu-collapse-chevron {
+  transform: rotate(180deg);
+}
+
+.menu-collapse-panel {
+  border-top: 1px solid rgba(31, 41, 55, 0.08);
+  background: rgba(255, 255, 255, 0.45);
+}
+
+.menu-collapse-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.6rem 0.75rem 0.75rem;
+}
+
+.menu-collapse-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  color: #1f2937;
+  font-size: 0.95rem;
+  font-weight: 600;
+  padding: 0.7rem 0.75rem;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(31, 41, 55, 0.06);
+  transition: background-color 0.18s ease, transform 0.18s ease;
+  touch-action: manipulation;
+  min-height: 48px;
+}
+
+@media (hover: hover) {
+  .menu-collapse-link:hover,
+  .menu-collapse-link:focus-visible {
+    background: rgba(255, 255, 255, 0.95);
+    color: #111827;
+    transform: translateY(-1px);
+    outline: none;
+  }
+}
+
+.menu-collapse-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #2563eb;
+  flex: 0 0 auto;
+}
+
+@media (max-width: 575.98px) {
+  .home-menu {
+    padding-top: 1rem !important;
+    padding-bottom: 1rem !important;
+  }
+
+  .home-title {
+    display: none;
+  }
+
+  .home-subtitle {
+    font-size: 1rem;
+  }
+
+  .menu-item {
+    gap: 0.75rem;
+    padding: 0.6rem 1rem;
+    min-height: 50px;
+  }
+
+  .menu-icon {
+    width: 36px;
+    height: 36px;
+  }
+
+  .menu-label {
+    font-size: 1.05rem;
+    line-height: 1.25;
+  }
+
+  .menu-collapse-main {
+    gap: 0.75rem;
+  }
+
+  .menu-collapse-list {
+    gap: 0.4rem;
+    padding: 0.6rem 0.65rem 0.75rem;
+  }
+
+  .menu-collapse-link {
+    font-size: 0.95rem;
+    padding: 0.7rem 0.65rem;
+    border-radius: 8px;
+    min-height: 48px;
+  }
+}
+
+@media (max-width: 399.98px) {
+  .col-sm-6 {
+    width: 100%;
+  }
+}

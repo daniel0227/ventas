@@ -6,138 +6,464 @@
 <nav class="breadcrumb-lottia" aria-label="Ruta de navegación">
   <a href="{% url 'home' %}"><i class="bi bi-house-fill me-1"></i>Inicio</a>
   <span class="sep"><i class="bi bi-chevron-right"></i></span>
-  <span class="current">Conciliación Diaria</span>
+  <span class="current">Rentabilidad Mensual</span>
 </nav>
 {% endblock %}
 
 {% block content %}
 <style>
   :root {
-    --primary: #4f46e5; --primary-dark: #3730a3; --primary-light: #eef2ff;
-    --success: #10b981; --success-light: #ecfdf5;
-    --danger: #ef4444; --danger-light: #fef2f2;
-    --border: #e5e7eb; --muted: #6b7280;
-    --card-radius: 16px; --shadow: 0 2px 12px rgba(0,0,0,.07);
+    --primary:       #4f46e5;
+    --primary-dark:  #3730a3;
+    --primary-light: #eef2ff;
+    --success:       #10b981;
+    --success-light: #ecfdf5;
+    --danger:        #ef4444;
+    --danger-light:  #fef2f2;
+    --purple:        #8b5cf6;
+    --purple-light:  #f5f3ff;
+    --border:        #e5e7eb;
+    --muted:         #6b7280;
+    --card-radius:   16px;
+    --shadow:        0 2px 12px rgba(0,0,0,.07);
   }
+
+  @keyframes fadeUp {
+    from { opacity:0; transform:translateY(12px); }
+    to   { opacity:1; transform:translateY(0); }
+  }
+  .fade-up { animation: fadeUp .35s ease both; }
+  .fade-up:nth-child(1) { animation-delay:.05s; }
+  .fade-up:nth-child(2) { animation-delay:.1s; }
+  .fade-up:nth-child(3) { animation-delay:.15s; }
+  .fade-up:nth-child(4) { animation-delay:.2s; }
+
+  /* Header */
   .page-header { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.6rem; margin-bottom:1.25rem; }
   .page-header h1 { font-size:1.35rem; font-weight:700; color:#1f2937; margin:0; }
+  .page-header .subtitle { font-size:.82rem; color:var(--muted); margin-top:.15rem; }
+
+  /* Filtro dropdown */
   .filter-card { background:#fff; border-radius:var(--card-radius); box-shadow:var(--shadow); padding:1rem 1.25rem; margin-bottom:1.25rem; border:1px solid var(--border); }
-  .btn-primary-custom { background:var(--primary); color:#fff; border:0; border-radius:8px; padding:.45rem 1.1rem; font-size:.84rem; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:.4rem; }
-  .btn-primary-custom:hover { background:var(--primary-dark); color:#fff; }
-  .btn-export { display:inline-flex; align-items:center; gap:.35rem; background:var(--primary); color:#fff; border-radius:8px; padding:.4rem .9rem; font-size:.8rem; font-weight:600; text-decoration:none; }
-  .btn-export:hover { background:var(--primary-dark); color:#fff; }
-  .stat-card { background:#fff; border-radius:14px; box-shadow:var(--shadow); padding:1rem 1.25rem; border:1px solid var(--border); }
-  .stat-label { font-size:.72rem; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin-bottom:.2rem; }
-  .stat-value { font-size:1.45rem; font-weight:700; color:#1f2937; }
-  .table-card { background:#fff; border-radius:var(--card-radius); box-shadow:var(--shadow); border:1px solid var(--border); overflow:hidden; }
-  .table-card table { width:100%; border-collapse:collapse; }
-  .table-card thead th { background:#f8f9fa; font-size:.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); padding:.75rem 1rem; border-bottom:2px solid var(--border); white-space:nowrap; }
-  .table-card tbody td { padding:.65rem 1rem; font-size:.85rem; border-bottom:1px solid #f3f4f6; }
-  .table-card tbody tr:last-child td { border-bottom:0; }
-  .table-card tbody tr:hover { background:#fafafa; }
-  .pos { color:var(--success); font-weight:700; }
-  .neg { color:var(--danger); font-weight:700; }
-  .text-right { text-align:right; }
+  .filter-label { font-size:.75rem; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; margin-bottom:.4rem; display:block; }
+  .mes-select {
+    appearance: none;
+    -webkit-appearance: none;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    font-size: .92rem;
+    padding: .52rem 2.5rem .52rem .85rem;
+    background: #fafafa url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 16 16'%3E%3Cpath fill='%236b7280' d='M7.247 11.14L2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E") no-repeat right .85rem center;
+    min-height: 44px;
+    min-width: 200px;
+    max-width: 280px;
+    width: 100%;
+    cursor: pointer;
+    color: #1f2937;
+    font-weight: 600;
+    transition: border-color .2s, background-color .2s;
+  }
+  .mes-select:focus { outline: none; border-color: var(--primary); background-color: #fff; }
+
+  /* Exports */
+  .btn-export { display:inline-flex; align-items:center; gap:.4rem; padding:.5rem 1rem; border-radius:10px; font-size:.85rem; font-weight:600; background:var(--success-light); color:#065f46; border:1.5px solid #6ee7b7; text-decoration:none; transition:background .15s,border-color .15s; white-space:nowrap; min-height:44px; }
+  .btn-export:hover { background:#d1fae5; border-color:var(--success); color:#065f46; }
+  .btn-export:active { transform:scale(.97); }
+
+  /* Stat-cards */
+  .stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(155px,1fr)); gap:.75rem; margin-bottom:1.25rem; }
+  .stat-card { background:#fff; border-radius:var(--card-radius); box-shadow:var(--shadow); border:1px solid var(--border); padding:1rem 1.1rem; display:flex; align-items:flex-start; gap:.75rem; }
+  .stat-card.danger-border { border-color:#fca5a5; }
+  .stat-card.success-border { border-color:#6ee7b7; }
+  .stat-icon { width:44px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:1.1rem; flex-shrink:0; }
+  .stat-icon.blue   { background:var(--primary-light); color:var(--primary); }
+  .stat-icon.green  { background:var(--success-light); color:var(--success); }
+  .stat-icon.purple { background:var(--purple-light);  color:var(--purple); }
+  .stat-icon.red    { background:var(--danger-light);  color:var(--danger); }
+  .stat-label { font-size:.72rem; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; line-height:1.2; }
+  .stat-value { font-size:1.15rem; font-weight:800; color:#1f2937; line-height:1.25; margin-top:.1rem; }
+  .stat-value.sm  { font-size:.95rem; }
+  .stat-value.pos { color:var(--success); }
+  .stat-value.neg { color:var(--danger); }
+
+  /* Gráfica */
+  .chart-card { background:#fff; border-radius:var(--card-radius); box-shadow:var(--shadow); border:1px solid var(--border); padding:1.25rem; margin-bottom:1.25rem; }
+  .chart-title { font-size:.95rem; font-weight:700; color:#1f2937; margin-bottom:.75rem; display:flex; align-items:center; gap:.4rem; flex-wrap:wrap; }
+  .chart-legend { display:flex; gap:.75rem; margin-left:auto; }
+  .legend-dot { display:inline-flex; align-items:center; gap:.3rem; font-size:.75rem; font-weight:600; color:var(--muted); }
+  .legend-dot::before { content:''; width:10px; height:10px; border-radius:3px; flex-shrink:0; }
+  .legend-dot.neg-dot::before { background:var(--danger); }
+  .legend-dot.pos-dot::before { background:var(--success); }
+  #rentChart { height:300px; }
+  @media (min-width:768px) { #rentChart { height:360px; } }
+
+  /* Tabla */
+  .table-card { background:#fff; border-radius:var(--card-radius); box-shadow:var(--shadow); border:1px solid var(--border); margin-bottom:1.5rem; overflow:hidden; }
+  .table-card-header { background:linear-gradient(135deg,var(--primary) 0%,var(--primary-dark) 100%); color:#fff; padding:.85rem 1.25rem; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.5rem; }
+  .table-card-header .title { font-size:.95rem; font-weight:700; }
+
+  .desktop-table { display:none; }
+  @media (min-width:576px) { .desktop-table { display:block; } }
+  .desktop-table table { width:100%; border-collapse:collapse; }
+  .desktop-table thead tr { background:#f8fafc; }
+  .desktop-table thead th { font-size:.75rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; padding:.7rem 1rem; border-bottom:1px solid var(--border); white-space:nowrap; }
+  .desktop-table tbody tr { border-bottom:1px solid #f3f4f6; transition:background .12s; }
+  .desktop-table tbody tr:last-child { border-bottom:none; }
+  .desktop-table tbody tr:hover { background:#fafbff; }
+  .desktop-table tbody td { padding:.72rem 1rem; font-size:.9rem; color:#374151; vertical-align:middle; }
+  .desktop-table tfoot tr { background:#1f2937; }
+  .desktop-table tfoot td { padding:.75rem 1rem; font-size:.88rem; font-weight:700; color:#fff; }
+  .rank-badge { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:50%; background:var(--primary-light); color:var(--primary); font-size:.75rem; font-weight:700; }
+  .dif-pos { font-weight:800; color:var(--success); }
+  .dif-neg { font-weight:800; color:var(--danger); }
+
+  .mobile-cards { display:block; }
+  @media (min-width:576px) { .mobile-cards { display:none; } }
+  .vendor-card { border-bottom:1px solid var(--border); padding:.9rem 1rem; }
+  .vendor-card:last-child { border-bottom:none; }
+  .vendor-header { display:flex; align-items:flex-start; justify-content:space-between; gap:.5rem; margin-bottom:.6rem; }
+  .vendor-left { display:flex; align-items:flex-start; gap:.5rem; min-width:0; }
+  .vendor-info { min-width:0; }
+  .vendor-name { font-size:.9rem; font-weight:700; color:#1f2937; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .vendor-user { font-size:.75rem; color:var(--muted); margin-top:.05rem; }
+  .dif-badge { text-align:right; border-radius:10px; padding:.3rem .55rem; line-height:1.15; white-space:nowrap; }
+  .dif-badge .dif-label { display:block; font-size:.65rem; font-weight:700; text-transform:uppercase; letter-spacing:.03em; }
+  .dif-badge .dif-val { display:block; font-size:.88rem; font-weight:800; }
+  .dif-badge.pos { background:var(--success-light); color:#065f46; border:1px solid #6ee7b7; }
+  .dif-badge.neg { background:var(--danger-light); color:#991b1b; border:1px solid #fca5a5; }
+  .vendor-metrics { display:grid; grid-template-columns:repeat(2,1fr); gap:.35rem; }
+  .vm-item { background:#f9fafb; border:1px solid #f3f4f6; border-radius:10px; padding:.45rem .6rem; }
+  .vm-label { font-size:.68rem; font-weight:600; color:var(--muted); text-transform:uppercase; display:block; }
+  .vm-value { font-size:.84rem; font-weight:600; color:#1f2937; }
+  .vendor-card-totals { background:#1f2937; }
+  .vendor-card-totals .vendor-name { color:#fff; }
+  .vendor-card-totals .vendor-user { color:#9ca3af; }
+  .vendor-card-totals .vm-item { background:#374151; border-color:#4b5563; }
+  .vendor-card-totals .vm-label { color:#9ca3af; }
+  .vendor-card-totals .vm-value { color:#fff; }
+
+  .empty-state { text-align:center; padding:3rem 1.5rem; color:var(--muted); }
+  .empty-state i { font-size:3rem; opacity:.35; margin-bottom:.75rem; display:block; }
+  .empty-state p { font-size:.9rem; margin:0; }
 </style>
 
 <!-- Header -->
-<div class="page-header">
+<div class="page-header fade-up">
   <div>
-    <h1><i class="bi bi-arrow-left-right me-2" style="color:var(--primary);"></i>Conciliación Diaria</h1>
-    <div style="font-size:.82rem; color:var(--muted); margin-top:.1rem;">Ventas vendidas vs premios pagados por lotería y fecha</div>
+    <h1><i class="bi bi-graph-down-arrow me-2" style="color:var(--primary);"></i>Rentabilidad Mensual</h1>
+    <div class="subtitle">Ganancias y pérdidas por vendedor — de mayor pérdida a mayor ganancia</div>
   </div>
   {% if rows %}
   <div class="d-flex gap-2 flex-wrap">
-    <a href="?fecha_inicio={{ fecha_inicio|date:'Y-m-d' }}&fecha_fin={{ fecha_fin|date:'Y-m-d' }}&export=csv" class="btn-export" style="background:#10b981;">
+    <a href="?mes={{ mes }}&export=csv" class="btn-export" style="background:#10b981; border-color:#34d399; color:#fff;">
       <i class="bi bi-filetype-csv"></i> CSV
     </a>
-    <a href="?fecha_inicio={{ fecha_inicio|date:'Y-m-d' }}&fecha_fin={{ fecha_fin|date:'Y-m-d' }}&export=excel" class="btn-export">
+    <a href="?mes={{ mes }}&export=excel" class="btn-export">
       <i class="bi bi-file-earmark-excel"></i> Excel
     </a>
   </div>
   {% endif %}
 </div>
 
-<!-- Filtro -->
-<div class="filter-card">
-  <form method="get" class="d-flex flex-wrap gap-2 align-items-end">
-    <div>
-      <label style="font-size:.72rem; font-weight:600; color:var(--muted); text-transform:uppercase; display:block; margin-bottom:.25rem;">Fecha inicio</label>
-      <input type="date" name="fecha_inicio" value="{{ fecha_inicio|date:'Y-m-d' }}" max="{% now 'Y-m-d' %}" class="form-control form-control-sm" style="min-width:150px;">
-    </div>
-    <div>
-      <label style="font-size:.72rem; font-weight:600; color:var(--muted); text-transform:uppercase; display:block; margin-bottom:.25rem;">Fecha fin</label>
-      <input type="date" name="fecha_fin" value="{{ fecha_fin|date:'Y-m-d' }}" max="{% now 'Y-m-d' %}" class="form-control form-control-sm" style="min-width:150px;">
-    </div>
-    <button type="submit" class="btn-primary-custom"><i class="bi bi-search"></i> Consultar</button>
+<!-- Filtro dropdown -->
+<div class="filter-card fade-up">
+  <form method="get" id="filter-form">
+    <label class="filter-label"><i class="bi bi-calendar-month me-1"></i>Mes</label>
+    <select name="mes" class="mes-select" onchange="this.form.submit()">
+      {% for m in meses_disponibles %}
+      <option value="{{ m.value }}" {% if m.value == mes %}selected{% endif %}>{{ m.label }}</option>
+      {% endfor %}
+    </select>
   </form>
 </div>
 
-{% if rows %}
-<!-- Tarjetas de totales -->
-<div class="row g-3 mb-3">
-  <div class="col-6 col-md-4">
-    <div class="stat-card">
-      <div class="stat-label">Total vendido</div>
-      <div class="stat-value">${{ total_ventas|formatpesos }}</div>
+<!-- Stat-cards -->
+<div class="stats-grid">
+  <div class="stat-card fade-up">
+    <div class="stat-icon blue"><i class="bi bi-cash-stack"></i></div>
+    <div>
+      <div class="stat-label">Venta neta</div>
+      <div class="stat-value sm">${{ total_neta|default:0|format_colombian }}</div>
     </div>
   </div>
-  <div class="col-6 col-md-4">
-    <div class="stat-card">
-      <div class="stat-label">Total premios</div>
-      <div class="stat-value" style="color:var(--danger);">${{ total_premios|formatpesos }}</div>
+  <div class="stat-card fade-up">
+    <div class="stat-icon purple"><i class="bi bi-receipt-cutoff"></i></div>
+    <div>
+      <div class="stat-label">Liquidación</div>
+      <div class="stat-value sm">${{ total_liquidacion|default:0|format_colombian }}</div>
     </div>
   </div>
-  <div class="col-6 col-md-4">
-    <div class="stat-card">
-      <div class="stat-label">Diferencia neta</div>
-      <div class="stat-value {% if total_diferencia >= 0 %}pos{% else %}neg{% endif %}">${{ total_diferencia|formatpesos }}</div>
+  <div class="stat-card fade-up">
+    <div class="stat-icon red"><i class="bi bi-trophy-fill"></i></div>
+    <div>
+      <div class="stat-label">Premios pagados</div>
+      <div class="stat-value sm">${{ total_premios|default:0|format_colombian }}</div>
+    </div>
+  </div>
+  <div class="stat-card fade-up {% if total_diferencia < 0 %}danger-border{% else %}success-border{% endif %}">
+    <div class="stat-icon {% if total_diferencia < 0 %}red{% else %}green{% endif %}">
+      <i class="bi bi-{% if total_diferencia < 0 %}arrow-down-circle{% else %}arrow-up-circle{% endif %}-fill"></i>
+    </div>
+    <div>
+      <div class="stat-label">Diferencia total</div>
+      <div class="stat-value sm {% if total_diferencia < 0 %}neg{% else %}pos{% endif %}">
+        ${{ total_diferencia|default:0|format_colombian }}
+      </div>
     </div>
   </div>
 </div>
 
+{% if rows %}
+
+<!-- Gráfica Highcharts -->
+<div class="chart-card fade-up">
+  <div class="chart-title">
+    <i class="bi bi-bar-chart-fill" style="color:var(--primary);"></i>
+    Diferencia por vendedor
+    <div class="chart-legend">
+      <span class="legend-dot neg-dot">Pérdida</span>
+      <span class="legend-dot pos-dot">Ganancia</span>
+    </div>
+  </div>
+  <div id="rentChart"></div>
+</div>
+
 <!-- Tabla -->
-<div class="table-card">
-  <div style="overflow-x:auto;">
+<div class="table-card fade-up">
+  <div class="table-card-header">
+    <span class="title"><i class="bi bi-table me-2"></i>Detalle por vendedor</span>
+    <a href="?mes={{ mes }}&export=excel"
+       class="btn-export" style="padding:.35rem .85rem; font-size:.78rem; min-height:0;">
+      <i class="bi bi-file-earmark-excel"></i> Excel
+    </a>
+  </div>
+
+  <!-- Mobile -->
+  <div class="mobile-cards">
+    {% for row in rows %}
+    <div class="vendor-card">
+      <div class="vendor-header">
+        <div class="vendor-left">
+          <span class="rank-badge">{{ forloop.counter }}</span>
+          <div class="vendor-info">
+            <div class="vendor-name">{{ row.vendedor|title }}</div>
+            <div class="vendor-user">@{{ row.username }}</div>
+          </div>
+        </div>
+        <div class="dif-badge {% if row.diferencia < 0 %}neg{% else %}pos{% endif %}">
+          <span class="dif-label">Diferencia</span>
+          <span class="dif-val">${{ row.diferencia|format_colombian }}</span>
+        </div>
+      </div>
+      <div class="vendor-metrics">
+        <div class="vm-item">
+          <span class="vm-label">Venta neta</span>
+          <span class="vm-value">${{ row.venta_neta|format_colombian }}</span>
+        </div>
+        <div class="vm-item">
+          <span class="vm-label">Liquidación</span>
+          <span class="vm-value">${{ row.liquidacion|format_colombian }}</span>
+        </div>
+        <div class="vm-item">
+          <span class="vm-label">Premios</span>
+          <span class="vm-value">${{ row.premios|format_colombian }}</span>
+        </div>
+        <div class="vm-item">
+          <span class="vm-label">Cant. premios</span>
+          <span class="vm-value">{{ row.cantidad_premios }}</span>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+    <!-- Totales -->
+    <div class="vendor-card vendor-card-totals">
+      <div class="vendor-header">
+        <div class="vendor-left">
+          <div class="vendor-info">
+            <div class="vendor-name">Totales del mes</div>
+            <div class="vendor-user">{{ rows|length }} vendedor{{ rows|length|pluralize }}</div>
+          </div>
+        </div>
+        <div class="dif-badge {% if total_diferencia < 0 %}neg{% else %}pos{% endif %}">
+          <span class="dif-label">Diferencia</span>
+          <span class="dif-val">${{ total_diferencia|default:0|format_colombian }}</span>
+        </div>
+      </div>
+      <div class="vendor-metrics">
+        <div class="vm-item">
+          <span class="vm-label">Venta neta</span>
+          <span class="vm-value">${{ total_neta|default:0|format_colombian }}</span>
+        </div>
+        <div class="vm-item">
+          <span class="vm-label">Liquidación</span>
+          <span class="vm-value">${{ total_liquidacion|default:0|format_colombian }}</span>
+        </div>
+        <div class="vm-item">
+          <span class="vm-label">Premios</span>
+          <span class="vm-value">${{ total_premios|default:0|format_colombian }}</span>
+        </div>
+        <div class="vm-item">
+          <span class="vm-label">Vendedores</span>
+          <span class="vm-value">{{ rows|length }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Desktop -->
+  <div class="desktop-table">
     <table>
       <thead>
         <tr>
-          <th>Fecha</th>
-          <th>Lotería</th>
-          <th class="text-right">Vendido (COP)</th>
-          <th class="text-right">Premios (COP)</th>
-          <th class="text-right">Cant. premios</th>
-          <th class="text-right">Diferencia (COP)</th>
+          <th>#</th>
+          <th>Vendedor</th>
+          <th>Usuario</th>
+          <th class="text-end">Venta neta</th>
+          <th class="text-end">Liquidación</th>
+          <th class="text-end">Premios</th>
+          <th class="text-end">Cant. premios</th>
+          <th class="text-end">Diferencia</th>
         </tr>
       </thead>
       <tbody>
-        {% for r in rows %}
+        {% for row in rows %}
         <tr>
-          <td>{{ r.fecha }}</td>
-          <td>{{ r.loteria }}</td>
-          <td class="text-right">${{ r.total_ventas|formatpesos }}</td>
-          <td class="text-right">${{ r.total_premios|formatpesos }}</td>
-          <td class="text-right">{{ r.cantidad_premios }}</td>
-          <td class="text-right {% if r.diferencia >= 0 %}pos{% else %}neg{% endif %}">${{ r.diferencia|formatpesos }}</td>
+          <td><span class="rank-badge">{{ forloop.counter }}</span></td>
+          <td style="font-weight:600;">{{ row.vendedor|title }}</td>
+          <td style="color:var(--muted);">@{{ row.username }}</td>
+          <td class="text-end">${{ row.venta_neta|format_colombian }}</td>
+          <td class="text-end">${{ row.liquidacion|format_colombian }}</td>
+          <td class="text-end">${{ row.premios|format_colombian }}</td>
+          <td class="text-end">{{ row.cantidad_premios }}</td>
+          <td class="text-end {% if row.diferencia < 0 %}dif-neg{% else %}dif-pos{% endif %}">
+            ${{ row.diferencia|format_colombian }}
+          </td>
         </tr>
         {% endfor %}
       </tbody>
       <tfoot>
-        <tr style="background:#f8f9fa; font-weight:700; font-size:.84rem;">
-          <td colspan="2">TOTALES</td>
-          <td class="text-right">${{ total_ventas|formatpesos }}</td>
-          <td class="text-right">${{ total_premios|formatpesos }}</td>
-          <td class="text-right">—</td>
-          <td class="text-right {% if total_diferencia >= 0 %}pos{% else %}neg{% endif %}">${{ total_diferencia|formatpesos }}</td>
+        <tr>
+          <td colspan="3">Totales</td>
+          <td class="text-end">${{ total_neta|default:0|format_colombian }}</td>
+          <td class="text-end">${{ total_liquidacion|default:0|format_colombian }}</td>
+          <td class="text-end">${{ total_premios|default:0|format_colombian }}</td>
+          <td class="text-end">—</td>
+          <td class="text-end {% if total_diferencia < 0 %}dif-neg{% else %}dif-pos{% endif %}">
+            ${{ total_diferencia|default:0|format_colombian }}
+          </td>
         </tr>
       </tfoot>
     </table>
   </div>
 </div>
+
 {% else %}
-<div class="text-center py-5" style="color:var(--muted);">
-  <i class="bi bi-inbox" style="font-size:2.5rem; display:block; margin-bottom:.5rem;"></i>
-  Sin datos para el rango seleccionado.
+<div class="table-card fade-up">
+  <div class="empty-state">
+    <i class="bi bi-bar-chart"></i>
+    <p>No hay ventas ni premios registrados para el mes seleccionado.</p>
+  </div>
 </div>
 {% endif %}
+
+{{ chart_labels|json_script:"rent-labels" }}
+{{ chart_diferencias|json_script:"rent-diferencias" }}
+
+<script src="https://cdn.jsdelivr.net/npm/highcharts@12.4.0/highcharts.js"></script>
+<script>
+(() => {
+  document.getElementById('mes-input') &&
+    document.getElementById('mes-input').addEventListener('change', function() {
+      document.getElementById('filter-form').submit();
+    });
+
+  {% if rows %}
+  const labels      = JSON.parse(document.getElementById('rent-labels').textContent);
+  const diferencias = JSON.parse(document.getElementById('rent-diferencias').textContent);
+
+  Highcharts.chart('rentChart', {
+    chart: {
+      type: 'column',
+      style: { fontFamily: 'inherit' },
+      backgroundColor: 'transparent',
+      animation: { duration: 500 },
+    },
+    title: { text: null },
+    credits: { enabled: false },
+    legend: { enabled: false },
+    xAxis: {
+      categories: labels,
+      labels: {
+        rotation: -35,
+        style: { fontSize: '11px', color: '#6b7280' },
+        formatter: function() {
+          const l = String(this.value || '');
+          return l.length > 10 ? l.slice(0, 10) + '…' : l;
+        },
+      },
+      lineColor: '#e5e7eb',
+      tickColor: 'transparent',
+    },
+    yAxis: {
+      title: { text: null },
+      gridLineColor: '#f3f4f6',
+      plotLines: [{ value: 0, color: '#6b7280', width: 1.5, zIndex: 3 }],
+      labels: {
+        formatter: function() {
+          const v = this.value;
+          if (Math.abs(v) >= 1000000) return '$' + (v / 1000000).toFixed(1) + 'M';
+          if (Math.abs(v) >= 1000)    return '$' + (v / 1000).toFixed(0) + 'k';
+          return '$' + v;
+        },
+        style: { fontSize: '11px', color: '#6b7280' },
+      },
+    },
+    tooltip: {
+      backgroundColor: '#1f2937',
+      borderColor: 'transparent',
+      borderRadius: 10,
+      style: { color: '#fff', fontSize: '13px' },
+      formatter: function() {
+        const v = this.y;
+        const fmt = '$' + Math.abs(v).toLocaleString('es-CO') + ' COP';
+        return '<b>' + this.x + '</b><br/>' +
+          (v < 0 ? '🔴 Pérdida: <b>−' : '🟢 Ganancia: <b>+') + fmt + '</b>';
+      },
+    },
+    plotOptions: {
+      column: {
+        borderRadius: 5,
+        threshold: 0,
+        color: '#10b981',
+        negativeColor: '#ef4444',
+        dataLabels: {
+          enabled: true,
+          formatter: function() {
+            const v = this.y;
+            if (Math.abs(v) >= 1000000) return (v < 0 ? '−$' : '+$') + (Math.abs(v) / 1000000).toFixed(1) + 'M';
+            if (Math.abs(v) >= 1000)    return (v < 0 ? '−$' : '+$') + (Math.abs(v) / 1000).toFixed(0) + 'k';
+            return null;
+          },
+          style: { fontSize: '10px', fontWeight: '600', textOutline: 'none', color: '#374151' },
+        },
+      },
+    },
+    series: [{
+      name: 'Diferencia',
+      data: diferencias,
+    }],
+    responsive: {
+      rules: [{
+        condition: { maxWidth: 500 },
+        chartOptions: {
+          xAxis: { labels: { rotation: -45, style: { fontSize: '9px' } } },
+          plotOptions: { column: { dataLabels: { enabled: false } } },
+        },
+      }],
+    },
+  });
+  {% endif %}
+})();
+</script>
+
 {% endblock %}

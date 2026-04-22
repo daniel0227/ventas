@@ -6,7 +6,8 @@
       "Bash(python manage.py test core -v 2)",
       "Bash(python manage.py test core --noinput)",
       "Bash(python manage.py migrate --run-syncdb)",
-      "Bash(python manage.py test core --verbosity=1)"
+      "Bash(python manage.py test core --verbosity=1)",
+      "Bash(SECRET_KEY=test-key DATABASE_URL=sqlite:///test.db python manage.py check)"
     ]
   }
 }
