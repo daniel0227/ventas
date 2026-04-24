@@ -145,7 +145,9 @@ STATICFILES_DIRS = [
 ]
 
 MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, "media")
+# En Railway, apunta al volumen persistente montado en /data/media.
+# Localmente usa BASE_DIR/media como fallback.
+MEDIA_ROOT = os.environ.get('MEDIA_ROOT', os.path.join(BASE_DIR, "media"))
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
