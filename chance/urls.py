@@ -6,7 +6,6 @@ from core.views import CustomLoginView, importar_resultados_api, reportes
 from django.contrib.auth.views import LogoutView
 from django.conf import settings
 from django.conf.urls.static import static
-from django.http import JsonResponse
 
 urlpatterns = [
     path('', views.home, name="home"),
@@ -32,10 +31,6 @@ urlpatterns = [
     path("api/importar_resultados/", views.importar_resultados_api, name="importar_resultados_api"),
     path("api/notificaciones/count/", views.notificaciones_count_api, name="notificaciones_count"),
     path("api/notificaciones/", views.notificaciones_list, name="notificaciones_list"),
-    path("debug/media/", lambda r: JsonResponse({
-        "MEDIA_ROOT": str(settings.MEDIA_ROOT),
-        "loterias": __import__('os').listdir(__import__('os').path.join(settings.MEDIA_ROOT, 'loterias')) if __import__('os').path.isdir(__import__('os').path.join(settings.MEDIA_ROOT, 'loterias')) else "no existe",
-    })),
 ]
 
 # Servir archivos de media siempre (Railway no usa CDN externo para media)
