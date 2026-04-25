@@ -34,10 +34,7 @@ urlpatterns = [
     path("api/notificaciones/", views.notificaciones_list, name="notificaciones_list"),
     path("debug/media/", lambda r: JsonResponse({
         "MEDIA_ROOT": str(settings.MEDIA_ROOT),
-        "MEDIA_URL": settings.MEDIA_URL,
-        "exists": __import__('os').path.isdir(settings.MEDIA_ROOT),
-        "writable": __import__('os').access(settings.MEDIA_ROOT, __import__('os').W_OK),
-        "files": __import__('os').listdir(settings.MEDIA_ROOT) if __import__('os').path.isdir(settings.MEDIA_ROOT) else [],
+        "loterias": __import__('os').listdir(__import__('os').path.join(settings.MEDIA_ROOT, 'loterias')) if __import__('os').path.isdir(__import__('os').path.join(settings.MEDIA_ROOT, 'loterias')) else "no existe",
     })),
 ]
 
