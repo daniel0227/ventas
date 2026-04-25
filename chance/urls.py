@@ -6,6 +6,21 @@ from core.views import CustomLoginView, importar_resultados_api, reportes
 from django.contrib.auth.views import LogoutView
 from django.conf import settings
 from django.conf.urls.static import static
+from django.urls import re_path
+from django.http import FileResponse, Http404
+import os, mimetypes, logging
+
+logger = logging.getLogger(__name__)
+
+def _serve_media(request, path):
+    full = os.path.normpath(os.path.join(str(settings.MEDIA_ROOT), path))
+    if not full.startswith(str(settings.MEDIA_ROOT)):
+        raise Http404()
+    logger.warning("MEDIA SERVE: path=%s exists=%s", full, os.path.exists(full))
+    if not os.path.exists(full):
+        raise Http404(f"No existe: {full}")
+    ct, _ = mimetypes.guess_type(full)
+    return FileResponse(open(full, "rb"), content_type=ct or "application/octet-stream")
 
 urlpatterns = [
     path('', views.home, name="home"),
@@ -33,5 +48,5 @@ urlpatterns = [
     path("api/notificaciones/", views.notificaciones_list, name="notificaciones_list"),
 ]
 
-# Servir archivos de media siempre (Railway no usa CDN externo para media)
-urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+# Servir archivos de media con vista explícita (evita problemas con static() en producción)
+urlpatterns += [re_path(r'^media/(?P<path>.*)$', _serve_media)]
