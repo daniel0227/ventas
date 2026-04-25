@@ -32,7 +32,13 @@ urlpatterns = [
     path("api/importar_resultados/", views.importar_resultados_api, name="importar_resultados_api"),
     path("api/notificaciones/count/", views.notificaciones_count_api, name="notificaciones_count"),
     path("api/notificaciones/", views.notificaciones_list, name="notificaciones_list"),
-    path("debug/media/", lambda r: JsonResponse({"MEDIA_ROOT": str(settings.MEDIA_ROOT), "MEDIA_URL": settings.MEDIA_URL})),
+    path("debug/media/", lambda r: JsonResponse({
+        "MEDIA_ROOT": str(settings.MEDIA_ROOT),
+        "MEDIA_URL": settings.MEDIA_URL,
+        "exists": __import__('os').path.isdir(settings.MEDIA_ROOT),
+        "writable": __import__('os').access(settings.MEDIA_ROOT, __import__('os').W_OK),
+        "files": __import__('os').listdir(settings.MEDIA_ROOT) if __import__('os').path.isdir(settings.MEDIA_ROOT) else [],
+    })),
 ]
 
 # Servir archivos de media siempre (Railway no usa CDN externo para media)
