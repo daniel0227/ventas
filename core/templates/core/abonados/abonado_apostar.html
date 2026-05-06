@@ -1,0 +1,352 @@
+{% extends "core/base.html" %}
+{% load static %}
+
+{% block content %}
+<section class="ventas-shell">
+  <div class="page-header mb-3">
+    <h1 class="page-title">
+      <i class="bi bi-dice-5-fill me-2" style="color:#4f46e5;"></i>
+      Apostar — {{ abonado.nombre }}
+    </h1>
+    <small class="text-muted">Día: {{ dia_actual_nombre }} · {{ fecha_actual|date:"d M Y" }}</small>
+  </div>
+
+  <form id="ventas-form" method="post" action="{% url 'abonado_apostar' abonado.pk %}" class="ventas-form" novalidate>
+    {% csrf_token %}
+    <div id="ventasFeedback" class="alert d-none ventas-feedback" role="alert"></div>
+
+    {% if loterias_disponibles %}
+      <section class="ventas-card mb-3">
+        <div class="section-head">
+          <h4 class="section-title m-0"><i class="bi bi-ticket-perforated-fill me-2"></i>Loterías</h4>
+        </div>
+        <div class="dropdown">
+          <button class="ventas-dropdown-btn dropdown-toggle w-100" type="button" id="lotteryDropdown"
+                  data-bs-toggle="dropdown" aria-expanded="false" data-bs-auto-close="outside">
+            <i class="bi bi-grid-3x3-gap me-2"></i>Seleccionar loterías
+            <span class="lottery-count-badge">0</span>
+          </button>
+          <div class="dropdown-menu p-2 lottery-menu" id="lotteriesContainer" aria-labelledby="lotteryDropdown">
+            {% for lot in loterias_disponibles %}
+              <div class="dropdown-item lottery-option" data-fin="{{ lot.hora_fin|time:'H:i' }}">
+                <input class="lottery-option-input" type="checkbox" name="loterias" value="{{ lot.id }}"
+                       id="lot-{{ lot.id }}" data-name="{{ lot.nombre }}">
+                <label class="lottery-option-label" for="lot-{{ lot.id }}">
+                  <span class="lottery-item-main">
+                    <span class="lottery-item-name">{{ lot.nombre }}</span>
+                    <span class="lottery-item-meta"><i class="bi bi-clock"></i> Cierra {{ lot.hora_fin|time:"H:i" }}</span>
+                  </span>
+                  <span class="badge-state open">Disponible</span>
+                </label>
+              </div>
+            {% empty %}
+              <div class="px-2 py-3 text-center text-muted small">
+                No hay loterías disponibles ahora.
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+        <div id="selected-lotteries" class="mt-3 selected-lotteries-wrap"></div>
+      </section>
+    {% else %}
+      <div class="alert alert-warning">
+        <i class="bi bi-exclamation-triangle me-1"></i>
+        No hay loterías disponibles en este momento.
+      </div>
+    {% endif %}
+
+    <section class="ventas-card">
+      <div class="section-head d-flex justify-content-between align-items-center">
+        <h4 class="section-title m-0"><i class="bi bi-table me-2"></i>Jugadas del abonado</h4>
+        <small class="text-muted">Puedes editarlas solo para esta apuesta</small>
+      </div>
+      <div class="table-responsive">
+        <table id="dynamic-table" class="ventas-table">
+          <thead>
+            <tr>
+              <th class="text-center">Número</th>
+              <th class="text-center">Valor</th>
+              <th class="text-center" style="width:90px;">Combi</th>
+              <th style="width:44px;"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for j in jugadas %}
+              <tr>
+                <td><input type="text" name="numero" class="form-control ventas-input" inputmode="numeric" pattern="[0-9]{1,4}" maxlength="4" value="{{ j.numero }}"></td>
+                <td><input type="number" name="monto" class="form-control ventas-input monto" inputmode="decimal" min="0" step="any" value="{{ j.monto }}"></td>
+                <td class="cell-combi">
+                  <input type="hidden" name="es_combinado" value="{% if j.es_combinado %}1{% else %}0{% endif %}" class="es-combinado-hidden">
+                  <label class="combi-check-wrap">
+                    <input type="checkbox" class="combi-check" {% if j.es_combinado %}checked{% endif %}>
+                    <span class="combi-check-ui"></span>
+                  </label>
+                </td>
+                <td class="cell-remove">
+                  <button type="button" class="btn remove-row remove-row-btn"><i class="bi bi-x-lg"></i></button>
+                </td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td><input type="text" name="numero" class="form-control ventas-input" inputmode="numeric" pattern="[0-9]{1,4}" maxlength="4"></td>
+                <td><input type="number" name="monto" class="form-control ventas-input monto" inputmode="decimal" min="0" step="any"></td>
+                <td class="cell-combi">
+                  <input type="hidden" name="es_combinado" value="0" class="es-combinado-hidden">
+                  <label class="combi-check-wrap">
+                    <input type="checkbox" class="combi-check">
+                    <span class="combi-check-ui"></span>
+                  </label>
+                </td>
+                <td class="cell-remove">
+                  <button type="button" class="btn remove-row remove-row-btn"><i class="bi bi-x-lg"></i></button>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        <div class="d-flex justify-content-between mt-3">
+          <button type="button" id="add-row" class="btn btn-add-row">
+            <i class="bi bi-plus-circle"></i> Agregar fila
+          </button>
+          <button type="submit" class="btn btn-save">
+            <i class="bi bi-save2"></i> Apostar
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <div class="mt-3 text-end">
+      <h5 class="m-0">Total: <input type="text" id="total-monto" class="form-control d-inline-block w-auto text-end" value="0" readonly></h5>
+    </div>
+  </form>
+
+  <div id="processingOverlay" class="processing-overlay">
+    <div id="loaderContainer" class="overlay-loader">
+      <img src="{% static 'core/img/loader.gif' %}" alt="Cargando..." class="overlay-loader-img">
+      <div class="overlay-loader-text">Realizando apuesta...</div>
+    </div>
+    <div id="successContainer" class="overlay-success">
+      <i class="bi bi-check-circle-fill overlay-success-icon"></i>
+      <div class="overlay-success-text">Apuesta realizada con éxito.</div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .ventas-shell { max-width: 1040px; margin: 0 auto; }
+  .page-title { font-size: 1.35rem; font-weight: 700; }
+  .ventas-card { background:#fff; border:1px solid #e5e7eb; border-radius:14px; padding:1rem 1.1rem; margin-bottom:.9rem; box-shadow:0 2px 12px rgba(0,0,0,.07); }
+  .section-head { margin-bottom:.85rem; padding-bottom:.65rem; border-bottom:1px solid #e5e7eb; display:flex; align-items:center; justify-content:space-between; }
+  .section-title { font-size:.95rem; font-weight:700; }
+  .section-title i { color:#4f46e5; }
+
+  .ventas-dropdown-btn { display:flex; align-items:center; justify-content:space-between; background:#f8fafc; border:1.5px solid #e5e7eb; font-weight:600; border-radius:10px; padding:.62rem .9rem; min-height:46px; text-align:left; width:100%; }
+  .lottery-count-badge { display:inline-flex; align-items:center; justify-content:center; min-width:22px; height:22px; padding:0 .45rem; border-radius:999px; background:#4f46e5; color:#fff; font-size:.72rem; font-weight:800; margin-left:auto; }
+  #lotteriesContainer { width:100%; max-height:320px; overflow-y:auto; border-radius:12px; border:1px solid #e5e7eb; }
+  #lotteriesContainer span { width: auto; }
+  #lotteriesContainer .lottery-item-main { width: 100%; }
+  #lotteriesContainer .lottery-option,
+  #lotteriesContainer .lottery-option-label,
+  #lotteriesContainer .lottery-item-main { width: 100% !important; }
+  .lottery-option { margin:0 0 .3rem 0; display:grid !important; grid-template-columns:1.1rem minmax(0,1fr); align-items:center; gap:.6rem; padding:.6rem .65rem; border-radius:10px; border:1.5px solid #e5e7eb; background:#fff; white-space:normal; }
+  .lottery-option-input { width:1.05rem; height:1.05rem; margin:.1rem 0 0; accent-color:#4f46e5; cursor:pointer; }
+  .lottery-option-label { width:100% !important; margin:0; display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:.5rem; cursor:pointer; min-width:0; line-height:1.2; }
+  .lottery-item-main { width:100%; max-width:100%; min-width:0; display:flex; flex-direction:column; gap:.18rem; }
+  .lottery-item-name { color:#0f172a; font-weight:700; font-size:.93rem; line-height:1.15; word-break:normal; overflow-wrap:break-word; }
+  .lottery-item-meta { color:#6b7280; font-size:.77rem; display:inline-flex; align-items:center; gap:.22rem; }
+  .badge-state { display:inline-flex !important; align-items:center; justify-content:center; min-height:22px; height:auto; width:auto !important; border-radius:999px !important; font-size:.68rem; font-weight:700; padding:.16rem .52rem !important; white-space:nowrap; line-height:1.1; }
+  .badge-state.open { background:#ecfdf5 !important; color:#065f46 !important; border:1px solid #6ee7b7 !important; }
+  .badge-state.closed { background:#f3f4f6 !important; color:#6b7280 !important; border:1px solid #e5e7eb !important; }
+  .selected-lotteries-wrap { display:flex; flex-wrap:wrap; gap:.35rem; align-items:center; }
+  .badge-lottery { background:#ecfdf5; color:#065f46; border-radius:999px; padding:.28rem .65rem; font-size:.8rem; font-weight:600; display:inline-flex; align-items:center; gap:.35rem; border:1px solid #6ee7b7; }
+  .badge-lottery .remove-lottery-icon { cursor:pointer; color:#b91c1c; font-size:.75rem; }
+
+  .ventas-table { width:100%; border-collapse:collapse; background:#fff; }
+  .ventas-table thead tr { background:linear-gradient(135deg,#4f46e5 0%,#3730a3 100%); }
+  .ventas-table thead th { color:#fff; font-size:.73rem; font-weight:600; text-transform:uppercase; padding:.75rem .85rem; }
+  .ventas-table tbody td { padding:.45rem .55rem; border:none; vertical-align:middle; }
+  .ventas-input { border:1.5px solid #e5e7eb !important; border-radius:9px !important; min-height:42px; padding:.45rem .6rem; background:#fafafa; }
+  .ventas-input:focus { border-color:#4f46e5 !important; background:#fff !important; box-shadow:0 0 0 3px rgba(79,70,229,.12) !important; outline:none; }
+  .btn-add-row { display:inline-flex; align-items:center; gap:.4rem; border:1.5px solid #6ee7b7; background:#ecfdf5; color:#065f46; border-radius:10px; font-weight:700; padding:.55rem 1rem; }
+  .btn-save { display:inline-flex; align-items:center; gap:.4rem; background:#4f46e5; border:none; color:#fff; border-radius:10px; font-weight:700; padding:.55rem 1.2rem; }
+  .btn-save:hover { background:#3730a3; color:#fff; }
+  .remove-row-btn { display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:8px; background:#fee2e2; border:1.5px solid #fca5a5; color:#ef4444; padding:0; }
+  .cell-combi { text-align:center; vertical-align:middle; }
+  .combi-check-wrap { display:inline-flex; align-items:center; justify-content:center; cursor:pointer; margin:0; padding:.3rem; }
+  .combi-check { display:none; }
+  .combi-check-ui { width:28px; height:28px; border-radius:8px; border:2px solid #e5e7eb; background:#f8fafc; display:flex; align-items:center; justify-content:center; }
+  .combi-check-ui::after { content:''; display:block; width:7px; height:12px; border:2.5px solid transparent; border-top:none; border-left:none; transform:rotate(45deg) translateY(-1px); }
+  .combi-check:checked + .combi-check-ui, .combi-check-ui.is-checked { background:#4f46e5; border-color:#4f46e5; }
+  .combi-check:checked + .combi-check-ui::after, .combi-check-ui.is-checked::after { border-color:#fff; }
+
+  .processing-overlay { display:none; position:fixed; inset:0; background:rgba(255,255,255,.93); z-index:2000; justify-content:center; align-items:center; flex-direction:column; gap:1rem; backdrop-filter:blur(4px); }
+  .overlay-loader { display:flex; flex-direction:column; align-items:center; z-index:2001; gap:.5rem; }
+  .overlay-loader-img { width:80px; height:80px; }
+  .overlay-loader-text { font-size:1rem; color:#0f172a; font-weight:600; }
+  .overlay-success { display:none; flex-direction:column; align-items:center; color:#10b981; gap:.35rem; z-index:2001; }
+  .overlay-success-icon { font-size:3.2rem; }
+  .overlay-success-text { font-size:1.1rem; font-weight:700; }
+  #total-monto { border-radius:9px; border:1.5px solid #e5e7eb; font-weight:700; background:#f8fafc; }
+</style>
+
+<script>
+(function(){
+  'use strict';
+  const form = document.getElementById('ventas-form');
+  if (!form) return;
+
+  const tableBody = document.querySelector('#dynamic-table tbody');
+  const overlay = document.getElementById('processingOverlay');
+  const loaderContainer = document.getElementById('loaderContainer');
+  const successContainer = document.getElementById('successContainer');
+  const feedbackEl = document.getElementById('ventasFeedback');
+  const lotteryDropdownButton = document.getElementById('lotteryDropdown');
+
+  function showFormMessage(message, type) {
+    if (!feedbackEl) return;
+    feedbackEl.className = `alert alert-${type || 'warning'} ventas-feedback`;
+    feedbackEl.textContent = message;
+    feedbackEl.classList.remove('d-none');
+  }
+  function clearFormMessage() {
+    if (!feedbackEl) return;
+    feedbackEl.className = 'alert d-none ventas-feedback';
+    feedbackEl.textContent = '';
+  }
+  function setProcessingState(state) {
+    if (!overlay || !loaderContainer || !successContainer) return;
+    if (state === 'loading') { overlay.style.display = 'flex'; loaderContainer.style.display = 'flex'; successContainer.style.display = 'none'; return; }
+    if (state === 'success') { overlay.style.display = 'flex'; loaderContainer.style.display = 'none'; successContainer.style.display = 'flex'; return; }
+    overlay.style.display = 'none';
+  }
+
+  function getSelectedLotteries() { return Array.from(document.querySelectorAll('input[name="loterias"]:checked')); }
+  function getRows() { return Array.from(document.querySelectorAll('#dynamic-table tbody tr')); }
+
+  function updateTotal() {
+    let total = 0;
+    const selected = getSelectedLotteries();
+    getRows().forEach(row => { total += parseFloat(row.querySelector('input[name="monto"]').value) || 0; });
+    total *= selected.length;
+    const formatted = total.toLocaleString('es-CO', { style:'currency', currency:'COP', minimumFractionDigits:0 });
+    const totalInput = document.getElementById('total-monto');
+    if (totalInput) totalInput.value = formatted;
+  }
+
+  function updateSelectedLotteries() {
+    const selected = getSelectedLotteries();
+    const container = document.getElementById('selected-lotteries');
+    const badge = lotteryDropdownButton?.querySelector('.lottery-count-badge');
+    if (badge) badge.textContent = selected.length;
+    if (!container) return;
+    if (!selected.length) { container.innerHTML = ''; return; }
+    container.innerHTML = '<h6 class="w-100 mb-2 small text-uppercase text-muted">Seleccionadas</h6>';
+    selected.forEach(loteria => {
+      container.insertAdjacentHTML('beforeend', `
+        <span class="badge-lottery" data-loteria-id="${loteria.value}">
+          ${loteria.dataset.name}
+          <i class="bi bi-x-circle remove-lottery-icon"></i>
+        </span>
+      `);
+    });
+    container.querySelectorAll('.remove-lottery-icon').forEach(icon => {
+      icon.addEventListener('click', () => {
+        const id = icon.parentNode.dataset.loteriaId;
+        const cb = document.querySelector(`input[name="loterias"][value="${id}"]`);
+        if (cb) cb.checked = false;
+        updateSelectedLotteries(); updateTotal();
+      });
+    });
+  }
+
+  function attachRowListeners(row) {
+    row.querySelectorAll('input').forEach(i => i.addEventListener('input', updateTotal));
+    const check = row.querySelector('.combi-check');
+    const hidden = row.querySelector('.es-combinado-hidden');
+    const ui = row.querySelector('.combi-check-ui');
+    if (check && hidden && ui) {
+      ui.classList.toggle('is-checked', check.checked);
+      check.addEventListener('change', () => {
+        hidden.value = check.checked ? '1' : '0';
+        ui.classList.toggle('is-checked', check.checked);
+      });
+    }
+  }
+
+  // Inicializacion explicita del dropdown de loterias (algunas builds de Bootstrap
+  // no auto-instancian dropdowns dentro de templates dinamicos).
+  if (lotteryDropdownButton && window.bootstrap && bootstrap.Dropdown) {
+    try { bootstrap.Dropdown.getOrCreateInstance(lotteryDropdownButton); }
+    catch (e) { console.warn('No fue posible inicializar el dropdown', e); }
+  }
+
+  document.querySelectorAll('input[name="loterias"]').forEach(cb => {
+    cb.addEventListener('change', () => { clearFormMessage(); updateSelectedLotteries(); updateTotal(); });
+  });
+
+  if (tableBody) {
+    tableBody.addEventListener('click', e => {
+      if (!e.target.closest('.remove-row')) return;
+      const row = e.target.closest('tr');
+      if (getRows().length <= 1) {
+        row.querySelectorAll('input').forEach(i => { i.value = ''; });
+      } else { row.remove(); }
+      updateTotal();
+    });
+  }
+
+  document.getElementById('add-row')?.addEventListener('click', () => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input type="text" name="numero" class="form-control ventas-input" inputmode="numeric" pattern="[0-9]{1,4}" maxlength="4"></td>
+      <td><input type="number" name="monto" class="form-control ventas-input monto" inputmode="decimal" min="0" step="any"></td>
+      <td class="cell-combi">
+        <input type="hidden" name="es_combinado" value="0" class="es-combinado-hidden">
+        <label class="combi-check-wrap"><input type="checkbox" class="combi-check"><span class="combi-check-ui"></span></label>
+      </td>
+      <td class="cell-remove"><button type="button" class="btn remove-row remove-row-btn"><i class="bi bi-x-lg"></i></button></td>
+    `;
+    tableBody.appendChild(tr);
+    attachRowListeners(tr);
+    tr.querySelector('input[name="numero"]').focus();
+    updateTotal();
+  });
+
+  getRows().forEach(attachRowListeners);
+  updateTotal();
+  updateSelectedLotteries();
+
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    clearFormMessage();
+    if (!getSelectedLotteries().length) { showFormMessage('Debes seleccionar al menos una loteria.'); return; }
+
+    let validRow = false, incomplete = false;
+    getRows().forEach(row => {
+      const numero = row.querySelector('input[name="numero"]').value.trim();
+      const monto = row.querySelector('input[name="monto"]').value.trim();
+      if (!numero && !monto) { row.remove(); return; }
+      if (!numero || !monto) incomplete = true;
+      else validRow = true;
+    });
+    if (incomplete) { showFormMessage('Cada fila debe tener número y valor.'); return; }
+    if (!validRow) { showFormMessage('Debes incluir al menos una jugada válida.'); return; }
+
+    setProcessingState('loading');
+    const fd = new FormData(form);
+    fetch(form.action, { method:'POST', headers:{ 'X-CSRFToken': fd.get('csrfmiddlewaretoken') }, body: fd })
+      .then(async r => { const t = await r.text(); try { return { ok:r.ok, data: JSON.parse(t) }; } catch { throw new Error('Respuesta inválida del servidor.'); } })
+      .then(({ok, data}) => {
+        if (!ok || !data.success) {
+          setProcessingState('idle');
+          showFormMessage(data.error || 'No fue posible registrar la apuesta.', 'danger');
+          return;
+        }
+        setProcessingState('success');
+        setTimeout(() => { window.location.href = "{% url 'abonado_detalle' abonado.pk %}"; }, 1500);
+      })
+      .catch(err => { setProcessingState('idle'); showFormMessage(err.message || 'Error al enviar.', 'danger'); });
+  });
+})();
+</script>
+{% endblock %}

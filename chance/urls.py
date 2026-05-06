@@ -31,14 +31,12 @@ urlpatterns = [
     path('ventas_list/', views.ventas_list, name='ventas_list'),
     path('historico-ventas/', views.historico_ventas, name='historico_ventas'),
     path('premios/', views.premios, name='premios'),
-    path('premios/reporte-rango/', views.premios_reporte_rango, name='premios_reporte_rango'),
     path('registro-resultados/', views.registro_resultados, name='registro_resultados'),
     path('resultados/', views.resultados, name='resultados'),
     path('reporte-descargas/', views.reporte_descargas, name='reporte_descargas'),
     path('reportes/', views.reportes, name='reportes'),
     path('reportes/ventas-vs-premios/', views.reporte_ventas_vs_premios, name='reporte_ventas_vs_premios'),
     path('reportes/conciliacion/', views.reporte_conciliacion, name='reporte_conciliacion'),
-    path('reportes/riesgo-ventas/', views.reporte_riesgo_ventas, name='reporte_riesgo_ventas'),
     path('admin/', admin.site.urls),
     path('login/', CustomLoginView.as_view(), name='login'),
     path('logout/', LogoutView.as_view(), name='logout'),
@@ -46,6 +44,16 @@ urlpatterns = [
     path("api/importar_resultados/", views.importar_resultados_api, name="importar_resultados_api"),
     path("api/notificaciones/count/", views.notificaciones_count_api, name="notificaciones_count"),
     path("api/notificaciones/", views.notificaciones_list, name="notificaciones_list"),
+
+    # Abonados
+    path('abonados/', views.abonados_list, name='abonados_list'),
+    path('abonados/nuevo/', views.abonado_crear, name='abonado_crear'),
+    path('abonados/<int:pk>/', views.abonado_detalle, name='abonado_detalle'),
+    path('abonados/<int:pk>/editar/', views.abonado_editar, name='abonado_editar'),
+    path('abonados/<int:pk>/eliminar/', views.abonado_eliminar, name='abonado_eliminar'),
+    path('abonados/<int:pk>/reactivar/', views.abonado_reactivar, name='abonado_reactivar'),
+    path('abonados/<int:pk>/apostar/', views.abonado_apostar, name='abonado_apostar'),
+    path('abonados/<int:pk>/historico/', views.abonado_historico, name='abonado_historico'),
 ]
 
 # Servir archivos de media con vista explícita (evita problemas con static() en producción)

@@ -53,6 +53,20 @@ class Loteria(models.Model):
         return inicio_dt <= fecha_hora_local <= fin_efectivo
      
 
+class DiaFestivo(models.Model):
+    fecha = models.DateField(unique=True, verbose_name="Fecha")
+    descripcion = models.CharField(max_length=200, blank=True, verbose_name="Descripción")
+
+    class Meta:
+        verbose_name = "Día Festivo"
+        verbose_name_plural = "Días Festivos"
+        ordering = ["fecha"]
+
+    def __str__(self):
+        base = self.fecha.strftime("%d/%m/%Y")
+        return f"{base} — {self.descripcion}" if self.descripcion else base
+
+
 class ConfiguracionVenta(models.Model):
     CLAVE_GLOBAL = "global"
 
@@ -297,9 +311,82 @@ class Resultado(models.Model):
         verbose_name = "Resultado de Lotería"
         verbose_name_plural = "Resultados de Loterías"
 
+    def save(self, *args, **kwargs):
+        is_creation = self.pk is None
+        valor_anterior = None
+        if not is_creation:
+            prev = type(self).objects.filter(pk=self.pk).values("resultado").first()
+            if prev:
+                valor_anterior = prev["resultado"]
+
+        super().save(*args, **kwargs)
+
+        try:
+            action = ResultadoAuditLog.ACTION_CREATE if is_creation else ResultadoAuditLog.ACTION_UPDATE
+            if is_creation or (valor_anterior is not None and valor_anterior != self.resultado):
+                ResultadoAuditLog.objects.create(
+                    resultado=self,
+                    loteria=self.loteria,
+                    fecha=self.fecha,
+                    action=action,
+                    valor_anterior=valor_anterior,
+                    valor_nuevo=self.resultado,
+                    actor=getattr(self, "_audit_actor", None),
+                    ip_address=getattr(self, "_audit_ip_address", None),
+                    source=getattr(self, "_audit_source", ""),
+                )
+        except Exception:
+            pass
+
     def __str__(self):
         return f"{self.loteria} - {self.fecha}: {self.resultado}"
-    
+
+
+class ResultadoAuditLog(models.Model):
+    ACTION_CREATE = "resultado.create"
+    ACTION_UPDATE = "resultado.update"
+    ACTION_DELETE = "resultado.delete"
+
+    ACTION_CHOICES = [
+        (ACTION_CREATE, "Creado"),
+        (ACTION_UPDATE, "Modificado"),
+        (ACTION_DELETE, "Eliminado"),
+    ]
+
+    resultado = models.ForeignKey(
+        "Resultado",
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name="audit_logs",
+    )
+    loteria = models.ForeignKey(
+        "Loteria",
+        on_delete=models.PROTECT,
+        related_name="resultado_audit_logs",
+    )
+    fecha = models.DateField(db_index=True)
+    action = models.CharField(max_length=32, choices=ACTION_CHOICES, db_index=True)
+    valor_anterior = models.PositiveIntegerField(null=True, blank=True)
+    valor_nuevo = models.PositiveIntegerField(null=True, blank=True)
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name="resultado_audit_logs",
+    )
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    source = models.CharField(max_length=50, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+        verbose_name = "Log de auditoría de resultado"
+        verbose_name_plural = "Logs de auditoría de resultados"
+
+    def __str__(self):
+        return f"[{self.created_at}] {self.action} | {self.loteria} {self.fecha} | {self.valor_anterior} → {self.valor_nuevo}"
+
+
 class Premio(models.Model):
     vendedor = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -411,6 +498,93 @@ class Notificacion(models.Model):
         )
 
 
+class Abonado(models.Model):
+    """Cliente frecuente perteneciente a un vendedor."""
+    vendedor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="abonados",
+    )
+    nombre = models.CharField(max_length=100)
+    telefono = models.CharField(max_length=30, blank=True)
+    activo = models.BooleanField(default=True, db_index=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("nombre",)
+        verbose_name = "Abonado"
+        verbose_name_plural = "Abonados"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["vendedor", "nombre"],
+                name="uniq_abonado_por_vendedor_nombre",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["vendedor", "activo"], name="abonado_vendedor_activo_idx"),
+        ]
+
+    def __str__(self):
+        return f"{self.nombre} ({self.vendedor})"
+
+
+class JugadaAbonado(models.Model):
+    """Plantilla de jugada guardada para un abonado."""
+    abonado = models.ForeignKey(
+        Abonado,
+        on_delete=models.CASCADE,
+        related_name="jugadas",
+    )
+    numero = models.CharField(max_length=4)
+    monto = models.PositiveIntegerField()
+    es_combinado = models.BooleanField(default=False)
+    orden = models.PositiveSmallIntegerField(default=0)
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("orden", "id")
+        verbose_name = "Jugada de abonado"
+        verbose_name_plural = "Jugadas de abonado"
+
+    def __str__(self):
+        return f"{self.abonado.nombre} - {self.numero} (${self.monto})"
+
+
+class AbonadoApuesta(models.Model):
+    """Registro historico de apuestas realizadas para un abonado."""
+    abonado = models.ForeignKey(
+        Abonado,
+        on_delete=models.CASCADE,
+        related_name="apuestas",
+    )
+    registrado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="apuestas_abonados",
+    )
+    ventas = models.ManyToManyField(
+        "Venta",
+        related_name="apuestas_abonado",
+        blank=True,
+    )
+    fecha = models.DateField(db_index=True)
+    total = models.PositiveBigIntegerField(default=0)
+    creada_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-fecha", "-id")
+        verbose_name = "Apuesta de abonado"
+        verbose_name_plural = "Apuestas de abonados"
+        indexes = [
+            models.Index(fields=["abonado", "fecha"], name="abonado_apuesta_fecha_idx"),
+        ]
+
+    def __str__(self):
+        return f"{self.abonado.nombre} - {self.fecha} - ${self.total:,}"
+
+
 def _safe_create_venta_audit_log(
     event_type,
     status,
@@ -497,3 +671,21 @@ def bloquear_eliminacion_venta(sender, instance, using, **kwargs):
         payload={"using": using},
     )
     raise ValidationError("Las ventas no se pueden eliminar.")
+
+
+@receiver(pre_delete, sender=Resultado)
+def log_resultado_eliminacion(sender, instance, **_):
+    try:
+        ResultadoAuditLog.objects.create(
+            resultado=None,
+            loteria=instance.loteria,
+            fecha=instance.fecha,
+            action=ResultadoAuditLog.ACTION_DELETE,
+            valor_anterior=instance.resultado,
+            valor_nuevo=None,
+            actor=getattr(instance, "_audit_actor", None),
+            ip_address=getattr(instance, "_audit_ip_address", None),
+            source=getattr(instance, "_audit_source", ""),
+        )
+    except Exception:
+        pass

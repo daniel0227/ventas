@@ -66,16 +66,19 @@ def importar_resultados(fecha: date, user=None) -> dict:
             resumen["omitidos"] += 1
             continue
 
-        Resultado.objects.update_or_create(
-            loteria=lot,
-            fecha=fecha,
-            defaults={
-                "resultado": int(numero),
-                "registrado_por": user,
-                "registrado_en": timezone.now(),
-            },
-        )
-        resumen["importados"] += 1
+        try:
+            obj = Resultado.objects.filter(loteria=lot, fecha=fecha).first()
+            if obj:
+                obj.resultado = int(numero)
+                obj.registrado_por = user
+            else:
+                obj = Resultado(loteria=lot, fecha=fecha, resultado=int(numero), registrado_por=user)
+            obj._audit_actor = user
+            obj._audit_source = "import_api"
+            obj.save()
+            resumen["importados"] += 1
+        except Exception as exc:
+            resumen["errores"] += 1
     return resumen
 
 def enviar_whatsapp_callmebot(mensaje, telefono, apikey):

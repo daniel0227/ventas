@@ -10,6 +10,7 @@ from django.core.exceptions import ValidationError
 from .models import (
     Loteria,
     Dia,
+    DiaFestivo,
     Venta,
     VentaDescargue,
     Resultado,
@@ -17,6 +18,9 @@ from .models import (
     VentaAuditLog,
     ConfiguracionVenta,
     Notificacion,
+    Abonado,
+    JugadaAbonado,
+    AbonadoApuesta,
     _safe_create_venta_audit_log,
 )
 from django.db import transaction, IntegrityError
@@ -25,7 +29,7 @@ from django.contrib import messages
 from django.db.models import Case, When, BooleanField, Sum, Count, F, Q, ExpressionWrapper, IntegerField, Value
 from collections import defaultdict
 from django.utils.timezone import localtime, now, make_aware
-from .forms import VentaForm
+from .forms import VentaForm, AbonadoForm, JugadaAbonadoFormSet
 from django.core.paginator import Paginator
 from pytz import timezone as pytz_timezone
 from django.views.decorators.http import require_http_methods
@@ -42,6 +46,7 @@ import re
 
 VENTA_CIERRE_BUFFER_SEGUNDOS = int(getattr(settings, "VENTA_CIERRE_BUFFER_SEGUNDOS", 30))
 GRUPO_DESCARGUE = "descargue"
+GRUPO_ABONADO = "abonos"
 DESCARGUE_CARGA_MASIVA_MAX_FILAS = 500
 DESCARGUE_CARGA_MASIVA_LINE_RE = re.compile(
     r"^\s*(?P<numero>\d+)\s*-\s*(?P<monto>[\d\.,\s$]+)\s*$"
@@ -72,6 +77,156 @@ def _loteria_esta_abierta_para_venta(loteria, ahora_local):
     return loteria.esta_disponible_en(ahora_local, cierre_buffer_segundos=VENTA_CIERRE_BUFFER_SEGUNDOS)
 
 
+def _obtener_dia_festivo_hoy():
+    """Devuelve (True, descripcion) si hoy es día festivo, (False, '') si no."""
+    hoy = timezone.localdate()
+    try:
+        festivo = DiaFestivo.objects.get(fecha=hoy)
+        return True, festivo.descripcion
+    except DiaFestivo.DoesNotExist:
+        return False, ""
+
+
+class RegistroVentaError(Exception):
+    """Error controlado al registrar ventas. status sugerido para el JsonResponse."""
+
+    def __init__(self, mensaje, status=400):
+        super().__init__(mensaje)
+        self.mensaje = mensaje
+        self.status = status
+
+
+def _validar_y_registrar_ventas(*, vendedor, jugadas, loterias_ids, request=None, dia_actual=None):
+    """
+    Crea ventas en bloque para un vendedor a partir de jugadas (lista de dicts con
+    'numero', 'monto', 'es_combinado') y un set de loterias_ids del dia actual.
+
+    Realiza validacion de horarios, limite global por numero y crea las Venta
+    en una transaccion atomica. Devuelve (ventas_creadas, loterias_seleccionadas).
+    Lanza RegistroVentaError ante validaciones fallidas.
+
+    Esta funcion centraliza la logica para que la usen tanto crear_venta como
+    apostar_abonado.
+    """
+    # --- Verificar día festivo ---
+    es_festivo, desc_festivo = _obtener_dia_festivo_hoy()
+    if es_festivo:
+        msg = "No hay ventas disponibles hoy: es un día festivo"
+        if desc_festivo:
+            msg += f" ({desc_festivo})"
+        msg += "."
+        raise RegistroVentaError(msg)
+
+    if not jugadas:
+        raise RegistroVentaError("Debes incluir al menos una jugada.")
+
+    # --- Loterias seleccionadas ---
+    loterias_ids_unicas = list(dict.fromkeys(loterias_ids or []))
+    if not loterias_ids_unicas:
+        raise RegistroVentaError("Debes seleccionar al menos una loteria.")
+
+    qs_lot = Loteria.objects.filter(id__in=loterias_ids_unicas)
+    if dia_actual is not None:
+        qs_lot = qs_lot.filter(dias_juego=dia_actual)
+    loterias_seleccionadas = list(qs_lot)
+    if len(loterias_seleccionadas) != len(loterias_ids_unicas):
+        raise RegistroVentaError("Loterias no validas para el dia actual.")
+
+    ahora = timezone.localtime(timezone.now())
+    for lot in loterias_seleccionadas:
+        if not _loteria_esta_abierta_para_venta(lot, ahora):
+            raise RegistroVentaError(f"La hora de juego para {lot.nombre} ha finalizado.")
+
+    # --- Normalizar jugadas ---
+    jugadas_normalizadas = []
+    for idx, jugada in enumerate(jugadas, start=1):
+        numero = str(jugada.get("numero") or "").strip()
+        try:
+            monto_val = int(jugada.get("monto") or 0)
+        except (TypeError, ValueError):
+            raise RegistroVentaError(f"Fila {idx}: el monto debe ser numerico.")
+        if monto_val <= 0:
+            raise RegistroVentaError(f"Fila {idx}: el monto es obligatorio y debe ser mayor que 0.")
+        if not numero:
+            raise RegistroVentaError(f"Fila {idx}: el numero es obligatorio.")
+        jugadas_normalizadas.append({
+            "fila": idx,
+            "numero": numero,
+            "es_combinado": bool(jugada.get("es_combinado")),
+            "monto": monto_val,
+        })
+
+    # --- Crear ventas dentro de una transaccion ---
+    with transaction.atomic():
+        ahora_tx = timezone.localtime(timezone.now())
+        qs_lock = Loteria.objects.select_for_update().filter(id__in=loterias_ids_unicas)
+        if dia_actual is not None:
+            qs_lock = qs_lock.filter(dias_juego=dia_actual)
+        loterias_seleccionadas = list(qs_lock)
+        if len(loterias_seleccionadas) != len(loterias_ids_unicas):
+            raise RegistroVentaError("Loterias no validas para el dia actual.")
+
+        for lot in loterias_seleccionadas:
+            if not _loteria_esta_abierta_para_venta(lot, ahora_tx):
+                raise RegistroVentaError(f"La hora de juego para {lot.nombre} ha finalizado.")
+
+        limite_apuesta_por_numero = _obtener_limite_apuesta_por_numero()
+        if limite_apuesta_por_numero > 0:
+            numeros_con_tope = sorted({j["numero"] for j in jugadas_normalizadas if j["numero"]})
+            if numeros_con_tope:
+                acumulado_actual = {}
+                ventas_existentes = (
+                    Venta.objects
+                    .select_for_update()
+                    .filter(
+                        fecha_venta__date=ahora_tx.date(),
+                        loterias__in=loterias_seleccionadas,
+                        numero__in=numeros_con_tope,
+                    )
+                    .values("loterias__id", "numero", "monto")
+                )
+                for item in ventas_existentes:
+                    numero_item = str(item.get("numero") or "").strip()
+                    if not numero_item:
+                        continue
+                    key = (item["loterias__id"], numero_item)
+                    acumulado_actual[key] = int(acumulado_actual.get(key, 0)) + int(item.get("monto") or 0)
+
+                acumulado_nuevo = defaultdict(int)
+                for jugada in jugadas_normalizadas:
+                    numero_jugada = jugada["numero"]
+                    monto_jugada = int(jugada["monto"])
+                    for lot in loterias_seleccionadas:
+                        key = (lot.id, numero_jugada)
+                        total_actual = int(acumulado_actual.get(key, 0)) + int(acumulado_nuevo[key])
+                        total_proyectado = total_actual + monto_jugada
+                        if total_proyectado > limite_apuesta_por_numero:
+                            disponible = max(limite_apuesta_por_numero - total_actual, 0)
+                            error_msg = (
+                                "Se excedio el valor de apuesta para ese numero. "
+                                f"Numero: {numero_jugada}. "
+                                f"Loteria: {lot.nombre}. "
+                                f"Disponible: ${disponible:,} COP."
+                            ).replace(",", ".")
+                            raise RegistroVentaError(error_msg)
+                        acumulado_nuevo[key] += monto_jugada
+
+        ventas_creadas = []
+        for jugada in jugadas_normalizadas:
+            venta = Venta.objects.create(
+                vendedor=vendedor,
+                numero=jugada["numero"],
+                monto=int(jugada["monto"]),
+                fecha_venta=ahora_tx,
+                es_combinado=jugada["es_combinado"],
+            )
+            venta._allow_loterias_assignment = True
+            venta.loterias.set(loterias_seleccionadas)
+            ventas_creadas.append(venta)
+
+    return ventas_creadas, loterias_seleccionadas
+
+
 _LIMITE_CACHE_KEY = "config_venta_limite_por_numero"
 _LIMITE_CACHE_TTL = 60  # segundos
 
@@ -96,6 +251,14 @@ def _es_descargue(user):
         and user.is_authenticated
         and not user.is_staff
         and user.groups.filter(name=GRUPO_DESCARGUE).exists()
+    )
+
+
+def _es_abonado(user):
+    return bool(
+        user
+        and user.is_authenticated
+        and (user.is_staff or user.groups.filter(name=GRUPO_ABONADO).exists())
     )
 
 
@@ -252,9 +415,13 @@ def _resolver_datos_premio_combinado(numero_apostado, numero_ganador):
 # Vista Home
 @login_required
 def home(request):
+    es_festivo, desc_festivo = _obtener_dia_festivo_hoy()
     return render(request, 'core/home.html', {
         'es_descargue': _es_descargue(request.user),
+        'es_abonado': _es_abonado(request.user),
         'es_admin': request.user.is_staff,
+        'es_festivo': es_festivo,
+        'desc_festivo': desc_festivo,
     })
 
 # Vista para mostrar loterías disponibles del día
@@ -334,6 +501,15 @@ def crear_venta(request):
         return redirect("mis_descargues")
 
     ahora = timezone.localtime(timezone.now())
+
+    # -------- Verificar día festivo --------
+    es_festivo, desc_festivo = _obtener_dia_festivo_hoy()
+    if es_festivo and request.method == "POST":
+        msg = "No hay ventas disponibles hoy: es un día festivo"
+        if desc_festivo:
+            msg += f" ({desc_festivo})"
+        msg += "."
+        return JsonResponse({"success": False, "error": msg}, status=403)
 
     # -------- Obtener día de la semana (ES) --------
     dia_actual_nombre_es = dia_es(ahora)
@@ -692,6 +868,8 @@ def crear_venta(request):
             'dia_actual_nombre':   dia_actual_nombre_es,
             'fecha_actual':        ahora.date(),
             'current_time':        ahora.time(),
+            'es_festivo':          es_festivo,
+            'desc_festivo':        desc_festivo,
         }
     )
 
@@ -730,6 +908,16 @@ def descargues(request):
     )
     descargue = usuarios_descargue_qs.filter(id=descargue_id_post).first()
     loteria = next((lot for lot in loterias_disponibles if str(lot.id) == loteria_id_post), None)
+
+    # --- Verificar día festivo ---
+    _es_festivo_desc, _desc_festivo = _obtener_dia_festivo_hoy()
+    if _es_festivo_desc:
+        msg_festivo = "No hay ventas disponibles hoy: es un día festivo"
+        if _desc_festivo:
+            msg_festivo += f" ({_desc_festivo})"
+        msg_festivo += "."
+        messages.error(request, msg_festivo)
+        return render(request, "core/descargues.html", context)
 
     if accion == "masiva":
         if not descargue:
@@ -1119,147 +1307,6 @@ def premios(request):
 
 @user_passes_test(lambda u: u.is_superuser)
 @login_required
-def premios_reporte_rango(request):
-    """
-    Reporte de premios por rango de fechas, agrupado por vendedor.
-    No altera el modulo existente de premios por fecha puntual.
-    """
-    hoy = timezone.localdate()
-
-    fecha_inicio_raw = request.GET.get('fecha_inicio')
-    fecha_fin_raw = request.GET.get('fecha_fin')
-
-    fecha_fin = parse_date(fecha_fin_raw) if fecha_fin_raw else hoy
-    fecha_inicio = parse_date(fecha_inicio_raw) if fecha_inicio_raw else (fecha_fin - timedelta(days=6))
-
-    # Sanitizar rango para evitar errores de usuario o fechas futuras
-    if not fecha_fin:
-        fecha_fin = hoy
-    if not fecha_inicio:
-        fecha_inicio = fecha_fin - timedelta(days=6)
-
-    if fecha_fin > hoy:
-        fecha_fin = hoy
-    if fecha_inicio > hoy:
-        fecha_inicio = hoy
-
-    if fecha_inicio > fecha_fin:
-        fecha_inicio, fecha_fin = fecha_fin, fecha_inicio
-
-    ok, msg = validar_rango_fechas(fecha_inicio, fecha_fin)
-    if not ok:
-        messages.error(request, msg)
-        return redirect(request.path)
-
-    premios_qs = Premio.objects.filter(
-        fecha__range=(fecha_inicio, fecha_fin)
-    )
-
-    if not request.user.is_staff:
-        premios_qs = premios_qs.filter(vendedor=request.user)
-
-    resumen_vendedores_qs = (
-        premios_qs
-        .values(
-            'vendedor_id',
-            'vendedor__username',
-            'vendedor__first_name',
-            'vendedor__last_name',
-        )
-        .annotate(
-            total_premio=Coalesce(Sum('premio'), 0, output_field=IntegerField()),
-            total_apostado=Coalesce(Sum('valor'), 0, output_field=IntegerField()),
-            cantidad_premios=Count('id'),
-            loterias_distintas=Count('loteria', distinct=True),
-            dias_con_premios=Count('fecha', distinct=True),
-        )
-        .order_by('-total_premio', 'vendedor__username')
-    )
-
-    rows = []
-    for item in resumen_vendedores_qs:
-        full_name = f"{(item.get('vendedor__first_name') or '').strip()} {(item.get('vendedor__last_name') or '').strip()}".strip()
-        vendedor_nombre = full_name or (item.get('vendedor__username') or f"Vendedor {item.get('vendedor_id')}")
-        rows.append({
-            'vendedor_id': item.get('vendedor_id'),
-            'vendedor_nombre': vendedor_nombre,
-            'username': item.get('vendedor__username') or '',
-            'total_premio': int(item.get('total_premio') or 0),
-            'total_apostado': int(item.get('total_apostado') or 0),
-            'cantidad_premios': int(item.get('cantidad_premios') or 0),
-            'loterias_distintas': int(item.get('loterias_distintas') or 0),
-            'dias_con_premios': int(item.get('dias_con_premios') or 0),
-        })
-
-    totales = premios_qs.aggregate(
-        total_premios=Coalesce(Sum('premio'), 0, output_field=IntegerField()),
-        total_apostado=Coalesce(Sum('valor'), 0, output_field=IntegerField()),
-        cantidad_premios=Count('id'),
-        vendedores=Count('vendedor', distinct=True),
-        loterias=Count('loteria', distinct=True),
-    )
-    totales = {k: int(v or 0) for k, v in totales.items()}
-
-    chart_categories = [row['vendedor_nombre'] for row in rows]
-    chart_total_premios = [row['total_premio'] for row in rows]
-
-    # --- Exportar CSV ---
-    if request.GET.get('export') == 'csv':
-        response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
-        response['Content-Disposition'] = (
-            f'attachment; filename="premios_{fecha_inicio}_{fecha_fin}.csv"'
-        )
-        writer = csv.writer(response)
-        writer.writerow(['Vendedor', 'Usuario', 'Premios', 'Días', 'Loterías', 'Total apostado (COP)', 'Total premio (COP)'])
-        for r in rows:
-            writer.writerow([
-                r['vendedor_nombre'], r['username'], r['cantidad_premios'],
-                r['dias_con_premios'], r['loterias_distintas'],
-                r['total_apostado'], r['total_premio'],
-            ])
-        writer.writerow([])
-        writer.writerow(['TOTALES', '', totales['cantidad_premios'], '', totales['loterias'], totales['total_apostado'], totales['total_premios']])
-        return response
-
-    # --- Exportar Excel ---
-    if request.GET.get('export') == 'excel':
-        from openpyxl import Workbook
-        wb = Workbook()
-        ws = wb.active
-        ws.title = "Premios"
-        fill, hfont, halign = _excel_header_style()
-        headers = ['Vendedor', 'Usuario', 'Premios', 'Días', 'Loterías', 'Total apostado (COP)', 'Total premio (COP)']
-        ws.append(headers)
-        for col_idx, _ in enumerate(headers, 1):
-            cell = ws.cell(row=1, column=col_idx)
-            cell.fill = fill; cell.font = hfont; cell.alignment = halign
-        for r in rows:
-            ws.append([r['vendedor_nombre'], r['username'], r['cantidad_premios'],
-                       r['dias_con_premios'], r['loterias_distintas'], r['total_apostado'], r['total_premio']])
-        ws.append([])
-        ws.append(['TOTALES', '', totales['cantidad_premios'], '', totales['loterias'], totales['total_apostado'], totales['total_premios']])
-        for col in ws.columns:
-            ws.column_dimensions[col[0].column_letter].width = max(len(str(col[0].value or '')), 12) + 2
-        resp = _excel_response(f"premios_{fecha_inicio}_{fecha_fin}.xlsx")
-        wb.save(resp)
-        return resp
-
-    context = {
-        'fecha_inicio': fecha_inicio,
-        'fecha_fin': fecha_fin,
-        'rows': rows,
-        'totales': totales,
-        'chart_categories': chart_categories,
-        'chart_total_premios': chart_total_premios,
-        'es_admin': request.user.is_staff,
-        'rango_dias': (fecha_fin - fecha_inicio).days + 1,
-        'fecha_max': hoy,
-    }
-    return render(request, 'core/premios_reporte_rango.html', context)
-
-
-@user_passes_test(lambda u: u.is_superuser)
-@login_required
 def registro_resultados(request):
     """
     Vista para:
@@ -1318,6 +1365,7 @@ def registro_resultados(request):
             except ValueError:
                 pass
 
+        ip_actual = _client_ip(request)
         for lot in loterias:
             key   = f"resultado_{lot.id}"
             valor = request.POST.get(key)
@@ -1326,17 +1374,23 @@ def registro_resultados(request):
                     valor_int = int(valor)
                 except ValueError:
                     continue
-                Resultado.objects.update_or_create(
-                    loteria=lot,
-                    fecha=fecha_actual,
-                    defaults={
-                        'resultado': valor_int,
-                        'registrado_por': request.user
-                    }
-                )
+                obj = Resultado.objects.filter(loteria=lot, fecha=fecha_actual).first()
+                if obj:
+                    obj.resultado = valor_int
+                    obj.registrado_por = request.user
+                else:
+                    obj = Resultado(loteria=lot, fecha=fecha_actual, resultado=valor_int, registrado_por=request.user)
+                obj._audit_actor = request.user
+                obj._audit_ip_address = ip_actual
+                obj._audit_source = "admin_manual"
+                obj.save()
             else:
-                # Si el campo se deja vacío, elimina el registro existente (opcional)
-                Resultado.objects.filter(loteria=lot, fecha=fecha_actual).delete()
+                obj = Resultado.objects.filter(loteria=lot, fecha=fecha_actual).first()
+                if obj:
+                    obj._audit_actor = request.user
+                    obj._audit_ip_address = ip_actual
+                    obj._audit_source = "admin_manual"
+                    obj.delete()
 
         messages.success(request, "Resultados guardados correctamente.")   # <<< NUEVO >>>
         return redirect(f"{request.path}?fecha={fecha_actual.isoformat()}") # <<< cambia redirect
@@ -2115,110 +2169,385 @@ def reporte_conciliacion(request):
     })
 
 
+
+# ============================================================
+#                    MODULO ABONADOS
+# ============================================================
+
+def _abonado_propio(request, pk):
+    """Devuelve el abonado si pertenece al vendedor actual; de lo contrario 404."""
+    return get_object_or_404(Abonado, pk=pk, vendedor=request.user)
+
+
+def _loterias_disponibles_hoy(ahora=None):
+    """Loterias del dia actual abiertas para venta."""
+    if ahora is None:
+        ahora = timezone.localtime(timezone.now())
+    dia_actual_nombre = dia_es(ahora)
+    dia_actual = Dia.objects.filter(nombre=dia_actual_nombre).first()
+    if not dia_actual:
+        return [], dia_actual, ahora
+    loterias = list(
+        Loteria.objects.filter(dias_juego=dia_actual)
+        .annotate(
+            disponible=Case(
+                When(hora_inicio__lte=ahora.time(), hora_fin__gte=ahora.time(), then=True),
+                default=False,
+                output_field=BooleanField(),
+            )
+        )
+        .order_by("hora_fin")
+    )
+    return loterias, dia_actual, ahora
+
+
 @login_required
-@user_passes_test(lambda u: u.is_staff)
-def reporte_riesgo_ventas(request):
-    hoy = timezone.localdate()
-    loterias_all = Loteria.objects.all().order_by('nombre')
+def abonados_list(request):
+    if _es_descargue(request.user):
+        return redirect("mis_descargues")
+    if not _es_abonado(request.user):
+        return redirect("home")
 
-    loteria_id = request.GET.get('loteria', '').strip()
-    start_date = request.GET.get('fecha_desde', '').strip()
-    end_date = request.GET.get('fecha_hasta', '').strip()
+    busqueda = (request.GET.get("q") or "").strip()
+    mostrar = request.GET.get("mostrar", "activos")
 
-    tabla = []
-    loteria_sel = None
-    total_sorteos = 0
+    abonados_qs = (
+        Abonado.objects
+        .filter(vendedor=request.user)
+        .annotate(num_jugadas=Count("jugadas"))
+    )
+    if mostrar == "activos":
+        abonados_qs = abonados_qs.filter(activo=True)
+    elif mostrar == "inactivos":
+        abonados_qs = abonados_qs.filter(activo=False)
+    if busqueda:
+        abonados_qs = abonados_qs.filter(nombre__icontains=busqueda)
+    abonados_qs = abonados_qs.order_by("nombre")
 
-    if loteria_id and start_date and end_date:
-        try:
-            loteria_sel = Loteria.objects.get(pk=loteria_id)
-            start = parse_date(start_date)
-            end = parse_date(end_date)
-            if not start or not end:
-                raise ValueError("fechas inválidas")
-            if start > end:
-                start, end = end, start
-                start_date, end_date = str(start), str(end)
-            ok, msg = validar_rango_fechas(start, end)
-            if not ok:
-                messages.error(request, msg)
-                return redirect(request.path)
+    paginator = Paginator(abonados_qs, 25)
+    page_obj = paginator.get_page(request.GET.get("page"))
 
-            # Query A: ventas en el rango agrupadas por número
-            ventas_qs = (
-                Venta.objects
-                .annotate(fecha=TruncDate('fecha_venta'))
-                .filter(loterias=loteria_sel, fecha__range=(start, end))
-                .values('numero')
-                .annotate(
-                    veces_apostado=Count('id'),
-                    valor_apostado=Sum('monto'),
-                )
+    return render(request, "core/abonados/abonados_list.html", {
+        "abonados": page_obj,
+        "busqueda": busqueda,
+        "mostrar": mostrar,
+    })
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def abonado_crear(request):
+    if _es_descargue(request.user):
+        return redirect("mis_descargues")
+    if not _es_abonado(request.user):
+        return redirect("home")
+
+    abonado = Abonado(vendedor=request.user)
+
+    if request.method == "POST":
+        form = AbonadoForm(request.POST, instance=abonado, vendedor=request.user)
+        formset = JugadaAbonadoFormSet(request.POST, instance=abonado)
+        if form.is_valid() and formset.is_valid():
+            try:
+                with transaction.atomic():
+                    instancia = form.save(commit=False)
+                    instancia.vendedor = request.user
+                    instancia.save()
+                    formset.instance = instancia
+                    formset.save()
+                messages.success(request, f"Abonado '{instancia.nombre}' creado correctamente.")
+                return redirect("abonado_detalle", pk=instancia.pk)
+            except IntegrityError:
+                messages.error(request, "No fue posible guardar el abonado (nombre duplicado).")
+    else:
+        form = AbonadoForm(instance=abonado, vendedor=request.user)
+        formset = JugadaAbonadoFormSet(instance=abonado)
+
+    return render(request, "core/abonados/abonado_form.html", {
+        "form": form,
+        "formset": formset,
+        "modo": "crear",
+    })
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def abonado_editar(request, pk):
+    abonado = _abonado_propio(request, pk)
+    if _es_descargue(request.user):
+        return redirect("mis_descargues")
+    if not _es_abonado(request.user):
+        return redirect("home")
+
+    if request.method == "POST":
+        form = AbonadoForm(request.POST, instance=abonado, vendedor=request.user)
+        formset = JugadaAbonadoFormSet(request.POST, instance=abonado)
+        if form.is_valid() and formset.is_valid():
+            try:
+                with transaction.atomic():
+                    form.save()
+                    formset.save()
+                messages.success(request, "Abonado actualizado.")
+                return redirect("abonado_detalle", pk=abonado.pk)
+            except IntegrityError:
+                messages.error(request, "No fue posible actualizar el abonado.")
+    else:
+        form = AbonadoForm(instance=abonado, vendedor=request.user)
+        formset = JugadaAbonadoFormSet(instance=abonado)
+
+    return render(request, "core/abonados/abonado_form.html", {
+        "form": form,
+        "formset": formset,
+        "abonado": abonado,
+        "modo": "editar",
+    })
+
+
+@login_required
+def abonado_detalle(request, pk):
+    abonado = _abonado_propio(request, pk)
+    if _es_descargue(request.user):
+        return redirect("mis_descargues")
+    if not _es_abonado(request.user):
+        return redirect("home")
+
+    jugadas = list(abonado.jugadas.all())
+    loterias_hoy, _, ahora = _loterias_disponibles_hoy()
+    loterias_disponibles_hoy = [lot for lot in loterias_hoy if lot.disponible]
+
+    apuestas = (
+        abonado.apuestas
+        .order_by("-fecha", "-id")
+        .prefetch_related("ventas__loterias")[:30]
+    )
+
+    total_plantilla = sum(j.monto for j in jugadas)
+
+    return render(request, "core/abonados/abonado_detalle.html", {
+        "abonado": abonado,
+        "jugadas": jugadas,
+        "total_plantilla": total_plantilla,
+        "loterias_disponibles_hoy": loterias_disponibles_hoy,
+        "apuestas_recientes": apuestas,
+        "ahora": ahora,
+    })
+
+
+@login_required
+@require_http_methods(["POST"])
+def abonado_eliminar(request, pk):
+    abonado = _abonado_propio(request, pk)
+    if _es_descargue(request.user):
+        return redirect("mis_descargues")
+    if not _es_abonado(request.user):
+        return redirect("home")
+
+    abonado.activo = False
+    abonado.save(update_fields=["activo", "actualizado_en"])
+    messages.success(request, f"Abonado '{abonado.nombre}' archivado.")
+    return redirect("abonados_list")
+
+
+@login_required
+@require_http_methods(["POST"])
+def abonado_reactivar(request, pk):
+    abonado = _abonado_propio(request, pk)
+    if _es_descargue(request.user):
+        return redirect("mis_descargues")
+    if not _es_abonado(request.user):
+        return redirect("home")
+
+    abonado.activo = True
+    abonado.save(update_fields=["activo", "actualizado_en"])
+    messages.success(request, f"Abonado '{abonado.nombre}' reactivado.")
+    return redirect("abonado_detalle", pk=abonado.pk)
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def abonado_apostar(request, pk):
+    abonado = _abonado_propio(request, pk)
+    if _es_descargue(request.user):
+        return JsonResponse(
+            {"success": False, "error": "El perfil descargue no puede registrar ventas."},
+            status=403,
+        )
+    if not _es_abonado(request.user):
+        return JsonResponse({"success": False, "error": "Sin permiso para registrar apuestas de abonados."}, status=403)
+
+    loterias_hoy, dia_actual, ahora = _loterias_disponibles_hoy()
+    loterias_disponibles = [lot for lot in loterias_hoy if lot.disponible]
+
+    if request.method == "POST":
+        if not dia_actual:
+            return JsonResponse({"success": False, "error": "Dia actual no valido."}, status=400)
+
+        loterias_ids = request.POST.getlist("loterias")
+        numeros = request.POST.getlist("numero")
+        montos = request.POST.getlist("monto")
+        es_combinados = request.POST.getlist("es_combinado")
+        loterias_ids = list(dict.fromkeys(loterias_ids))
+
+        if not (len(numeros) == len(montos) == len(es_combinados)):
+            return JsonResponse(
+                {"success": False, "error": "Los datos enviados son inconsistentes."},
+                status=400,
             )
 
-            # Query B: frecuencia histórica completa
-            total_sorteos = Resultado.objects.filter(loteria=loteria_sel).count()
-            freq_map = {
-                str(r['resultado']): r['apariciones']
-                for r in Resultado.objects
-                    .filter(loteria=loteria_sel)
-                    .values('resultado')
-                    .annotate(apariciones=Count('id'))
-            }
+        jugadas_payload = []
+        for numero, monto, es_comb in zip(numeros, montos, es_combinados):
+            numero = (numero or "").strip()
+            monto = (monto or "").strip()
+            if not numero and not monto:
+                continue
+            jugadas_payload.append({
+                "numero": numero,
+                "monto": monto,
+                "es_combinado": (es_comb or "0").strip() == "1",
+            })
 
-            UMBRAL_ALTO = 3.0
-            UMBRAL_MEDIO = 1.0
+        _audit_sale_event(
+            request,
+            VentaAuditLog.EVENT_CREATE_ATTEMPT,
+            VentaAuditLog.STATUS_INFO,
+            message=f"Intento de apuesta para abonado {abonado.id}.",
+            payload={
+                "abonado_id": abonado.id,
+                "abonado_nombre": abonado.nombre,
+                "loterias_ids": loterias_ids,
+                "rows_count": len(jugadas_payload),
+            },
+        )
 
-            for row in ventas_qs:
-                numero = str(row['numero']).strip()
-                apariciones = freq_map.get(numero, 0)
-                riesgo_pct = round(apariciones / total_sorteos * 100, 2) if total_sorteos > 0 else 0.0
-                if riesgo_pct > UMBRAL_ALTO:
-                    nivel = 'ALTO'
-                elif riesgo_pct >= UMBRAL_MEDIO:
-                    nivel = 'MEDIO'
-                else:
-                    nivel = 'BAJO'
-                tabla.append({
-                    'numero': numero,
-                    'veces_apostado': row['veces_apostado'],
-                    'valor_apostado': row['valor_apostado'],
-                    'veces_ganado': apariciones,
-                    'riesgo_pct': riesgo_pct,
-                    'nivel': nivel,
-                })
+        try:
+            ventas_creadas, loterias_seleccionadas = _validar_y_registrar_ventas(
+                vendedor=request.user,
+                jugadas=jugadas_payload,
+                loterias_ids=loterias_ids,
+                request=request,
+                dia_actual=dia_actual,
+            )
+        except RegistroVentaError as exc:
+            _audit_sale_event(
+                request,
+                VentaAuditLog.EVENT_CREATE_REJECTED,
+                VentaAuditLog.STATUS_REJECTED,
+                message=f"Apuesta de abonado rechazada: {exc.mensaje}",
+                payload={"abonado_id": abonado.id},
+            )
+            return JsonResponse({"success": False, "error": exc.mensaje}, status=exc.status)
+        except IntegrityError as exc:
+            return JsonResponse({"success": False, "error": f"Error BD: {exc}"}, status=400)
+        except ValidationError as exc:
+            return JsonResponse({"success": False, "error": str(exc)}, status=400)
+        except Exception:
+            _audit_sale_event(
+                request,
+                VentaAuditLog.EVENT_CREATE_REJECTED,
+                VentaAuditLog.STATUS_ERROR,
+                message="Error no controlado al apostar abonado.",
+                payload={"abonado_id": abonado.id},
+            )
+            return JsonResponse(
+                {"success": False, "error": "Error interno al procesar la apuesta."},
+                status=500,
+            )
 
-            tabla.sort(key=lambda x: x['riesgo_pct'], reverse=True)
+        loterias_count = len(loterias_seleccionadas)
+        total = sum(v.monto for v in ventas_creadas) * loterias_count
 
-            if request.GET.get('export') == 'csv':
-                resp = HttpResponse(content_type='text/csv; charset=utf-8-sig')
-                resp['Content-Disposition'] = (
-                    f'attachment; filename="riesgo_ventas_{loteria_sel.nombre}_{start}_{end}.csv"'
-                )
-                writer = csv.writer(resp)
-                writer.writerow(['Número', 'Veces apostado', 'Valor apostado', 'Veces ganado', 'Riesgo %', 'Nivel'])
-                for item in tabla:
-                    writer.writerow([
-                        item['numero'],
-                        item['veces_apostado'],
-                        item['valor_apostado'],
-                        item['veces_ganado'],
-                        item['riesgo_pct'],
-                        item['nivel'],
-                    ])
-                return resp
+        # Registrar apuesta historica
+        try:
+            apuesta = AbonadoApuesta.objects.create(
+                abonado=abonado,
+                registrado_por=request.user,
+                fecha=timezone.localdate(),
+                total=total,
+            )
+            apuesta.ventas.set(ventas_creadas)
+        except Exception:
+            pass
 
-        except Loteria.DoesNotExist:
-            messages.error(request, 'Lotería no encontrada.')
-            return redirect(request.path)
+        codigo_venta = ventas_creadas[0].id if ventas_creadas else None
 
-    return render(request, 'core/reporte_riesgo_ventas.html', {
-        'loterias': loterias_all,
-        'loteria_sel': loteria_sel,
-        'loteria_id': loteria_id,
-        'fecha_desde': start_date,
-        'fecha_hasta': end_date or str(hoy),
-        'tabla': tabla,
-        'total_sorteos': total_sorteos,
+        _audit_sale_event(
+            request,
+            VentaAuditLog.EVENT_CREATE_SUCCESS,
+            VentaAuditLog.STATUS_SUCCESS,
+            message=f"Apuesta de abonado {abonado.id} creada.",
+            venta=ventas_creadas[0] if ventas_creadas else None,
+            payload={
+                "abonado_id": abonado.id,
+                "venta_referencia_id": codigo_venta,
+                "ventas_ids": [v.id for v in ventas_creadas],
+                "loterias_ids": [lot.id for lot in loterias_seleccionadas],
+                "jugadas_count": len(ventas_creadas),
+                "total": total,
+            },
+        )
+
+        return JsonResponse({
+            "success": True,
+            "resumen_venta": {
+                "codigo": codigo_venta,
+                "vendedor": request.user.username,
+                "abonado": abonado.nombre,
+                "loterias": [lot.nombre for lot in loterias_seleccionadas],
+                "jugadas": [{
+                    "numero": v.numero,
+                    "es_combinado": v.es_combinado,
+                    "monto": v.monto,
+                } for v in ventas_creadas],
+                "total": total,
+            },
+        }, status=201)
+
+    # GET: render del formulario con jugadas pre-cargadas
+    jugadas = list(abonado.jugadas.all())
+    return render(request, "core/abonados/abonado_apostar.html", {
+        "abonado": abonado,
+        "jugadas": jugadas,
+        "loterias": loterias_hoy,
+        "loterias_disponibles": loterias_disponibles,
+        "dia_actual_nombre": dia_es(ahora) if ahora else "",
+        "fecha_actual": ahora.date() if ahora else timezone.localdate(),
+    })
+
+
+@login_required
+def abonado_historico(request, pk):
+    abonado = _abonado_propio(request, pk)
+    if _es_descargue(request.user):
+        return redirect("mis_descargues")
+    if not _es_abonado(request.user):
+        return redirect("home")
+
+    fecha_desde = parse_date(request.GET.get("desde") or "")
+    fecha_hasta = parse_date(request.GET.get("hasta") or "")
+
+    apuestas_qs = (
+        abonado.apuestas
+        .all()
+        .prefetch_related("ventas__loterias")
+        .order_by("-fecha", "-id")
+    )
+    if fecha_desde:
+        apuestas_qs = apuestas_qs.filter(fecha__gte=fecha_desde)
+    if fecha_hasta:
+        apuestas_qs = apuestas_qs.filter(fecha__lte=fecha_hasta)
+
+    paginator = Paginator(apuestas_qs, 30)
+    page_obj = paginator.get_page(request.GET.get("page"))
+
+    total_apostado = sum(a.total for a in apuestas_qs)
+    total_apuestas = apuestas_qs.count()
+
+    return render(request, "core/abonados/abonado_historico.html", {
+        "abonado": abonado,
+        "apuestas": page_obj,
+        "fecha_desde": fecha_desde,
+        "fecha_hasta": fecha_hasta,
+        "total_apostado": total_apostado,
+        "total_apuestas": total_apuestas,
     })
 

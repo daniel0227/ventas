@@ -1,0 +1,422 @@
+{% extends "core/base.html" %}
+{% load static %}
+
+{% block content %}
+<style>
+  :root {
+    --primary:       #4f46e5;
+    --primary-dark:  #3730a3;
+    --primary-light: #eef2ff;
+    --success:       #10b981;
+    --success-light: #ecfdf5;
+    --muted:         #6b7280;
+    --border:        #e5e7eb;
+    --card-radius:   16px;
+    --shadow:        0 2px 12px rgba(0,0,0,.07);
+  }
+
+  .ab-shell { max-width: 920px; margin: 0 auto; }
+
+  /* Header con avatar + acciones */
+  .ab-hero {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    border-radius: var(--card-radius);
+    color: #fff;
+    padding: 1.1rem 1.1rem 1.2rem;
+    margin-bottom: 1rem;
+    box-shadow: var(--shadow);
+  }
+  .ab-hero-top {
+    display: flex;
+    gap: .85rem;
+    align-items: center;
+  }
+  .ab-avatar {
+    width: 54px; height: 54px;
+    flex: 0 0 auto;
+    border-radius: 50%;
+    background: rgba(255,255,255,.18);
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    border: 2px solid rgba(255,255,255,.3);
+  }
+  .ab-hero h1 {
+    font-size: 1.2rem;
+    font-weight: 800;
+    margin: 0;
+    line-height: 1.2;
+    word-break: break-word;
+  }
+  .ab-hero-meta {
+    font-size: .82rem;
+    color: rgba(255,255,255,.85);
+    margin-top: .15rem;
+    display: flex;
+    align-items: center;
+    gap: .55rem;
+    flex-wrap: wrap;
+  }
+  .badge-archived {
+    display: inline-flex;
+    align-items: center;
+    background: rgba(255,255,255,.2);
+    border: 1px solid rgba(255,255,255,.35);
+    border-radius: 999px;
+    padding: .12rem .55rem;
+    font-size: .68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+  }
+
+  /* Acciones primarias */
+  .ab-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: .55rem;
+    margin-top: 1rem;
+  }
+  .ab-actions .btn-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .4rem;
+    padding: .7rem .85rem;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: .9rem;
+    text-decoration: none;
+    border: 1.5px solid transparent;
+    min-height: 46px;
+    transition: transform .08s, background .15s;
+  }
+  .ab-actions .btn-action:active { transform: scale(.97); }
+  .ab-actions .btn-bet {
+    background: #fff;
+    color: var(--primary-dark);
+    border-color: rgba(255,255,255,.7);
+    grid-column: 1 / -1;
+  }
+  .ab-actions .btn-bet:hover { background: #f8fafc; color: var(--primary-dark); }
+  .ab-actions .btn-secondary-glass {
+    background: rgba(255,255,255,.15);
+    color: #fff;
+    border-color: rgba(255,255,255,.35);
+  }
+  .ab-actions .btn-secondary-glass:hover { background: rgba(255,255,255,.25); color: #fff; }
+
+  @media (min-width: 576px) {
+    .ab-actions { grid-template-columns: 2fr 1fr 1fr; }
+    .ab-actions .btn-bet { grid-column: auto; }
+  }
+
+  /* Cards de info */
+  .ab-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--card-radius);
+    box-shadow: var(--shadow);
+    padding: 1rem 1.05rem;
+    margin-bottom: 1rem;
+  }
+  .ab-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .5rem;
+    margin-bottom: .75rem;
+    padding-bottom: .65rem;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .ab-card-title {
+    font-size: .95rem;
+    font-weight: 700;
+    color: #1f2937;
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+  }
+  .ab-card-title i { color: var(--primary); }
+  .total-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: .25rem;
+    background: var(--primary-light);
+    color: var(--primary);
+    border: 1px solid #c7d2fe;
+    border-radius: 999px;
+    padding: .25rem .7rem;
+    font-size: .78rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Lista de jugadas (mobile-first) */
+  .jugadas-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: .5rem;
+  }
+  @media (min-width: 480px) {
+    .jugadas-grid { grid-template-columns: 1fr 1fr; }
+  }
+  .jugada-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .55rem;
+    padding: .65rem .8rem;
+    border-radius: 12px;
+    background: #f8fafc;
+    border: 1px solid var(--border);
+  }
+  .jugada-numero {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--primary);
+    font-variant-numeric: tabular-nums;
+  }
+  .jugada-numero .combi-tag {
+    font-size: .62rem;
+    background: var(--primary);
+    color: #fff;
+    border-radius: 4px;
+    padding: .05rem .3rem;
+    font-weight: 700;
+    letter-spacing: .04em;
+  }
+  .jugada-monto {
+    font-weight: 700;
+    color: #1f2937;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Loterías hoy (chips) */
+  .lot-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .35rem;
+  }
+  .lot-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: .25rem;
+    background: var(--success-light);
+    color: #065f46;
+    border: 1px solid #6ee7b7;
+    border-radius: 999px;
+    padding: .25rem .65rem;
+    font-size: .78rem;
+    font-weight: 600;
+  }
+  .lot-chip i { font-size: .7rem; opacity: .8; }
+
+  /* Histórico mini */
+  .historic-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  .historic-list li {
+    padding: .65rem 0;
+    border-bottom: 1px dashed var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .5rem;
+  }
+  .historic-list li:last-child { border-bottom: none; }
+  .historic-fecha {
+    font-size: .9rem;
+    font-weight: 600;
+    color: #1f2937;
+  }
+  .historic-meta {
+    font-size: .75rem;
+    color: var(--muted);
+  }
+  .historic-monto {
+    font-weight: 800;
+    color: var(--success);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .text-muted-soft { color: var(--muted); font-size: .9rem; }
+
+  .btn-text-link {
+    background: none;
+    border: none;
+    color: var(--primary);
+    font-weight: 600;
+    text-decoration: none;
+    font-size: .85rem;
+  }
+
+  .btn-archive {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    border-radius: 10px;
+    padding: .55rem 1rem;
+    font-size: .85rem;
+    font-weight: 600;
+    background: #fff;
+    border: 1.5px solid #fca5a5;
+    color: #b91c1c;
+  }
+  .btn-archive.is-reactivate {
+    border-color: #6ee7b7;
+    color: #065f46;
+    background: var(--success-light);
+  }
+
+  .empty-jugadas {
+    text-align: center;
+    padding: 1.25rem .5rem;
+    color: var(--muted);
+    font-size: .9rem;
+  }
+  .empty-jugadas a { color: var(--primary); font-weight: 600; }
+
+  @media (max-width: 380px) {
+    .ab-hero { padding: 1rem .9rem 1.1rem; }
+    .ab-hero h1 { font-size: 1.08rem; }
+    .ab-avatar { width: 48px; height: 48px; font-size: 1.2rem; }
+  }
+</style>
+
+<section class="ab-shell">
+  {% if messages %}
+    {% for msg in messages %}
+      <div class="alert alert-{{ msg.tags|default:'info' }}">{{ msg }}</div>
+    {% endfor %}
+  {% endif %}
+
+  <div class="ab-hero">
+    <div class="ab-hero-top">
+      <div class="ab-avatar">{{ abonado.nombre|slice:":1"|upper }}</div>
+      <div style="min-width:0;">
+        <h1>{{ abonado.nombre }}</h1>
+        <div class="ab-hero-meta">
+          {% if abonado.telefono %}
+            <span><i class="bi bi-telephone-fill me-1"></i>{{ abonado.telefono }}</span>
+          {% endif %}
+          {% if not abonado.activo %}
+            <span class="badge-archived">Archivado</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="ab-actions">
+      {% if abonado.activo and jugadas %}
+        <a href="{% url 'abonado_apostar' abonado.pk %}" class="btn-action btn-bet">
+          <i class="bi bi-dice-5-fill"></i> Apostar hoy
+        </a>
+      {% endif %}
+      <a href="{% url 'abonado_editar' abonado.pk %}" class="btn-action btn-secondary-glass">
+        <i class="bi bi-pencil"></i> Editar
+      </a>
+      <a href="{% url 'abonado_historico' abonado.pk %}" class="btn-action btn-secondary-glass">
+        <i class="bi bi-clock-history"></i> Histórico
+      </a>
+    </div>
+  </div>
+
+  <div class="ab-card">
+    <div class="ab-card-head">
+      <h3 class="ab-card-title"><i class="bi bi-table"></i>Jugadas guardadas</h3>
+      {% if jugadas %}
+        <span class="total-pill">Total: ${{ total_plantilla|floatformat:0 }}</span>
+      {% endif %}
+    </div>
+
+    {% if jugadas %}
+      <div class="jugadas-grid">
+        {% for j in jugadas %}
+          <div class="jugada-item">
+            <span class="jugada-numero">
+              {{ j.numero }}
+              {% if j.es_combinado %}<span class="combi-tag">C</span>{% endif %}
+            </span>
+            <span class="jugada-monto">${{ j.monto|floatformat:0 }}</span>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-jugadas">
+        Sin jugadas guardadas. <a href="{% url 'abonado_editar' abonado.pk %}">Agregar jugadas</a>
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="ab-card">
+    <div class="ab-card-head">
+      <h3 class="ab-card-title"><i class="bi bi-ticket-perforated-fill"></i>Loterías disponibles ahora</h3>
+    </div>
+    {% if loterias_disponibles_hoy %}
+      <div class="lot-chips">
+        {% for lot in loterias_disponibles_hoy %}
+          <span class="lot-chip">
+            {{ lot.nombre }} <i class="bi bi-clock"></i> {{ lot.hora_fin|time:"H:i" }}
+          </span>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="text-muted-soft m-0">No hay loterías disponibles en este momento.</p>
+    {% endif %}
+  </div>
+
+  {% if apuestas_recientes %}
+    <div class="ab-card">
+      <div class="ab-card-head">
+        <h3 class="ab-card-title"><i class="bi bi-clock-history"></i>Últimas apuestas</h3>
+        <a href="{% url 'abonado_historico' abonado.pk %}" class="btn-text-link">Ver todas →</a>
+      </div>
+      <ul class="historic-list">
+        {% for ap in apuestas_recientes %}
+          <li>
+            <div>
+              <div class="historic-fecha">{{ ap.fecha|date:"d M Y" }}</div>
+              <div class="historic-meta">
+                {% with ap.ventas.all|first as v0 %}
+                  {% if v0 %}{{ v0.loterias.count }} loterías · {% endif %}
+                {% endwith %}
+                {{ ap.ventas.count }} jugadas
+              </div>
+            </div>
+            <span class="historic-monto">${{ ap.total|floatformat:0 }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+
+  <form method="post"
+        action="{% if abonado.activo %}{% url 'abonado_eliminar' abonado.pk %}{% else %}{% url 'abonado_reactivar' abonado.pk %}{% endif %}"
+        class="text-center"
+        onsubmit="return confirm('¿Confirmar?');">
+    {% csrf_token %}
+    {% if abonado.activo %}
+      <button type="submit" class="btn-archive">
+        <i class="bi bi-archive"></i> Archivar abonado
+      </button>
+    {% else %}
+      <button type="submit" class="btn-archive is-reactivate">
+        <i class="bi bi-arrow-counterclockwise"></i> Reactivar abonado
+      </button>
+    {% endif %}
+  </form>
+</section>
+{% endblock %}

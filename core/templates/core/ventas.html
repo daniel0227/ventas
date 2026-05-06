@@ -2,14 +2,6 @@
 {% extends "core/base.html" %}
 {% load static %}
 
-{% block breadcrumbs %}
-<nav class="breadcrumb-lottia" aria-label="Ruta de navegación">
-  <a href="{% url 'home' %}"><i class="bi bi-house-fill me-1"></i>Inicio</a>
-  <span class="sep"><i class="bi bi-chevron-right"></i></span>
-  <span class="current">Registrar Venta</span>
-</nav>
-{% endblock %}
-
 {% block content %}
 
   <section class="ventas-shell">
@@ -20,6 +12,20 @@
         <h1 class="page-title"><i class="bi bi-dice-5-fill me-2" style="color:var(--ventas-primary);"></i>Registrar Ventas</h1>
       </div>
     </div>
+
+  {% if es_festivo %}
+  <div class="alert alert-warning d-flex align-items-center gap-2 mb-3" role="alert">
+    <i class="bi bi-calendar-x-fill fs-5"></i>
+    <div>
+      <strong>Día festivo — ventas bloqueadas.</strong>
+      {% if desc_festivo %} {{ desc_festivo }}{% endif %}
+    </div>
+  </div>
+  {% elif not loterias %}
+  <div class="ventas-card mb-3">
+    <p class="text-danger mb-0"><i class="bi bi-exclamation-triangle-fill me-2"></i>No hay loterías disponibles para el día y hora actuales.</p>
+  </div>
+  {% endif %}
 
   <!-- Toast Container (Mensaje de exito) -->
   <div aria-live="polite" aria-atomic="true" class="position-fixed top-0 end-0 p-3" style="z-index: 1080;">
@@ -33,6 +39,7 @@
     </div>
   </div>
 
+  {% if not es_festivo and loterias %}
   <form id="ventas-form" method="post" class="needs-validation ventas-form" novalidate>
     {% csrf_token %}
     <div id="ventasFeedback" class="alert d-none ventas-feedback" role="alert"></div>
@@ -102,10 +109,6 @@
         <!-- Aquí se mostrarán las loterías seleccionadas -->
       </div>
       </section>
-    {% else %}
-      <div class="ventas-card mb-3">
-        <p class="text-danger mb-0"><i class="bi bi-exclamation-triangle-fill me-2"></i>No hay loterías disponibles para el día y hora actuales.</p>
-      </div>
     {% endif %}
 
     <!-- Detalles de la Venta -->
@@ -128,7 +131,7 @@
           {% for i in "12345"|make_list %}
             <tr>
               <td data-label="Numero"><input type="text" name="numero" class="form-control ventas-input" inputmode="numeric" pattern="[0-9]{1,4}" maxlength="4"></td>
-              <td data-label="Valor"><input type="number" name="monto" class="form-control ventas-input monto" inputmode="decimal" min="0" step="any"></td>
+              <td data-label="Valor"><input type="text" name="monto" class="form-control ventas-input monto" inputmode="numeric"></td>
               <td data-label="Combinado" class="cell-combi">
                 <input type="hidden" name="es_combinado" value="0" class="es-combinado-hidden">
                 <label class="combi-check-wrap">
@@ -146,10 +149,14 @@
         </tbody>
       </table>
       <div class="d-flex justify-content-between mt-3 ventas-actions">
-        <div class="d-flex gap-2">
+        <div class="d-flex gap-2 align-items-center flex-wrap">
           <button type="button" id="add-row" class="btn btn-add-row">
             <i class="bi bi-plus-circle"></i> Agregar Fila
           </button>
+          <div class="add-row-chips">
+            <button type="button" class="chip-add-rows" data-count="5">+5</button>
+            <button type="button" class="chip-add-rows" data-count="10">+10</button>
+          </div>
         </div>
         <button type="submit" class="btn btn-save d-none d-md-inline-flex">
           <i class="bi bi-save2"></i> Guardar
@@ -207,6 +214,7 @@
   Compartir por WhatsApp
 </a>
   </form>
+  {% endif %}
   </section>
 
   <!-- Modal de Detalle de la Venta -->
@@ -761,6 +769,36 @@
       border-color: var(--ventas-success);
       color: #065f46;
     }
+
+    .add-row-chips {
+      display: flex;
+      gap: .3rem;
+    }
+
+    .chip-add-rows {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: .28rem .7rem;
+      border-radius: 999px;
+      font-size: .8rem;
+      font-weight: 700;
+      cursor: pointer;
+      border: 1.5px solid #6ee7b7;
+      background: var(--ventas-success-light);
+      color: #065f46;
+      transition: all .15s;
+      white-space: nowrap;
+      user-select: none;
+      min-height: 32px;
+    }
+
+    .chip-add-rows:hover {
+      background: #d1fae5;
+      border-color: var(--ventas-success);
+    }
+
+    .chip-add-rows:active { transform: scale(.95); }
 
     .btn-save {
       display: inline-flex;
@@ -1519,7 +1557,7 @@
         const selected = getSelectedLotteries();
 
         getRows().forEach(row => {
-          total += parseFloat(row.querySelector('input[name="monto"]').value) || 0;
+          total += parseMonto(row.querySelector('input[name="monto"]').value);
         });
 
         total *= selected.length;
@@ -1596,8 +1634,24 @@
         updateMobileSummary();
       }
 
+      function parseMonto(val) {
+        return parseInt(String(val).replace(/\./g, '').replace(/[^0-9]/g, ''), 10) || 0;
+      }
+
+      function formatMonto(num) {
+        return num > 0 ? num.toLocaleString('es-CO') : '';
+      }
+
       function attachRowListeners(row) {
-        row.querySelectorAll('input').forEach(input => {
+        const montoInput = row.querySelector('input[name="monto"]');
+        if (montoInput) {
+          montoInput.addEventListener('input', function() {
+            const raw = parseMonto(this.value);
+            this.value = formatMonto(raw);
+            updateTotal();
+          });
+        }
+        row.querySelectorAll('input:not([name="monto"])').forEach(input => {
           input.addEventListener('input', updateTotal);
         });
         // Sincronizar checkbox con el hidden input y forzar repintado inmediato en móvil
@@ -1620,7 +1674,7 @@
         const monto = values?.monto || '';
         return `
           <td data-label="Numero"><input type="text" name="numero" class="form-control ventas-input" value="${numero}" inputmode="numeric" pattern="[0-9]{1,4}" maxlength="4"></td>
-          <td data-label="Valor"><input type="number" name="monto" class="form-control ventas-input monto" value="${monto}" inputmode="decimal" min="0" step="any"></td>
+          <td data-label="Valor"><input type="text" name="monto" class="form-control ventas-input monto" value="${monto}" inputmode="numeric"></td>
           <td data-label="Combinado" class="cell-combi">
             <input type="hidden" name="es_combinado" value="${esCombi}" class="es-combinado-hidden">
             <label class="combi-check-wrap">
@@ -1679,6 +1733,23 @@
           updateTotal();
         });
       }
+
+      document.querySelectorAll('.chip-add-rows').forEach(chip => {
+        chip.addEventListener('click', () => {
+          if (!tableBody) return;
+          const count = parseInt(chip.dataset.count, 10);
+          let firstRow = null;
+          for (let i = 0; i < count; i++) {
+            const newRow = document.createElement('tr');
+            newRow.innerHTML = buildRowHtml();
+            tableBody.appendChild(newRow);
+            attachRowListeners(newRow);
+            if (i === 0) firstRow = newRow;
+          }
+          if (firstRow) firstRow.querySelector('input[name="numero"]').focus();
+          updateTotal();
+        });
+      });
 
       getRows().forEach(attachRowListeners);
       sortLotteryOptions();
@@ -1742,7 +1813,7 @@
           const combiLabel = esCombi
             ? '<span class="badge-combi-si">Sí</span>'
             : '<span class="badge-combi-no">No</span>';
-          const monto = parseFloat(row.querySelector('input[name="monto"]').value) || 0;
+          const monto = parseMonto(row.querySelector('input[name="monto"]').value);
           const formattedMonto = monto.toLocaleString('es-CO', {
             style: 'currency',
             currency: 'COP',
@@ -1755,7 +1826,7 @@
 
         let total = 0;
         document.querySelectorAll('.monto').forEach(input => {
-          total += parseFloat(input.value) || 0;
+          total += parseMonto(input.value);
         });
         total *= selectedLotteries.length;
         document.getElementById('saleTotalAmount').textContent = total.toLocaleString('es-CO', {
@@ -1787,7 +1858,14 @@
           newConfirmButton.disabled = true;
           newConfirmButton.textContent = 'Enviando...';
 
+          document.querySelectorAll('input[name="monto"]').forEach(input => {
+            input.value = String(parseMonto(input.value));
+          });
           const formData = new FormData(form);
+          document.querySelectorAll('input[name="monto"]').forEach(input => {
+            const raw = parseMonto(input.value) || parseInt(input.value, 10) || 0;
+            input.value = formatMonto(raw);
+          });
           fetch(form.action || window.location.href, {
             method: 'POST',
             headers: { 'X-CSRFToken': formData.get('csrfmiddlewaretoken') },

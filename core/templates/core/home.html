@@ -11,6 +11,16 @@
     <h2 class="home-title mb-1">Panel Principal</h2>
   </header>
 
+  {% if es_festivo %}
+  <div class="alert alert-warning d-flex align-items-center gap-2 mb-4" role="alert">
+    <i class="bi bi-calendar-x-fill fs-5"></i>
+    <div>
+      <strong>Hoy es día festivo — las ventas están bloqueadas.</strong>
+      {% if desc_festivo %} {{ desc_festivo }}{% endif %}
+    </div>
+  </div>
+  {% endif %}
+
   <div class="row g-3 g-md-4">
     {% if not es_descargue %}
       <div class="col-12 col-sm-6 col-xl-3">
@@ -26,6 +36,21 @@
           </article>
         </a>
       </div>
+
+      {% if es_abonado %}
+      <div class="col-12 col-sm-6 col-xl-3">
+        <a href="{% url 'abonados_list' %}" class="menu-link">
+          <article class="card menu-card menu-card-abonados h-100">
+            <div class="card-body menu-item">
+              <picture>
+                <img src="{% static 'core/img/abonados.svg' %}" alt="" class="menu-icon" aria-hidden="true">
+              </picture>
+              <h3 class="menu-label">Abonados</h3>
+            </div>
+          </article>
+        </a>
+      </div>
+      {% endif %}
     {% endif %}
 
     <div class="col-12 col-sm-6 col-xl-3">
@@ -168,10 +193,6 @@
                   <span class="menu-collapse-dot"></span>
                   <span>Reporte Gerencial</span>
                 </a>
-                <a href="{% url 'premios_reporte_rango' %}" class="menu-collapse-link">
-                  <span class="menu-collapse-dot"></span>
-                  <span>Reporte de Premios</span>
-                </a>
                 <a href="{% url 'reporte_ventas_vs_premios' %}" class="menu-collapse-link">
                   <span class="menu-collapse-dot"></span>
                   <span>Ventas vs Premios</span>
@@ -179,10 +200,6 @@
                 <a href="{% url 'reporte_conciliacion' %}" class="menu-collapse-link">
                   <span class="menu-collapse-dot"></span>
                   <span>Rentabilidad Mensual</span>
-                </a>
-                <a href="{% url 'reporte_riesgo_ventas' %}" class="menu-collapse-link">
-                  <span class="menu-collapse-dot"></span>
-                  <span>Riesgo de Ventas</span>
                 </a>
               </div>
             </div>

@@ -1,0 +1,502 @@
+{% extends "core/base.html" %}
+{% load static %}
+
+{% block content %}
+<style>
+  :root {
+    --primary:       #4f46e5;
+    --primary-dark:  #3730a3;
+    --primary-light: #eef2ff;
+    --success:       #10b981;
+    --success-light: #ecfdf5;
+    --danger:        #ef4444;
+    --danger-light:  #fee2e2;
+    --muted:         #6b7280;
+    --border:        #e5e7eb;
+    --card-radius:   16px;
+    --shadow:        0 2px 12px rgba(0,0,0,.07);
+  }
+
+  .ab-shell { max-width: 720px; margin: 0 auto; padding-bottom: 80px; }
+
+  .page-header {
+    margin-bottom: 1rem;
+  }
+  .page-header h1 {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: #1f2937;
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+  }
+  .page-header h1 i { color: var(--primary); }
+
+  .ab-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--card-radius);
+    box-shadow: var(--shadow);
+    padding: 1rem 1.05rem;
+    margin-bottom: 1rem;
+  }
+  .ab-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .5rem;
+    margin-bottom: .85rem;
+    padding-bottom: .65rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .ab-card-title {
+    font-size: .95rem;
+    font-weight: 700;
+    color: #1f2937;
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+  }
+  .ab-card-title i { color: var(--primary); }
+  .ab-card-hint {
+    color: var(--muted);
+    font-size: .82rem;
+    margin: 0 0 .85rem 0;
+  }
+
+  /* Form fields generales */
+  .ab-form-group { margin-bottom: .85rem; }
+  .ab-form-label {
+    display: block;
+    font-size: .78rem;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    margin-bottom: .35rem;
+  }
+  .ab-form-label .req { color: var(--danger); }
+  .ab-input {
+    width: 100%;
+    border: 1.5px solid var(--border) !important;
+    border-radius: 10px !important;
+    background: #fafafa;
+    font-size: .95rem;
+    padding: .55rem .8rem;
+    min-height: 46px;
+    transition: border-color .2s, background .2s;
+  }
+  .ab-input:focus {
+    border-color: var(--primary) !important;
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(79,70,229,.12);
+    outline: none;
+  }
+  .ab-error { color: var(--danger); font-size: .8rem; margin-top: .3rem; }
+
+  /* Lista de jugadas como CARDS (mobile-first, sin tabla) */
+  .jugadas-list {
+    display: flex;
+    flex-direction: column;
+    gap: .55rem;
+  }
+  .jugada-card {
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    background: #fff;
+    padding: .65rem .75rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: .5rem;
+    align-items: center;
+  }
+  .jugada-card.is-deleted {
+    opacity: .45;
+    text-decoration: line-through;
+    background: #f9fafb;
+  }
+  .jugada-field { display: flex; flex-direction: column; min-width: 0; }
+  .jugada-field-label {
+    font-size: .65rem;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    margin-bottom: .2rem;
+  }
+  .jugada-field input[type="text"],
+  .jugada-field input[type="number"] {
+    width: 100%;
+    border: 1.5px solid var(--border);
+    border-radius: 9px;
+    padding: .45rem .6rem;
+    background: #fafafa;
+    font-size: .95rem;
+    min-height: 42px;
+    font-weight: 600;
+    color: #1f2937;
+    font-variant-numeric: tabular-nums;
+  }
+  .jugada-field input:focus {
+    border-color: var(--primary);
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(79,70,229,.12);
+    outline: none;
+  }
+
+  /* Combi como toggle compacto bajo el grid */
+  .jugada-extras {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .5rem;
+    padding-top: .4rem;
+    border-top: 1px dashed var(--border);
+    margin-top: .15rem;
+  }
+  .combi-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+    font-size: .78rem;
+    font-weight: 600;
+    color: #374151;
+    cursor: pointer;
+    user-select: none;
+    margin: 0;
+  }
+  .combi-toggle input { display: none; }
+  .combi-ui {
+    width: 38px;
+    height: 22px;
+    background: #e5e7eb;
+    border-radius: 999px;
+    position: relative;
+    transition: background .15s;
+    flex: 0 0 auto;
+  }
+  .combi-ui::after {
+    content: '';
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,.2);
+    transition: transform .15s;
+  }
+  .combi-toggle input:checked + .combi-ui { background: var(--primary); }
+  .combi-toggle input:checked + .combi-ui::after { transform: translateX(16px); }
+
+  .delete-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    font-size: .78rem;
+    font-weight: 600;
+    color: var(--danger);
+    cursor: pointer;
+    user-select: none;
+    margin: 0;
+  }
+  .delete-toggle input { accent-color: var(--danger); width: 16px; height: 16px; }
+
+  .remove-empty-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px; height: 36px;
+    border: 1.5px solid var(--danger);
+    background: var(--danger-light);
+    color: var(--danger);
+    border-radius: 9px;
+    padding: 0;
+    align-self: end;
+  }
+  .remove-empty-btn:active { transform: scale(.92); }
+
+  /* Acción "agregar" */
+  .btn-add-row {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    border: 1.5px dashed #6ee7b7;
+    background: var(--success-light);
+    color: #065f46;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: .9rem;
+    padding: .65rem 1rem;
+    width: 100%;
+    justify-content: center;
+    margin-top: .65rem;
+    min-height: 46px;
+  }
+  .btn-add-row:hover { background: #d1fae5; }
+  .btn-add-row:active { transform: scale(.98); }
+
+  /* Botones de acción finales (sticky bottom en mobile) */
+  .form-actions {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: .5rem;
+    margin-top: 1.25rem;
+  }
+  .btn-cancel {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .35rem;
+    background: #fff;
+    color: var(--muted);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: .65rem 1rem;
+    font-weight: 600;
+    font-size: .9rem;
+    text-decoration: none;
+    min-height: 46px;
+  }
+  .btn-cancel:hover { background: #f9fafb; color: #1f2937; }
+  .btn-save-form {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .4rem;
+    background: var(--primary);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: .65rem 1rem;
+    font-weight: 700;
+    font-size: .92rem;
+    min-height: 46px;
+  }
+  .btn-save-form:hover { background: var(--primary-dark); color: #fff; }
+  .btn-save-form:active { transform: scale(.98); }
+
+  /* Tablet/desktop: dos columnas en datos del abonado */
+  @media (min-width: 576px) {
+    .row-2col {
+      display: grid;
+      grid-template-columns: 1.6fr 1fr;
+      gap: .85rem;
+    }
+    .row-2col .ab-form-group { margin-bottom: 0; }
+  }
+
+  /* Sticky guardar en mobile */
+  @media (max-width: 575.98px) {
+    .form-actions {
+      position: sticky;
+      bottom: 10px;
+      z-index: 1030;
+      background: rgba(255,255,255,.97);
+      padding: .55rem;
+      border-radius: 14px;
+      border: 1.5px solid #c7d2fe;
+      box-shadow: 0 12px 28px rgba(79,70,229,.15);
+      backdrop-filter: blur(8px);
+    }
+  }
+</style>
+
+<section class="ab-shell">
+  <div class="page-header">
+    <h1>
+      <i class="bi {% if modo == 'editar' %}bi-pencil-square{% else %}bi-person-plus-fill{% endif %}"></i>
+      {% if modo == 'editar' %}Editar abonado{% else %}Nuevo abonado{% endif %}
+    </h1>
+  </div>
+
+  {% if messages %}
+    {% for msg in messages %}
+      <div class="alert alert-{{ msg.tags|default:'info' }}">{{ msg }}</div>
+    {% endfor %}
+  {% endif %}
+
+  <form method="post" novalidate id="abonado-form">
+    {% csrf_token %}
+
+    <div class="ab-card">
+      <div class="ab-card-head">
+        <h3 class="ab-card-title"><i class="bi bi-person"></i>Datos del abonado</h3>
+      </div>
+
+      {% if form.non_field_errors %}
+        <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+      {% endif %}
+
+      <div class="row-2col">
+        <div class="ab-form-group">
+          <label class="ab-form-label">Nombre <span class="req">*</span></label>
+          <input type="text" name="{{ form.nombre.html_name }}" value="{{ form.nombre.value|default:'' }}"
+                 class="ab-input" placeholder="Ej: Daniel tienda" maxlength="100" autocomplete="off" required>
+          {% if form.nombre.errors %}<div class="ab-error">{{ form.nombre.errors|join:", " }}</div>{% endif %}
+        </div>
+        <div class="ab-form-group">
+          <label class="ab-form-label">Teléfono</label>
+          <input type="tel" name="{{ form.telefono.html_name }}" value="{{ form.telefono.value|default:'' }}"
+                 class="ab-input" placeholder="Opcional" maxlength="30" inputmode="tel">
+          {% if form.telefono.errors %}<div class="ab-error">{{ form.telefono.errors|join:", " }}</div>{% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="ab-card">
+      <div class="ab-card-head">
+        <h3 class="ab-card-title"><i class="bi bi-table"></i>Jugadas guardadas</h3>
+      </div>
+      <p class="ab-card-hint">
+        Estos números se cargarán al apostar para este abonado. Puedes editarlos en cualquier momento.
+      </p>
+
+      {{ formset.management_form }}
+      {% if formset.non_form_errors %}
+        <div class="alert alert-danger">{{ formset.non_form_errors }}</div>
+      {% endif %}
+
+      <div class="jugadas-list" id="jugadas-list">
+        {% for sub in formset %}
+          <div class="jugada-card" data-form-idx="{{ forloop.counter0 }}" {% if sub.DELETE.value %}data-deleted="1"{% endif %}>
+            {% for hidden in sub.hidden_fields %}{{ hidden }}{% endfor %}
+            <div class="jugada-field">
+              <span class="jugada-field-label">Número</span>
+              <input type="text" name="{{ sub.numero.html_name }}" value="{{ sub.numero.value|default:'' }}"
+                     inputmode="numeric" pattern="[0-9]{1,4}" maxlength="4" placeholder="Ej: 1234">
+              {% if sub.numero.errors %}<div class="ab-error">{{ sub.numero.errors|join:", " }}</div>{% endif %}
+            </div>
+            <div class="jugada-field">
+              <span class="jugada-field-label">Valor</span>
+              <input type="number" name="{{ sub.monto.html_name }}" value="{{ sub.monto.value|default:'' }}"
+                     inputmode="decimal" min="0" step="any" placeholder="0">
+              {% if sub.monto.errors %}<div class="ab-error">{{ sub.monto.errors|join:", " }}</div>{% endif %}
+            </div>
+            <div></div>
+
+            <div class="jugada-extras">
+              <label class="combi-toggle">
+                <input type="checkbox" name="{{ sub.es_combinado.html_name }}" {% if sub.es_combinado.value %}checked{% endif %} value="True">
+                <span class="combi-ui"></span>
+                <span>Combinado</span>
+              </label>
+              {% if sub.instance.pk %}
+                <input type="checkbox" name="{{ sub.DELETE.html_name }}" class="delete-hidden d-none">
+                <button type="button" class="remove-empty-btn remove-existing-btn" title="Quitar jugada" aria-label="Quitar jugada">
+                  <i class="bi bi-x-lg"></i>
+                </button>
+              {% else %}
+                <button type="button" class="remove-empty-btn" title="Quitar fila" aria-label="Quitar fila">
+                  <i class="bi bi-x-lg"></i>
+                </button>
+              {% endif %}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+
+      <button type="button" id="add-jugada" class="btn-add-row">
+        <i class="bi bi-plus-circle"></i> Agregar jugada
+      </button>
+    </div>
+
+    <div class="form-actions">
+      <a href="{% url 'abonados_list' %}" class="btn-cancel">
+        <i class="bi bi-x"></i> Cancelar
+      </a>
+      <button type="submit" class="btn-save-form">
+        <i class="bi bi-save2"></i> Guardar abonado
+      </button>
+    </div>
+  </form>
+</section>
+
+<script>
+(function(){
+  'use strict';
+  const totalForms = document.querySelector('input[name$="-TOTAL_FORMS"]');
+  const list = document.getElementById('jugadas-list');
+  const addBtn = document.getElementById('add-jugada');
+  const emptyFormHtml = `{{ formset.empty_form|escapejs }}`;
+
+  function extractField(html, fieldName) {
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = html;
+    const node = wrapper.querySelector(`[name$="-${fieldName}"]`);
+    return node ? node.outerHTML : '';
+  }
+
+  function newRow() {
+    const idx = parseInt(totalForms.value, 10);
+    const html = emptyFormHtml.replace(/__prefix__/g, idx);
+
+    // Extraer cada campo del empty_form
+    const numeroEl = extractField(html, 'numero');
+    const montoEl = extractField(html, 'monto');
+    const combiEl = extractField(html, 'es_combinado');
+    const ordenEl = extractField(html, 'orden');
+    const idEl = extractField(html, 'id');
+
+    const card = document.createElement('div');
+    card.className = 'jugada-card';
+    card.dataset.formIdx = idx;
+    card.innerHTML = `
+      ${idEl}${ordenEl}
+      <div class="jugada-field">
+        <span class="jugada-field-label">Número</span>
+        ${tweakInput(numeroEl, { inputmode:'numeric', pattern:'[0-9]{1,4}', maxlength:'4', placeholder:'Ej: 1234' })}
+      </div>
+      <div class="jugada-field">
+        <span class="jugada-field-label">Valor</span>
+        ${tweakInput(montoEl, { inputmode:'decimal', min:'0', step:'any', placeholder:'0' })}
+      </div>
+      <div></div>
+      <div class="jugada-extras">
+        <label class="combi-toggle">
+          ${combiEl}
+          <span class="combi-ui"></span>
+          <span>Combinado</span>
+        </label>
+        <button type="button" class="remove-empty-btn" title="Quitar" aria-label="Quitar">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
+    `;
+    list.appendChild(card);
+    totalForms.value = idx + 1;
+  }
+
+  // Aplica atributos extra a un input HTML extraido del empty_form
+  function tweakInput(html, attrs) {
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = html;
+    const input = wrapper.querySelector('input,select,textarea');
+    if (!input) return html;
+    Object.entries(attrs).forEach(([k,v]) => input.setAttribute(k, v));
+    return input.outerHTML;
+  }
+
+  if (addBtn) addBtn.addEventListener('click', newRow);
+
+  list.addEventListener('click', (e) => {
+    const btn = e.target.closest('.remove-empty-btn');
+    if (!btn) return;
+    const card = btn.closest('.jugada-card');
+    if (!card) return;
+
+    // Si es una fila existente (tiene checkbox DELETE), la marcamos para borrado
+    // y la ocultamos. Asi Django la elimina al guardar el formset.
+    const deleteHidden = card.querySelector('.delete-hidden');
+    if (deleteHidden) {
+      deleteHidden.checked = true;
+      card.classList.add('d-none');
+    } else {
+      card.remove();
+    }
+  });
+})();
+</script>
+{% endblock %}

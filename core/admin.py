@@ -5,10 +5,15 @@ from .models import (
     Venta,
     VentaDescargue,
     Dia,
+    DiaFestivo,
     Resultado,
+    ResultadoAuditLog,
     Premio,
     VentaAuditLog,
     ConfiguracionVenta,
+    Abonado,
+    JugadaAbonado,
+    AbonadoApuesta,
 )
 
 User = get_user_model()
@@ -126,51 +131,127 @@ class VentaDescargueAdmin(admin.ModelAdmin):
     autocomplete_fields = ("descargue", "loteria", "registrado_por")
     list_select_related = ("descargue", "loteria", "registrado_por")
 
-# --- Dia / Resultado (sin cambios relevantes) ---
+# --- Dia ---
 @admin.register(Dia)
 class DiaAdmin(admin.ModelAdmin):
     list_display = ("nombre", )
     search_fields = ("nombre", )
 
+
+# --- Día Festivo ---
+@admin.register(DiaFestivo)
+class DiaFestivoAdmin(admin.ModelAdmin):
+    list_display = ("fecha", "descripcion")
+    search_fields = ("descripcion",)
+    ordering = ("fecha",)
+    date_hierarchy = "fecha"
+
+    def has_add_permission(self, request):
+        return request.user.is_superuser
+
+    def has_change_permission(self, request, obj=None):
+        return request.user.is_superuser
+
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_superuser
+
+    def has_view_permission(self, request, obj=None):
+        return request.user.is_staff
+
+
+# --- Resultado ---
 @admin.register(Resultado)
 class ResultadoAdmin(admin.ModelAdmin):
-    list_display = ("fecha", "loteria", "resultado")
+    list_display = ("fecha", "loteria", "resultado", "registrado_por", "registrado_en")
     list_filter = ("fecha", "loteria")
     search_fields = ("loteria__nombre", "resultado")
-    list_select_related = ("loteria", )
+    list_select_related = ("loteria", "registrado_por")
+
+    def get_readonly_fields(self, request, obj=None):
+        if request.user.is_superuser:
+            return ("registrado_en",)
+        return ("loteria", "fecha", "resultado", "registrado_por", "registrado_en")
+
+    def has_add_permission(self, request):
+        return request.user.is_superuser
+
+    def has_change_permission(self, request, obj=None):
+        return request.user.is_superuser
+
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_superuser
+
+    def _ip(self, request):
+        fwd = request.META.get("HTTP_X_FORWARDED_FOR", "")
+        return fwd.split(",")[0].strip() if fwd else request.META.get("REMOTE_ADDR", "")
+
+    def save_model(self, request, obj, form, change):
+        obj._audit_actor = request.user
+        obj._audit_ip_address = self._ip(request)
+        obj._audit_source = "admin"
+        super().save_model(request, obj, form, change)
+
+    def delete_model(self, request, obj):
+        obj._audit_actor = request.user
+        obj._audit_ip_address = self._ip(request)
+        obj._audit_source = "admin"
+        super().delete_model(request, obj)
+
+
+@admin.register(ResultadoAuditLog)
+class ResultadoAuditLogAdmin(admin.ModelAdmin):
+    list_display = ("created_at", "action", "loteria", "fecha", "valor_anterior", "valor_nuevo", "actor", "source", "ip_address")
+    list_filter = ("action", "fecha", "loteria")
+    search_fields = ("loteria__nombre", "actor__username", "ip_address")
+    list_select_related = ("loteria", "actor", "resultado")
+    readonly_fields = (
+        "created_at", "action", "loteria", "fecha",
+        "valor_anterior", "valor_nuevo", "actor",
+        "ip_address", "source", "resultado",
+    )
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return True
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 # --- Premio ---
 @admin.register(Premio)
 class PremioAdmin(admin.ModelAdmin):
     date_hierarchy = "fecha"
-    list_display = ("fecha", "loteria", "vendedor", "numero", "valor", "cifras", "premio")
+    list_display = ("fecha", "loteria", "vendedor", "numero", "valor", "cifras", "premio", "es_combinado")
     list_filter = ("fecha", "loteria", "cifras")
     search_fields = ("numero", "vendedor__username", "vendedor__first_name", "vendedor__last_name")
-
-    # Clave: evita renderizar selects gigantes
-    autocomplete_fields = ("vendedor", "loteria", "venta")
-    # Si tuvieras problemas con el autocomplete de venta, cámbialo por raw_id:
-    # raw_id_fields = ("venta",)
-
     list_select_related = ("loteria", "vendedor", "venta")
+    readonly_fields = (
+        "fecha", "loteria", "vendedor", "venta", "venta_descargue",
+        "numero", "valor", "cifras", "premio", "es_combinado",
+        "creado_en", "actualizado_en",
+    )
 
-    # Opcional: limitar el queryset del autocomplete de Venta (ej. últimas 2 semanas)
-    def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        if db_field.name == "venta":
-            # ejemplo de filtro suave para no cargar millones de registros
-            # from django.utils import timezone
-            # from datetime import timedelta
-            # hace_15 = timezone.now() - timedelta(days=15)
-            # kwargs["queryset"] = Venta.objects.filter(fecha_venta__gte=hace_15).select_related("vendedor")
-            kwargs["queryset"] = Venta.objects.all().select_related("vendedor")
-        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return request.user.is_staff
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(VentaAuditLog)
 class VentaAuditLogAdmin(admin.ModelAdmin):
-    list_display = ("created_at", "event_type", "status", "venta", "actor", "ip_address")
-    list_filter = ("status", "event_type", "created_at")
-    search_fields = ("message", "venta__id", "actor__username", "ip_address")
+    date_hierarchy = "created_at"
+    list_display = ("created_at", "event_type", "status", "venta_id", "actor", "ip_address")
+    list_filter = ("status", "event_type")
+    search_fields = ("venta_id", "actor__username", "ip_address")
+    list_select_related = ("actor",)
+    list_per_page = 50
+    show_full_result_count = False
     readonly_fields = (
         "created_at", "event_type", "status", "venta", "actor",
         "message", "payload", "ip_address", "user_agent"
@@ -180,7 +261,6 @@ class VentaAuditLogAdmin(admin.ModelAdmin):
         return False
 
     def has_change_permission(self, request, obj=None):
-        # Permite abrir el detalle en modo solo lectura.
         return True
 
     def has_delete_permission(self, request, obj=None):
@@ -198,3 +278,37 @@ class ConfiguracionVentaAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+
+# --- Abonados ---
+class JugadaAbonadoInline(admin.TabularInline):
+    model = JugadaAbonado
+    extra = 0
+    fields = ("numero", "monto", "es_combinado", "orden")
+
+
+@admin.register(Abonado)
+class AbonadoAdmin(admin.ModelAdmin):
+    list_display = ("nombre", "vendedor", "telefono", "activo", "actualizado_en")
+    list_filter = ("activo",)
+    search_fields = ("nombre", "vendedor__username", "telefono")
+    autocomplete_fields = ("vendedor",)
+    list_select_related = ("vendedor",)
+    inlines = [JugadaAbonadoInline]
+
+
+@admin.register(JugadaAbonado)
+class JugadaAbonadoAdmin(admin.ModelAdmin):
+    list_display = ("abonado", "numero", "monto", "es_combinado")
+    search_fields = ("abonado__nombre", "numero")
+    list_select_related = ("abonado",)
+
+
+@admin.register(AbonadoApuesta)
+class AbonadoApuestaAdmin(admin.ModelAdmin):
+    date_hierarchy = "fecha"
+    list_display = ("fecha", "abonado", "registrado_por", "total")
+    list_filter = ("fecha",)
+    search_fields = ("abonado__nombre", "registrado_por__username")
+    list_select_related = ("abonado", "registrado_por")
+    readonly_fields = ("creada_en",)
