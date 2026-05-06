@@ -84,7 +84,7 @@ JugadaAbonadoFormSet = inlineformset_factory(
     Abonado,
     JugadaAbonado,
     form=JugadaAbonadoForm,
-    extra=3,
+    extra=0,
     can_delete=True,
     min_num=0,
     validate_min=False,

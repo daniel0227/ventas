@@ -132,6 +132,57 @@
   </div>
 </section>
 
+<div class="modal fade" id="saleDetailModal" tabindex="-1" aria-labelledby="saleDetailModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-md">
+    <div class="modal-content modal-ventas">
+      <div class="modal-header modal-ventas-header">
+        <h5 class="modal-title d-flex align-items-center gap-2" id="saleDetailModalLabel">
+          <span class="modal-header-icon"><i class="bi bi-receipt"></i></span>
+          Resumen de apuesta
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body modal-ventas-body">
+        <p class="modal-hint"><i class="bi bi-info-circle me-1"></i>Revisa los datos antes de confirmar.</p>
+        <div class="modal-info-grid mb-3">
+          <div class="modal-info-item">
+            <span class="modal-info-label">Día</span>
+            <span class="modal-info-value" id="saleDay"></span>
+          </div>
+          <div class="modal-info-item">
+            <span class="modal-info-label">Loterías</span>
+            <span class="modal-info-value" id="saleLoteriasList"></span>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="modal-detail-table">
+            <thead>
+              <tr><th>Número</th><th>Valor</th><th>Combinado</th></tr>
+            </thead>
+            <tbody id="saleDetailsList"></tbody>
+          </table>
+        </div>
+        <div class="modal-total-row">
+          <span class="modal-total-label">Total a apostar</span>
+          <span id="saleTotalAmount" class="modal-total-value"></span>
+        </div>
+      </div>
+      <div class="modal-footer modal-ventas-footer">
+        <button type="button" class="btn btn-modal-cancel" data-bs-dismiss="modal">
+          <i class="bi bi-x me-1"></i>Cancelar
+        </button>
+        <button type="button" class="btn btn-modal-confirm" id="confirmSaleButton">
+          <i class="bi bi-check2 me-1"></i>Apostar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<a id="btnCompartirWhatsApp" class="btn-whatsapp-central d-none" target="_blank">
+  Compartir por WhatsApp
+</a>
+
 <style>
   .ventas-shell { max-width: 1040px; margin: 0 auto; }
   .page-title { font-size: 1.35rem; font-weight: 700; }
@@ -187,6 +238,53 @@
   .overlay-success-icon { font-size:3.2rem; }
   .overlay-success-text { font-size:1.1rem; font-weight:700; }
   #total-monto { border-radius:9px; border:1.5px solid #e5e7eb; font-weight:700; background:#f8fafc; }
+
+  .modal-ventas { border:none; border-radius:18px; overflow:hidden; box-shadow:0 20px 50px rgba(15,23,42,.18); }
+  .modal-ventas-header { background:linear-gradient(135deg,#4f46e5 0%,#3730a3 100%); border:none; padding:1rem 1.25rem; }
+  .modal-ventas-header .modal-title { color:#fff; font-size:.98rem; font-weight:700; }
+  .modal-header-icon { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; background:rgba(255,255,255,.18); border-radius:8px; font-size:1rem; }
+  .modal-ventas-body { padding:1.1rem 1.25rem; }
+  .modal-hint { font-size:.82rem; color:#6b7280; background:#f8fafc; border:1px solid #e5e7eb; border-radius:8px; padding:.5rem .75rem; display:flex; align-items:center; gap:.35rem; margin-bottom:1rem; }
+  .modal-info-grid { display:grid; gap:.5rem; }
+  .modal-info-item { display:flex; flex-direction:column; gap:.1rem; background:#f8fafc; border:1px solid #e5e7eb; padding:.55rem .75rem; border-radius:10px; }
+  .modal-info-label { font-size:.68rem; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:.05em; }
+  .modal-info-value { font-size:.9rem; font-weight:700; color:#0f172a; }
+  .modal-detail-table { width:100%; border-collapse:collapse; font-size:.88rem; background:#fff; border-radius:10px; overflow:hidden; border:1px solid #e5e7eb; }
+  .modal-detail-table thead tr { background:linear-gradient(135deg,#4f46e5 0%,#3730a3 100%); }
+  .modal-detail-table thead th { color:#fff; font-size:.72rem; font-weight:600; text-transform:uppercase; padding:.6rem .85rem; border:none; }
+  .modal-detail-table tbody tr { border-bottom:1px solid #e5e7eb; }
+  .modal-detail-table tbody tr:last-child { border-bottom:none; }
+  .modal-detail-table tbody tr:hover { background:#f9fafb; }
+  .modal-detail-table tbody td { padding:.55rem .85rem; border:none; color:#374151; font-size:.88rem; }
+  .modal-total-row { display:flex; align-items:center; justify-content:space-between; margin-top:.85rem; background:#ecfdf5; border:1px solid #6ee7b7; padding:.65rem .85rem; border-radius:10px; }
+  .modal-total-label { font-size:.78rem; font-weight:600; color:#6b7280; text-transform:uppercase; letter-spacing:.04em; }
+  .modal-total-value { font-size:1.1rem; font-weight:800; color:#065f46; font-variant-numeric:tabular-nums; }
+  .modal-ventas-footer { border:none; padding:.75rem 1.25rem; background:#f8fafc; gap:.5rem; }
+  .btn-modal-cancel { display:inline-flex; align-items:center; gap:.3rem; background:#fff; color:#6b7280; border:1.5px solid #e5e7eb; border-radius:10px; padding:.55rem 1rem; font-weight:600; font-size:.88rem; }
+  .btn-modal-cancel:hover { background:#fee2e2; border-color:#fca5a5; color:#ef4444; }
+  .btn-modal-confirm { display:inline-flex; align-items:center; gap:.3rem; background:#4f46e5; color:#fff; border:none; border-radius:10px; padding:.55rem 1.2rem; font-weight:700; font-size:.9rem; }
+  .btn-modal-confirm:hover { background:#3730a3; color:#fff; }
+  .badge-combi-si { background:#ecfdf5; color:#065f46; border:1px solid #6ee7b7; border-radius:999px; padding:.15rem .5rem; font-size:.72rem; font-weight:700; }
+  .badge-combi-no { background:#f3f4f6; color:#6b7280; border:1px solid #e5e7eb; border-radius:999px; padding:.15rem .5rem; font-size:.72rem; font-weight:700; }
+
+  .btn-whatsapp-central {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 2100;
+    background: #25d366;
+    color: #fff;
+    font-weight: 700;
+    font-size: .97rem;
+    padding: .75rem 1.6rem;
+    border-radius: 999px;
+    box-shadow: 0 6px 24px rgba(37,211,102,.35);
+    text-decoration: none;
+    white-space: nowrap;
+    transition: transform .2s;
+  }
+  .btn-whatsapp-central:hover { transform: translateX(-50%) scale(1.04); color: #fff; }
 </style>
 
 <script>
@@ -218,6 +316,26 @@
     if (state === 'loading') { overlay.style.display = 'flex'; loaderContainer.style.display = 'flex'; successContainer.style.display = 'none'; return; }
     if (state === 'success') { overlay.style.display = 'flex'; loaderContainer.style.display = 'none'; successContainer.style.display = 'flex'; return; }
     overlay.style.display = 'none';
+  }
+
+  function construirMensajeWhatsapp(resumen) {
+    const { codigo, abonado, loterias, jugadas, total } = resumen;
+    const ahora = new Date();
+    const fechaFormateada = ahora.toLocaleString('es-CO', {
+      day: '2-digit', month: 'long', year: 'numeric',
+      hour: '2-digit', minute: '2-digit', hour12: false
+    }).replace(',', ' -');
+    let mensaje = `${fechaFormateada}\n\n`;
+    if (abonado) mensaje += `*Abonado:* ${abonado}\n`;
+    mensaje += `*Codigo:* ${codigo}\n`;
+    mensaje += `*Loterias:* ${loterias.join(', ')}\n\n`;
+    mensaje += `*Apuesta:*\n`;
+    jugadas.forEach(j => {
+      const combiStr = j.es_combinado ? ' (C)' : '';
+      mensaje += `- ${j.numero || 'N/A'}${combiStr} - ${j.monto.toLocaleString('es-CO')}\n`;
+    });
+    mensaje += `\n*Total:* ${total.toLocaleString('es-CO')}`;
+    return encodeURIComponent(mensaje);
   }
 
   function getSelectedLotteries() { return Array.from(document.querySelectorAll('input[name="loterias"]:checked')); }
@@ -332,20 +450,74 @@
     if (incomplete) { showFormMessage('Cada fila debe tener número y valor.'); return; }
     if (!validRow) { showFormMessage('Debes incluir al menos una jugada válida.'); return; }
 
-    setProcessingState('loading');
-    const fd = new FormData(form);
-    fetch(form.action, { method:'POST', headers:{ 'X-CSRFToken': fd.get('csrfmiddlewaretoken') }, body: fd })
-      .then(async r => { const t = await r.text(); try { return { ok:r.ok, data: JSON.parse(t) }; } catch { throw new Error('Respuesta inválida del servidor.'); } })
-      .then(({ok, data}) => {
-        if (!ok || !data.success) {
+    // Poblar modal
+    const selectedLotteries = getSelectedLotteries();
+    document.getElementById('saleLoteriasList').textContent = selectedLotteries.map(l => l.dataset.name || '').join(', ');
+    document.getElementById('saleDay').textContent = new Date().toLocaleString('es-CO', {
+      weekday:'long', year:'numeric', month:'long', day:'numeric',
+      hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false
+    });
+
+    const tbody = document.getElementById('saleDetailsList');
+    tbody.innerHTML = '';
+    let total = 0;
+    getRows().forEach(row => {
+      const numero = row.querySelector('input[name="numero"]').value.trim() || 'N/A';
+      const esCombi = row.querySelector('.combi-check')?.checked;
+      const monto = parseFloat(row.querySelector('input[name="monto"]').value) || 0;
+      total += monto;
+      const combiLabel = esCombi
+        ? '<span class="badge-combi-si">Sí</span>'
+        : '<span class="badge-combi-no">No</span>';
+      const formattedMonto = monto.toLocaleString('es-CO', { style:'currency', currency:'COP', minimumFractionDigits:0 });
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${numero}</td><td>${formattedMonto}</td><td style="text-align:center;">${combiLabel}</td>`;
+      tbody.appendChild(tr);
+    });
+    total *= selectedLotteries.length;
+    document.getElementById('saleTotalAmount').textContent = total.toLocaleString('es-CO', { style:'currency', currency:'COP', minimumFractionDigits:0 });
+
+    const saleDetailModal = new bootstrap.Modal(document.getElementById('saleDetailModal'));
+    saleDetailModal.show();
+
+    const confirmButton = document.getElementById('confirmSaleButton');
+    const newConfirmButton = confirmButton.cloneNode(true);
+    confirmButton.parentNode.replaceChild(newConfirmButton, confirmButton);
+
+    newConfirmButton.addEventListener('click', function() {
+      setProcessingState('loading');
+      newConfirmButton.disabled = true;
+      newConfirmButton.textContent = 'Enviando...';
+      const fd = new FormData(form);
+      fetch(form.action, { method:'POST', headers:{ 'X-CSRFToken': fd.get('csrfmiddlewaretoken') }, body: fd })
+        .then(async r => { const t = await r.text(); try { return { ok:r.ok, data: JSON.parse(t) }; } catch { throw new Error('Respuesta inválida del servidor.'); } })
+        .then(({ok, data}) => {
+          if (!ok || !data.success) {
+            saleDetailModal.hide();
+            setProcessingState('idle');
+            showFormMessage(data.error || 'No fue posible registrar la apuesta.', 'danger');
+            newConfirmButton.disabled = false;
+            newConfirmButton.innerHTML = '<i class="bi bi-check2 me-1"></i>Apostar';
+            return;
+          }
+          saleDetailModal.hide();
+          setProcessingState('success');
+          if (data.resumen_venta) {
+            const mensaje = construirMensajeWhatsapp(data.resumen_venta);
+            const btnWA = document.getElementById('btnCompartirWhatsApp');
+            btnWA.href = `https://wa.me/?text=${mensaje}`;
+            btnWA.classList.remove('d-none');
+          }
+          setTimeout(() => { window.location.href = "{% url 'abonado_detalle' abonado.pk %}"; }, 2200);
+        })
+        .catch(err => {
+          saleDetailModal.hide();
           setProcessingState('idle');
-          showFormMessage(data.error || 'No fue posible registrar la apuesta.', 'danger');
-          return;
-        }
-        setProcessingState('success');
-        setTimeout(() => { window.location.href = "{% url 'abonado_detalle' abonado.pk %}"; }, 1500);
-      })
-      .catch(err => { setProcessingState('idle'); showFormMessage(err.message || 'Error al enviar.', 'danger'); });
+          showFormMessage(err.message || 'Error al enviar.', 'danger');
+          newConfirmButton.disabled = false;
+          newConfirmButton.innerHTML = '<i class="bi bi-check2 me-1"></i>Apostar';
+        });
+    });
   });
 })();
 </script>

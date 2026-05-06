@@ -58,6 +58,7 @@
 }
 
 .menu-icon {
+  display: block;
   width: 36px;
   height: 36px;
   flex: 0 0 auto;
@@ -80,7 +81,7 @@
 .menu-card-register     { background-color: #fef3c7; }
 .menu-card-downloads    { background-color: #e0f2fe; }
 .menu-card-management   { background-color: #dbeafe; }
-.menu-card-abonados     { background-color: #ccfbf1; }
+.menu-card-abonados     { background-color: #ede9fe; }
 .menu-card-reports-group{ background-color: #e8f1ff; overflow: hidden; }
 
 .menu-collapse-toggle {
