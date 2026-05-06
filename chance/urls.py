@@ -51,6 +51,7 @@ urlpatterns = [
     path('abonados/<int:pk>/', views.abonado_detalle, name='abonado_detalle'),
     path('abonados/<int:pk>/editar/', views.abonado_editar, name='abonado_editar'),
     path('abonados/<int:pk>/eliminar/', views.abonado_eliminar, name='abonado_eliminar'),
+    path('abonados/<int:pk>/borrar/', views.abonado_borrar, name='abonado_borrar'),
     path('abonados/<int:pk>/reactivar/', views.abonado_reactivar, name='abonado_reactivar'),
     path('abonados/<int:pk>/apostar/', views.abonado_apostar, name='abonado_apostar'),
     path('abonados/<int:pk>/historico/', views.abonado_historico, name='abonado_historico'),

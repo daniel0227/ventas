@@ -185,6 +185,8 @@
     color: #065f46;
   }
   .icon-btn.icon-bet:hover { background: #d1fae5; color: #065f46; }
+  .icon-btn.icon-delete { border-color: #fca5a5; background: #fff5f5; color: #ef4444; }
+  .icon-btn.icon-delete:hover { background: #fee2e2; border-color: #f87171; }
   .icon-btn:active { transform: scale(.94); }
 
   /* Empty state */
@@ -241,6 +243,54 @@
   @media (max-width: 380px) {
     .abonado-actions .icon-btn { width: 38px; height: 38px; }
   }
+
+  /* ── Chips de días ─────────────────────────────────── */
+  .dias-filter-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    margin-bottom: 1rem;
+    padding-bottom: 2px;
+  }
+  .dias-filter-wrap::-webkit-scrollbar { display: none; }
+
+  .dias-filter {
+    display: flex;
+    gap: .4rem;
+    white-space: nowrap;
+    padding: .1rem .05rem;
+  }
+
+  .dia-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: .38rem .85rem;
+    border-radius: 999px;
+    font-size: .82rem;
+    font-weight: 700;
+    text-decoration: none;
+    border: 1.5px solid var(--border);
+    background: #fff;
+    color: var(--muted);
+    white-space: nowrap;
+    min-height: 36px;
+    transition: background .12s, color .12s, border-color .12s;
+  }
+  .dia-chip:hover { background: var(--primary-light); border-color: #c7d2fe; color: var(--primary); }
+  .dia-chip.active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+  }
+  .dia-chip.hoy-chip.active {
+    background: #10b981;
+    border-color: #10b981;
+  }
+  .dia-chip.todos-chip.active {
+    background: #6b7280;
+    border-color: #6b7280;
+  }
 </style>
 
 <section class="abonados-shell">
@@ -273,6 +323,26 @@
     </div>
   </form>
 
+  <div class="dias-filter-wrap">
+    <div class="dias-filter">
+      <a href="?q={{ busqueda }}&mostrar={{ mostrar }}&dia=hoy"
+         class="dia-chip hoy-chip {% if not request.GET.dia or request.GET.dia == 'hoy' %}active{% endif %}">
+        <i class="bi bi-sun me-1"></i>Hoy
+      </a>
+      <a href="?q={{ busqueda }}&mostrar={{ mostrar }}&dia=todos"
+         class="dia-chip todos-chip {% if request.GET.dia == 'todos' %}active{% endif %}">
+        Todos
+      </a>
+      {% for item in dias_semana %}
+        <a href="?q={{ busqueda }}&mostrar={{ mostrar }}&dia={{ item.dia.nombre }}"
+           class="dia-chip {% if dia_filtro == item.dia.nombre and request.GET.dia != 'hoy' and request.GET.dia != 'todos' %}active{% endif %}
+                           {% if dia_hoy == item.dia.nombre %}{% if not request.GET.dia or request.GET.dia == 'hoy' %}active{% endif %}{% endif %}">
+          {{ item.abrev }}
+        </a>
+      {% endfor %}
+    </div>
+  </div>
+
   {% if abonados.paginator.count %}
     <div class="mb-2 d-flex justify-content-end">
       <span class="results-badge">
@@ -297,6 +367,14 @@
               {% else %}
                 <span class="badge-state archived">Archivado</span>
               {% endif %}
+              {% with ab_dias=ab.dias.all %}
+                {% if ab_dias %}
+                  <span style="color:var(--primary);font-size:.75rem;">
+                    <i class="bi bi-calendar3"></i>
+                    {% for d in ab_dias %}{{ d.nombre }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                  </span>
+                {% endif %}
+              {% endwith %}
             </div>
           </div>
           <div class="abonado-actions">
@@ -308,6 +386,15 @@
             <a href="{% url 'abonado_editar' ab.pk %}" class="icon-btn" title="Editar" aria-label="Editar">
               <i class="bi bi-pencil"></i>
             </a>
+            <button type="button"
+                    class="icon-btn icon-delete"
+                    title="Eliminar"
+                    aria-label="Eliminar"
+                    data-pk="{{ ab.pk }}"
+                    data-nombre="{{ ab.nombre }}"
+                    onclick="abrirModalBorrar(this)">
+              <i class="bi bi-trash3"></i>
+            </button>
           </div>
         </li>
       {% endfor %}
@@ -339,16 +426,55 @@
 
   {% if abonados.has_other_pages %}
     <nav class="pagination-wrap" aria-label="Paginación">
-      <a href="?page={{ abonados.previous_page_number|default:1 }}&q={{ busqueda }}&mostrar={{ mostrar }}"
+      <a href="?page={{ abonados.previous_page_number|default:1 }}&q={{ busqueda }}&mostrar={{ mostrar }}&dia={{ request.GET.dia|default:'hoy' }}"
          class="page-btn {% if not abonados.has_previous %}disabled{% endif %}">
         <i class="bi bi-chevron-left"></i> Anterior
       </a>
       <span class="page-info"><strong>{{ abonados.number }}</strong> / {{ abonados.paginator.num_pages }}</span>
-      <a href="?page={{ abonados.next_page_number|default:abonados.paginator.num_pages }}&q={{ busqueda }}&mostrar={{ mostrar }}"
+      <a href="?page={{ abonados.next_page_number|default:abonados.paginator.num_pages }}&q={{ busqueda }}&mostrar={{ mostrar }}&dia={{ request.GET.dia|default:'hoy' }}"
          class="page-btn {% if not abonados.has_next %}disabled{% endif %}">
         Siguiente <i class="bi bi-chevron-right"></i>
       </a>
     </nav>
   {% endif %}
 </section>
+<div class="modal fade" id="modalBorrar" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content" style="border:none;border-radius:16px;overflow:hidden;box-shadow:0 20px 50px rgba(15,23,42,.18);">
+      <div class="modal-header" style="background:#ef4444;border:none;padding:.9rem 1.1rem;">
+        <h5 class="modal-title d-flex align-items-center gap-2" style="color:#fff;font-size:.95rem;font-weight:700;">
+          <i class="bi bi-trash3-fill"></i> Eliminar abonado
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" style="padding:1.1rem 1.25rem;">
+        <p style="margin:0;font-size:.9rem;color:#374151;">
+          ¿Seguro que quieres eliminar a <strong id="modalBorrarNombre"></strong>?
+          Esta acción <strong>no se puede deshacer</strong> y borrará todo su historial.
+        </p>
+      </div>
+      <div class="modal-footer" style="border:none;padding:.75rem 1.1rem;background:#f8fafc;gap:.5rem;">
+        <button type="button" class="btn btn-modal-cancel" data-bs-dismiss="modal"
+                style="display:inline-flex;align-items:center;gap:.3rem;background:#fff;color:#6b7280;border:1.5px solid #e5e7eb;border-radius:10px;padding:.5rem .9rem;font-weight:600;font-size:.88rem;">
+          <i class="bi bi-x"></i> Cancelar
+        </button>
+        <form id="formBorrar" method="post" action="" style="display:inline;">
+          {% csrf_token %}
+          <button type="submit"
+                  style="display:inline-flex;align-items:center;gap:.3rem;background:#ef4444;color:#fff;border:none;border-radius:10px;padding:.5rem 1rem;font-weight:700;font-size:.88rem;">
+            <i class="bi bi-trash3"></i> Sí, eliminar
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function abrirModalBorrar(btn) {
+  document.getElementById('modalBorrarNombre').textContent = btn.dataset.nombre;
+  document.getElementById('formBorrar').action = '/abonados/' + btn.dataset.pk + '/borrar/';
+  new bootstrap.Modal(document.getElementById('modalBorrar')).show();
+}
+</script>
 {% endblock %}

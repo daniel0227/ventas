@@ -278,6 +278,37 @@
   .btn-save-form:hover { background: var(--primary-dark); color: #fff; }
   .btn-save-form:active { transform: scale(.98); }
 
+  /* Toggles de días */
+  .dias-hint { color: var(--muted); font-size: .82rem; margin: 0 0 .85rem; }
+  .dias-toggles {
+    display: flex;
+    gap: .45rem;
+    flex-wrap: wrap;
+  }
+  .dia-toggle-input { display: none; }
+  .dia-toggle-label {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    border-radius: 999px;
+    border: 1.5px solid var(--border);
+    background: #fff;
+    font-size: .82rem;
+    font-weight: 700;
+    cursor: pointer;
+    color: var(--muted);
+    transition: background .15s, color .15s, border-color .15s;
+    user-select: none;
+  }
+  .dia-toggle-input:checked + .dia-toggle-label {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+  }
+  .dia-toggle-label:hover { border-color: var(--primary); color: var(--primary); }
+
   /* Tablet/desktop: dos columnas en datos del abonado */
   @media (min-width: 576px) {
     .row-2col {
@@ -383,6 +414,24 @@
 
     <div class="ab-card">
       <div class="ab-card-head">
+        <h3 class="ab-card-title"><i class="bi bi-calendar-week"></i>Días activos</h3>
+      </div>
+      <p class="dias-hint">Selecciona los días en que juega este abonado. Si no marcas ninguno, aparece todos los días.</p>
+      <div class="dias-toggles">
+        {% for item in dias_semana %}
+          <input type="checkbox"
+                 id="dia-{{ item.dia.pk }}"
+                 name="dias"
+                 value="{{ item.dia.pk }}"
+                 class="dia-toggle-input"
+                 {% if item.dia.pk in dias_seleccionados %}checked{% endif %}>
+          <label for="dia-{{ item.dia.pk }}" class="dia-toggle-label">{{ item.abrev }}</label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="ab-card">
+      <div class="ab-card-head">
         <h3 class="ab-card-title"><i class="bi bi-table"></i>Jugadas guardadas</h3>
       </div>
       <p class="ab-card-hint">
@@ -419,16 +468,10 @@
                 <span class="combi-ui"></span>
                 <span>Combinado</span>
               </label>
-              {% if sub.instance.pk %}
-                <input type="checkbox" name="{{ sub.DELETE.html_name }}" class="delete-hidden d-none">
-                <button type="button" class="remove-empty-btn remove-existing-btn" title="Quitar jugada" aria-label="Quitar jugada">
-                  <i class="bi bi-x-lg"></i>
-                </button>
-              {% else %}
-                <button type="button" class="remove-empty-btn" title="Quitar fila" aria-label="Quitar fila">
-                  <i class="bi bi-x-lg"></i>
-                </button>
-              {% endif %}
+              <input type="checkbox" name="{{ sub.DELETE.html_name }}" class="delete-hidden d-none">
+              <button type="button" class="remove-empty-btn {% if sub.instance.pk %}remove-existing-btn{% endif %}" title="Quitar jugada" aria-label="Quitar jugada">
+                <i class="bi bi-x-lg"></i>
+              </button>
             </div>
           </div>
         {% endfor %}
@@ -505,10 +548,11 @@
 
     // Extraer cada campo del empty_form
     const numeroEl = extractField(html, 'numero');
-    const montoEl = extractField(html, 'monto');
-    const combiEl = extractField(html, 'es_combinado');
-    const ordenEl = extractField(html, 'orden');
-    const idEl = extractField(html, 'id');
+    const montoEl  = extractField(html, 'monto');
+    const combiEl  = extractField(html, 'es_combinado');
+    const ordenEl  = extractField(html, 'orden');
+    const idEl     = extractField(html, 'id');
+    const deleteEl = tweakInput(extractField(html, 'DELETE'), { class: 'delete-hidden d-none' });
 
     const card = document.createElement('div');
     card.className = 'jugada-card';
@@ -530,6 +574,7 @@
           <span class="combi-ui"></span>
           <span>Combinado</span>
         </label>
+        ${deleteEl}
         <button type="button" class="remove-empty-btn" title="Quitar" aria-label="Quitar">
           <i class="bi bi-x-lg"></i>
         </button>

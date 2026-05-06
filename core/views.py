@@ -47,6 +47,24 @@ import re
 VENTA_CIERRE_BUFFER_SEGUNDOS = int(getattr(settings, "VENTA_CIERRE_BUFFER_SEGUNDOS", 30))
 GRUPO_DESCARGUE = "descargue"
 GRUPO_ABONADO = "abonos"
+
+_DIAS_SEMANA_CONFIG = [
+    {'nombre': 'Lunes',     'abrev': 'Lun'},
+    {'nombre': 'Martes',    'abrev': 'Mar'},
+    {'nombre': 'Miércoles', 'abrev': 'Mié'},
+    {'nombre': 'Jueves',    'abrev': 'Jue'},
+    {'nombre': 'Viernes',   'abrev': 'Vie'},
+    {'nombre': 'Sábado',    'abrev': 'Sáb'},
+    {'nombre': 'Domingo',   'abrev': 'Dom'},
+]
+
+def _get_dias_semana():
+    dias_db = {d.nombre: d for d in Dia.objects.all()}
+    return [
+        {'dia': dias_db[cfg['nombre']], 'abrev': cfg['abrev']}
+        for cfg in _DIAS_SEMANA_CONFIG
+        if cfg['nombre'] in dias_db
+    ]
 DESCARGUE_CARGA_MASIVA_MAX_FILAS = 500
 DESCARGUE_CARGA_MASIVA_LINE_RE = re.compile(
     r"^\s*(?P<numero>\d+)\s*-\s*(?P<monto>[\d\.,\s$]+)\s*$"
@@ -2211,10 +2229,17 @@ def abonados_list(request):
     busqueda = (request.GET.get("q") or "").strip()
     mostrar = request.GET.get("mostrar", "activos")
 
+    _, dia_actual_obj, _ = _loterias_disponibles_hoy()
+    dia_hoy = dia_actual_obj.nombre if dia_actual_obj else None
+    dia_filtro = request.GET.get("dia", "hoy")
+    if dia_filtro == "hoy":
+        dia_filtro = dia_hoy or "todos"
+
     abonados_qs = (
         Abonado.objects
         .filter(vendedor=request.user)
-        .annotate(num_jugadas=Count("jugadas"))
+        .prefetch_related("dias")
+        .annotate(num_jugadas=Count("jugadas", distinct=True))
     )
     if mostrar == "activos":
         abonados_qs = abonados_qs.filter(activo=True)
@@ -2222,15 +2247,30 @@ def abonados_list(request):
         abonados_qs = abonados_qs.filter(activo=False)
     if busqueda:
         abonados_qs = abonados_qs.filter(nombre__icontains=busqueda)
+
+    if dia_filtro != "todos":
+        ids_con_algun_dia = set(
+            Abonado.objects.filter(vendedor=request.user, dias__isnull=False)
+            .values_list("id", flat=True)
+        )
+        abonados_qs = abonados_qs.filter(
+            Q(dias__nombre=dia_filtro) | ~Q(id__in=ids_con_algun_dia)
+        ).distinct()
+
     abonados_qs = abonados_qs.order_by("nombre")
 
     paginator = Paginator(abonados_qs, 25)
     page_obj = paginator.get_page(request.GET.get("page"))
 
+    dias_semana = _get_dias_semana()
+
     return render(request, "core/abonados/abonados_list.html", {
         "abonados": page_obj,
         "busqueda": busqueda,
         "mostrar": mostrar,
+        "dia_filtro": dia_filtro,
+        "dia_hoy": dia_hoy,
+        "dias_semana": dias_semana,
     })
 
 
@@ -2253,6 +2293,7 @@ def abonado_crear(request):
                     instancia = form.save(commit=False)
                     instancia.vendedor = request.user
                     instancia.save()
+                    instancia.dias.set(request.POST.getlist("dias"))
                     formset.instance = instancia
                     formset.save()
                 messages.success(request, f"Abonado '{instancia.nombre}' creado correctamente.")
@@ -2263,10 +2304,14 @@ def abonado_crear(request):
         form = AbonadoForm(instance=abonado, vendedor=request.user)
         formset = JugadaAbonadoFormSet(instance=abonado)
 
+    dias_semana = _get_dias_semana()
+
     return render(request, "core/abonados/abonado_form.html", {
         "form": form,
         "formset": formset,
         "modo": "crear",
+        "dias_semana": dias_semana,
+        "dias_seleccionados": set(),
     })
 
 
@@ -2286,6 +2331,7 @@ def abonado_editar(request, pk):
             try:
                 with transaction.atomic():
                     form.save()
+                    abonado.dias.set(request.POST.getlist("dias"))
                     formset.save()
                 messages.success(request, "Abonado actualizado.")
                 return redirect("abonado_detalle", pk=abonado.pk)
@@ -2295,11 +2341,16 @@ def abonado_editar(request, pk):
         form = AbonadoForm(instance=abonado, vendedor=request.user)
         formset = JugadaAbonadoFormSet(instance=abonado)
 
+    dias_semana = _get_dias_semana()
+    dias_seleccionados = set(abonado.dias.values_list("id", flat=True))
+
     return render(request, "core/abonados/abonado_form.html", {
         "form": form,
         "formset": formset,
         "abonado": abonado,
         "modo": "editar",
+        "dias_semana": dias_semana,
+        "dias_seleccionados": dias_seleccionados,
     })
 
 
@@ -2345,6 +2396,20 @@ def abonado_eliminar(request, pk):
     abonado.activo = False
     abonado.save(update_fields=["activo", "actualizado_en"])
     messages.success(request, f"Abonado '{abonado.nombre}' archivado.")
+    return redirect("abonados_list")
+
+
+@login_required
+@require_http_methods(["POST"])
+def abonado_borrar(request, pk):
+    abonado = _abonado_propio(request, pk)
+    if _es_descargue(request.user):
+        return redirect("mis_descargues")
+    if not _es_abonado(request.user):
+        return redirect("home")
+    nombre = abonado.nombre
+    abonado.delete()
+    messages.success(request, f"Abonado '{nombre}' eliminado.")
     return redirect("abonados_list")
 
 

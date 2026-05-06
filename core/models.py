@@ -507,6 +507,12 @@ class Abonado(models.Model):
     )
     nombre = models.CharField(max_length=100)
     telefono = models.CharField(max_length=30, blank=True)
+    dias = models.ManyToManyField(
+        'Dia',
+        blank=True,
+        related_name='abonados_activos',
+        verbose_name='Días activos',
+    )
     activo = models.BooleanField(default=True, db_index=True)
     creado_en = models.DateTimeField(auto_now_add=True)
     actualizado_en = models.DateTimeField(auto_now=True)
