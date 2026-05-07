@@ -33,6 +33,7 @@ from .forms import VentaForm, AbonadoForm, JugadaAbonadoFormSet
 from django.core.paginator import Paginator
 from pytz import timezone as pytz_timezone
 from django.views.decorators.http import require_http_methods
+from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import get_user_model
 from django.utils.decorators import method_decorator
 from django_ratelimit.decorators import ratelimit
@@ -1550,6 +1551,7 @@ def reporte_descargas(request):
 def login_required_view(request):
     return render(request, 'core/login_required.html')
 
+@csrf_exempt
 @ratelimit(key='ip', rate='30/h', block=False)
 def importar_resultados_api(request):
     """
