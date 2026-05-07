@@ -1572,7 +1572,15 @@ def importar_resultados_api(request):
     if not hmac.compare_digest(token_recibido, token_esperado):
         return JsonResponse({"error": "No autorizado"}, status=401)
 
-    fecha_objetivo = localtime(now()).date() - timedelta(days=1)
+    fecha_param = request.POST.get("fecha") or request.GET.get("fecha")
+    if fecha_param:
+        try:
+            from datetime import date as date_type
+            fecha_objetivo = date_type.fromisoformat(fecha_param)
+        except ValueError:
+            return JsonResponse({"error": "Formato de fecha inválido. Use YYYY-MM-DD"}, status=400)
+    else:
+        fecha_objetivo = localtime(now()).date()
 
     import_user = getattr(django_settings, "IMPORT_RESULT_USER", "daniel")
     User = get_user_model()
@@ -1582,7 +1590,7 @@ def importar_resultados_api(request):
         return JsonResponse({"error": f"Usuario '{import_user}' no encontrado"}, status=500)
 
     resultado = importar_resultados(fecha_objetivo, user=user)
-    return JsonResponse({"resultado": resultado}, status=200)
+    return JsonResponse({"resultado": resultado, "fecha": fecha_objetivo.isoformat()}, status=200)
 
 
 def importar_resultados_via_get(request):
