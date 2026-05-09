@@ -326,7 +326,6 @@
       hour: '2-digit', minute: '2-digit', hour12: false
     }).replace(',', ' -');
     let mensaje = `${fechaFormateada}\n\n`;
-    if (abonado) mensaje += `*Abonado:* ${abonado}\n`;
     mensaje += `*Codigo:* ${codigo}\n`;
     mensaje += `*Loterias:* ${loterias.join(', ')}\n\n`;
     mensaje += `*Apuesta:*\n`;

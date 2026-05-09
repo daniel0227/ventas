@@ -291,6 +291,15 @@
     background: #6b7280;
     border-color: #6b7280;
   }
+  .dia-chip.libre-chip.active {
+    background: #f59e0b;
+    border-color: #f59e0b;
+  }
+  .dia-chip.libre-chip:hover {
+    background: #fef3c7;
+    border-color: #fbbf24;
+    color: #92400e;
+  }
 </style>
 
 <section class="abonados-shell">
@@ -335,11 +344,15 @@
       </a>
       {% for item in dias_semana %}
         <a href="?q={{ busqueda }}&mostrar={{ mostrar }}&dia={{ item.dia.nombre }}"
-           class="dia-chip {% if dia_filtro == item.dia.nombre and request.GET.dia != 'hoy' and request.GET.dia != 'todos' %}active{% endif %}
+           class="dia-chip {% if dia_filtro == item.dia.nombre and request.GET.dia != 'hoy' and request.GET.dia != 'todos' and request.GET.dia != 'libre' %}active{% endif %}
                            {% if dia_hoy == item.dia.nombre %}{% if not request.GET.dia or request.GET.dia == 'hoy' %}active{% endif %}{% endif %}">
           {{ item.abrev }}
         </a>
       {% endfor %}
+      <a href="?q={{ busqueda }}&mostrar={{ mostrar }}&dia=libre"
+         class="dia-chip libre-chip {% if request.GET.dia == 'libre' %}active{% endif %}">
+        <i class="bi bi-shuffle me-1"></i>Libre
+      </a>
     </div>
   </div>
 

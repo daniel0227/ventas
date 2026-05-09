@@ -2327,14 +2327,14 @@ def abonados_list(request):
     if busqueda:
         abonados_qs = abonados_qs.filter(nombre__icontains=busqueda)
 
-    if dia_filtro != "todos":
+    if dia_filtro == "libre":
         ids_con_algun_dia = set(
             Abonado.objects.filter(vendedor=request.user, dias__isnull=False)
             .values_list("id", flat=True)
         )
-        abonados_qs = abonados_qs.filter(
-            Q(dias__nombre=dia_filtro) | ~Q(id__in=ids_con_algun_dia)
-        ).distinct()
+        abonados_qs = abonados_qs.exclude(id__in=ids_con_algun_dia)
+    elif dia_filtro != "todos":
+        abonados_qs = abonados_qs.filter(dias__nombre=dia_filtro).distinct()
 
     abonados_qs = abonados_qs.order_by("nombre")
 
