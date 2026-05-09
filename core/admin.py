@@ -11,6 +11,7 @@ from .models import (
     Premio,
     VentaAuditLog,
     ConfiguracionVenta,
+    LimiteVendedor,
     Abonado,
     JugadaAbonado,
     AbonadoApuesta,
@@ -227,6 +228,7 @@ class PremioAdmin(admin.ModelAdmin):
     list_filter = ("fecha", "loteria", "cifras")
     search_fields = ("numero", "vendedor__username", "vendedor__first_name", "vendedor__last_name")
     list_select_related = ("loteria", "vendedor", "venta")
+    actions = ["delete_selected"]
     readonly_fields = (
         "fecha", "loteria", "vendedor", "venta", "venta_descargue",
         "numero", "valor", "cifras", "premio", "es_combinado",
@@ -240,7 +242,13 @@ class PremioAdmin(admin.ModelAdmin):
         return request.user.is_staff
 
     def has_delete_permission(self, request, obj=None):
-        return False
+        return request.user.is_superuser
+
+    def get_actions(self, request):
+        actions = super().get_actions(request)
+        if not request.user.is_superuser:
+            actions.pop("delete_selected", None)
+        return actions
 
 
 @admin.register(VentaAuditLog)
@@ -278,6 +286,36 @@ class ConfiguracionVentaAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+
+# --- Límite de vendedor ---
+@admin.register(LimiteVendedor)
+class LimiteVendedorAdmin(admin.ModelAdmin):
+    list_display = ("usuario", "limite_diario_fmt", "activo", "actualizado_en")
+    list_filter = ("activo",)
+    search_fields = ("usuario__username", "usuario__first_name", "usuario__last_name")
+    autocomplete_fields = ("usuario",)
+    list_select_related = ("usuario",)
+    readonly_fields = ("creado_en", "actualizado_en")
+    fields = ("usuario", "limite_diario", "activo", "creado_en", "actualizado_en")
+
+    @admin.display(description="Límite diario")
+    def limite_diario_fmt(self, obj):
+        if not obj.limite_diario:
+            return "Sin límite"
+        return f"${obj.limite_diario:,}".replace(",", ".")
+
+    def has_add_permission(self, request):
+        return request.user.is_superuser
+
+    def has_change_permission(self, request, obj=None):
+        return request.user.is_superuser
+
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_superuser
+
+    def has_view_permission(self, request, obj=None):
+        return request.user.is_superuser
 
 
 # --- Abonados ---

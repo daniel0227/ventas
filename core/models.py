@@ -267,6 +267,7 @@ class VentaAuditLog(models.Model):
     EVENT_SALE_DELETE_BLOCKED = "sale.delete_blocked"
     EVENT_SALE_LOTTERIES_CHANGE_ALLOWED = "sale.lotteries_change_allowed"
     EVENT_SALE_LOTTERIES_CHANGE_BLOCKED = "sale.lotteries_change_blocked"
+    EVENT_SALE_USER_LIMIT_EXCEEDED = "sale.user_limit_exceeded"
 
     EVENT_CHOICES = [
         (EVENT_CREATE_ATTEMPT, "Sale Create Attempt"),
@@ -278,6 +279,7 @@ class VentaAuditLog(models.Model):
         (EVENT_SALE_DELETE_BLOCKED, "Sale Delete Blocked"),
         (EVENT_SALE_LOTTERIES_CHANGE_ALLOWED, "Sale Lotteries Change Allowed"),
         (EVENT_SALE_LOTTERIES_CHANGE_BLOCKED, "Sale Lotteries Change Blocked"),
+        (EVENT_SALE_USER_LIMIT_EXCEEDED, "Sale User Daily Limit Exceeded"),
     ]
 
     venta = models.ForeignKey("Venta", on_delete=models.SET_NULL, related_name="audit_logs", null=True, blank=True)
@@ -453,6 +455,46 @@ class Premio(models.Model):
 
     def __str__(self):
         return f'{self.fecha} • {self.loteria} • {self.vendedor} • {self.numero} = {self.premio}'
+
+
+class LimiteVendedor(models.Model):
+    """Límite diario de ventas acumuladas para un vendedor específico."""
+    usuario = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="limite_vendedor",
+        verbose_name="Usuario",
+    )
+    limite_diario = models.PositiveIntegerField(
+        default=0,
+        verbose_name="Límite diario",
+        help_text="Tope de venta acumulada en el día (suma de montos × loterías). 0 = sin límite.",
+    )
+    activo = models.BooleanField(default=True, verbose_name="Activo")
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Límite de vendedor"
+        verbose_name_plural = "Límites de vendedores"
+
+    def __str__(self):
+        estado = "activo" if self.activo else "inactivo"
+        if self.limite_diario:
+            return f"{self.usuario} — ${self.limite_diario:,} / día ({estado})".replace(",", ".")
+        return f"{self.usuario} — sin límite ({estado})"
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        from django.core.cache import cache
+        cache.delete(f"limite_vendedor_{self.usuario_id}")
+
+    def delete(self, *args, **kwargs):
+        from django.core.cache import cache
+        cache.delete(f"limite_vendedor_{self.usuario_id}")
+        return super().delete(*args, **kwargs)
+
+
 class Notificacion(models.Model):
     TIPO_INFO = "info"
     TIPO_EXITO = "exito"

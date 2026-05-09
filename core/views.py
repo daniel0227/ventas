@@ -17,6 +17,7 @@ from .models import (
     Premio,
     VentaAuditLog,
     ConfiguracionVenta,
+    LimiteVendedor,
     Notificacion,
     Abonado,
     JugadaAbonado,
@@ -261,6 +262,27 @@ def _obtener_limite_apuesta_por_numero() -> int:
             .first() or 0
         )
         cache.set(_LIMITE_CACHE_KEY, valor, _LIMITE_CACHE_TTL)
+    return valor
+
+
+_LIMITE_VENDEDOR_CACHE_TTL = 300  # 5 minutos
+
+
+def _obtener_limite_vendedor(user_id) -> int:
+    """Retorna el límite diario activo del vendedor, o 0 si no tiene límite configurado."""
+    from django.core.cache import cache
+    from django.db.utils import OperationalError, ProgrammingError
+    cache_key = f"limite_vendedor_{user_id}"
+    valor = cache.get(cache_key)
+    if valor is None:
+        try:
+            lim = LimiteVendedor.objects.get(usuario_id=user_id, activo=True)
+            valor = lim.limite_diario
+        except LimiteVendedor.DoesNotExist:
+            valor = 0
+        except (OperationalError, ProgrammingError):
+            return 0
+        cache.set(cache_key, valor, _LIMITE_VENDEDOR_CACHE_TTL)
     return valor
 
 
@@ -786,6 +808,36 @@ def crear_venta(request):
                                     return JsonResponse({'success': False, 'error': error_msg}, status=400)
                                 acumulado_nuevo[key] += monto_jugada
 
+                # --- Validación de límite diario por vendedor ---
+                limite_diario_vendedor = _obtener_limite_vendedor(request.user.id)
+                if limite_diario_vendedor > 0:
+                    total_hoy = int(
+                        Venta.objects
+                        .filter(vendedor=request.user, fecha_venta__date=ahora_tx.date())
+                        .aggregate(total=Sum("monto"))["total"] or 0
+                    )
+                    nuevo_total_venta = sum(j["monto"] for j in jugadas_validadas) * loterias_count
+                    if total_hoy + nuevo_total_venta > limite_diario_vendedor:
+                        disponible = max(limite_diario_vendedor - total_hoy, 0)
+                        error_msg = (
+                            f"Límite diario de ventas alcanzado (${limite_diario_vendedor:,} COP). "
+                            f"Llevas ${total_hoy:,} vendidos hoy y esta venta suma ${nuevo_total_venta:,}. "
+                            f"Disponible: ${disponible:,} COP."
+                        ).replace(",", ".")
+                        _audit_sale_event(
+                            request,
+                            VentaAuditLog.EVENT_SALE_USER_LIMIT_EXCEEDED,
+                            VentaAuditLog.STATUS_REJECTED,
+                            message="Venta rechazada por límite diario del vendedor.",
+                            payload={
+                                "limite_diario": limite_diario_vendedor,
+                                "total_hoy": total_hoy,
+                                "nuevo_total": nuevo_total_venta,
+                                "disponible": disponible,
+                            },
+                        )
+                        return JsonResponse({"success": False, "error": error_msg}, status=400)
+
                 ventas_creadas = []
                 for jugada in jugadas_validadas:
                     venta = Venta.objects.create(
@@ -879,16 +931,33 @@ def crear_venta(request):
             }
         }, status=201)
     # ======================= GET ==========================
+    limite_diario_vendedor = _obtener_limite_vendedor(request.user.id)
+    total_ventas_hoy = 0
+    disponible_hoy = 0
+    cerca_del_limite = False
+    if limite_diario_vendedor > 0:
+        total_ventas_hoy = int(
+            Venta.objects
+            .filter(vendedor=request.user, fecha_venta__date=ahora.date())
+            .aggregate(total=Sum("monto"))["total"] or 0
+        )
+        disponible_hoy = max(limite_diario_vendedor - total_ventas_hoy, 0)
+        cerca_del_limite = disponible_hoy > 0 and disponible_hoy < (limite_diario_vendedor * 0.2)
+
     return render(
         request,
         'core/ventas.html',
         {
-            'loterias':            loterias,
-            'dia_actual_nombre':   dia_actual_nombre_es,
-            'fecha_actual':        ahora.date(),
-            'current_time':        ahora.time(),
-            'es_festivo':          es_festivo,
-            'desc_festivo':        desc_festivo,
+            'loterias':                 loterias,
+            'dia_actual_nombre':        dia_actual_nombre_es,
+            'fecha_actual':             ahora.date(),
+            'current_time':             ahora.time(),
+            'es_festivo':               es_festivo,
+            'desc_festivo':             desc_festivo,
+            'limite_diario_vendedor':   limite_diario_vendedor,
+            'total_ventas_hoy':         total_ventas_hoy,
+            'disponible_hoy':           disponible_hoy,
+            'cerca_del_limite':         cerca_del_limite,
         }
     )
 
