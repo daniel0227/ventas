@@ -633,6 +633,60 @@ class AbonadoApuesta(models.Model):
         return f"{self.abonado.nombre} - {self.fecha} - ${self.total:,}"
 
 
+class PersonaDescargue(models.Model):
+    """Persona destinataria del descargue (reparto) de numeros muy apostados."""
+    nombre = models.CharField(max_length=100, unique=True)
+    telefono = models.CharField(max_length=30, blank=True)
+    orden = models.PositiveSmallIntegerField(
+        unique=True,
+        help_text="Orden de cascada. 1 = primera en absorber.",
+    )
+    recibe_restante = models.BooleanField(
+        default=False,
+        help_text="Si esta activo, absorbe TODO el saldo que sobre tras la cascada (independiente de sus reglas).",
+    )
+    activo = models.BooleanField(default=True, db_index=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("orden",)
+        verbose_name = "Persona de descargue"
+        verbose_name_plural = "Personas de descargue"
+
+    def __str__(self):
+        return f"{self.orden}. {self.nombre}"
+
+
+class ReglaDescargue(models.Model):
+    """Tope que una persona absorbe por numero segun cantidad de cifras."""
+    persona = models.ForeignKey(
+        PersonaDescargue,
+        on_delete=models.CASCADE,
+        related_name="reglas",
+    )
+    cifras = models.PositiveSmallIntegerField(
+        help_text="Cantidad de cifras del numero (ej. 3 o 4).",
+    )
+    monto_maximo = models.PositiveIntegerField(
+        help_text="Maximo que absorbe por cada numero de esa cantidad de cifras.",
+    )
+
+    class Meta:
+        ordering = ("cifras",)
+        verbose_name = "Regla de descargue"
+        verbose_name_plural = "Reglas de descargue"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["persona", "cifras"],
+                name="uniq_regla_por_persona_cifras",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.persona.nombre} - {self.cifras} cifras / ${self.monto_maximo:,}"
+
+
 def _safe_create_venta_audit_log(
     event_type,
     status,

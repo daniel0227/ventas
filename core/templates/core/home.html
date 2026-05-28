@@ -169,6 +169,20 @@
         </a>
       </div>
 
+      <div class="col-12 col-sm-6 col-xl-3">
+        <a href="{% url 'descargues_por_persona' %}" class="menu-link">
+          <article class="card menu-card menu-card-downloads h-100">
+            <div class="card-body menu-item">
+              <picture>
+                <source srcset="{% static 'core/img/descargues.webp' %}" type="image/webp">
+                <img src="{% static 'core/img/descargues.png' %}" alt="" class="menu-icon" aria-hidden="true">
+              </picture>
+              <h3 class="menu-label">Descargues por Persona</h3>
+            </div>
+          </article>
+        </a>
+      </div>
+
       {% if user.is_superuser %}
         <div class="col-12 col-sm-6 col-xl-3">
           <article class="card menu-card menu-card-reports-group h-100">

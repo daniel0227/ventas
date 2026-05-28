@@ -22,6 +22,7 @@ from .models import (
     Abonado,
     JugadaAbonado,
     AbonadoApuesta,
+    PersonaDescargue,
     _safe_create_venta_audit_log,
 )
 from django.db import transaction, IntegrityError
@@ -1616,6 +1617,177 @@ def reporte_descargas(request):
         'total_apuestas': total_apuestas,
         'loterias_unicas': loterias_unicas,
     })
+
+
+# ══════════════════════════════════════════════════════════════════════
+# Descargues por persona (reparto en cascada)
+# ══════════════════════════════════════════════════════════════════════
+
+def _calcular_descargue_persona(personas, reglas_por_persona, monto_total, cifras):
+    """
+    Reparte `monto_total` (de un numero de `cifras` cifras) entre `personas` en orden.
+    `personas` es una lista de PersonaDescargue ya ordenada por `orden`.
+    `reglas_por_persona` es {persona_id: {cifras: monto_maximo}}.
+    Devuelve {persona_id: monto_absorbido} (solo personas que absorbieron > 0).
+    """
+    asignaciones = {}
+    restante = monto_total
+    total_personas = len(personas)
+
+    for idx, persona in enumerate(personas):
+        if restante <= 0:
+            break
+
+        es_ultima = (idx == total_personas - 1)
+
+        if persona.recibe_restante and es_ultima:
+            asignaciones[persona.id] = restante
+            restante = 0
+            break
+
+        tope = reglas_por_persona.get(persona.id, {}).get(cifras)
+        if not tope:
+            continue
+
+        a_absorber = min(restante, tope)
+        if a_absorber > 0:
+            asignaciones[persona.id] = a_absorber
+            restante -= a_absorber
+
+    return asignaciones
+
+
+def _construir_mensaje_whatsapp(persona, bloques_loteria, fecha):
+    """Arma el texto plano que se copia para WhatsApp."""
+    fecha_str = fecha.strftime("%d/%m/%Y")
+    lineas = [f"*Descargue {fecha_str} — {persona.nombre}*", ""]
+    total_general = 0
+
+    for nombre_loteria, items in bloques_loteria:
+        lineas.append(nombre_loteria.upper())
+        subtotal = 0
+        for numero, monto in items:
+            lineas.append(f"{numero} - {monto}")
+            subtotal += monto
+        lineas.append(f"Subtotal: {subtotal}")
+        lineas.append("")
+        total_general += subtotal
+
+    lineas.append(f"*Total: {total_general}*")
+    return "\n".join(lineas), total_general
+
+
+@user_passes_test(lambda u: u.is_staff)
+@login_required
+def descargues_por_persona(request):
+    """
+    Reporte que toma los numeros apostados del dia y los reparte en cascada
+    entre las PersonaDescargue activas segun sus reglas por cifras.
+    """
+    fecha_param = request.GET.get('fecha')
+    hoy = timezone.localtime(timezone.now()).date()
+    try:
+        fecha = datetime.strptime(fecha_param, '%Y-%m-%d').date() if fecha_param else hoy
+    except ValueError:
+        fecha = hoy
+
+    loteria_id = (request.GET.get('loteria') or '').strip()
+
+    # ── Personas activas en orden ─────────────────
+    personas = list(
+        PersonaDescargue.objects
+        .filter(activo=True)
+        .prefetch_related('reglas')
+        .order_by('orden')
+    )
+
+    reglas_por_persona = {
+        p.id: {r.cifras: r.monto_maximo for r in p.reglas.all()}
+        for p in personas
+    }
+
+    # ── Filtros laterales ─────────────────────────
+    loterias_disponibles = Loteria.objects.order_by('nombre')
+
+    # ── Datos del dia (mismo query que reporte_descargas) ──
+    base = (
+        Venta.objects
+        .filter(fecha_venta__date=fecha)
+        .annotate(numero_clean=Trim('numero'))
+        .exclude(Q(numero_clean__isnull=True) | Q(numero_clean=''))
+        .exclude(loterias__isnull=True)
+    )
+    if loteria_id:
+        base = base.filter(loterias__id=loteria_id)
+
+    data_loterias = list(
+        base.values('loterias__nombre', 'loterias__id', 'numero_clean')
+            .annotate(total_ventas=Coalesce(Sum('monto'), 0, output_field=IntegerField()))
+            .order_by('loterias__nombre', 'numero_clean')
+    )
+
+    # ── Aplicar cascada ───────────────────────────
+    # estructura: {persona_id: {loteria_nombre: [(numero, monto), ...]}}
+    asignados = {p.id: {} for p in personas}
+
+    for row in data_loterias:
+        numero = row['numero_clean']
+        monto = row['total_ventas']
+        loteria_nombre = row['loterias__nombre']
+        if not numero or monto <= 0:
+            continue
+        cifras = len(numero)
+
+        asignaciones = _calcular_descargue_persona(
+            personas, reglas_por_persona, monto, cifras
+        )
+        for persona_id, monto_abs in asignaciones.items():
+            asignados[persona_id].setdefault(loteria_nombre, []).append((numero, monto_abs))
+
+    # ── Construir resultado por persona ───────────
+    resultado_personas = []
+    for persona in personas:
+        # bloques_raw: [(loteria, [(num, monto), ...]), ...]
+        # filtra montos en 0 y ordena cada bloque por monto descendente
+        bloques_raw = []
+        for nombre_lot, items in sorted(asignados[persona.id].items()):
+            items_filtrados = sorted(
+                ((n, m) for n, m in items if m > 0),
+                key=lambda x: (-x[1], x[0]),
+            )
+            if items_filtrados:
+                bloques_raw.append((nombre_lot, items_filtrados))
+
+        bloques = [
+            {
+                'loteria': nombre_lot,
+                'items': items,
+                'subtotal': sum(m for _, m in items),
+            }
+            for nombre_lot, items in bloques_raw
+        ]
+        if not bloques_raw:
+            mensaje, total = "", 0
+        else:
+            mensaje, total = _construir_mensaje_whatsapp(persona, bloques_raw, fecha)
+        resultado_personas.append({
+            'persona': persona,
+            'bloques': bloques,
+            'mensaje': mensaje,
+            'total': total,
+        })
+
+    total_global = sum(r['total'] for r in resultado_personas)
+
+    return render(request, 'core/descargues_por_persona.html', {
+        'fecha': fecha,
+        'loteria_id': loteria_id,
+        'loterias_disponibles': loterias_disponibles,
+        'personas_resultado': resultado_personas,
+        'total_global': total_global,
+        'hay_personas': bool(personas),
+    })
+
 
 def login_required_view(request):
     return render(request, 'core/login_required.html')

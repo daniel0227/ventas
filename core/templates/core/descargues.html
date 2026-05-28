@@ -4,413 +4,542 @@
 {% block content %}
 
 <style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap');
+
   :root {
-    --primary:       #4f46e5;
-    --primary-dark:  #3730a3;
-    --primary-light: #eef2ff;
-    --success:       #10b981;
-    --success-light: #ecfdf5;
-    --danger:        #ef4444;
-    --danger-light:  #fef2f2;
-    --warning:       #f59e0b;
-    --warning-light: #fffbeb;
-    --amber:         #f59e0b;
-    --amber-light:   #fffbeb;
-    --border:        #e5e7eb;
-    --muted:         #6b7280;
-    --card-radius:   16px;
-    --shadow:        0 2px 12px rgba(0,0,0,.07);
-    --shadow-hover:  0 6px 24px rgba(79,70,229,.13);
+    --primary:        #4f46e5;
+    --primary-dark:   #3730a3;
+    --primary-mid:    #6366f1;
+    --primary-light:  #eef2ff;
+    --primary-glow:   rgba(79,70,229,.15);
+    --success:        #10b981;
+    --success-dark:   #059669;
+    --success-light:  #ecfdf5;
+    --danger:         #ef4444;
+    --danger-light:   #fef2f2;
+    --warning:        #f59e0b;
+    --warning-light:  #fffbeb;
+    --surface:        #ffffff;
+    --surface-dim:    #fafbff;
+    --border:         #e5e7eb;
+    --text-primary:   #0f172a;
+    --text-secondary: #475569;
+    --text-muted:     #94a3b8;
+    --radius-sm:      8px;
+    --radius-md:      12px;
+    --radius-lg:      16px;
+    --shadow-sm:      0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+    --shadow-md:      0 4px 16px rgba(0,0,0,.08);
+    --shadow-lg:      0 8px 32px rgba(79,70,229,.12);
+    font-family: 'DM Sans', system-ui, sans-serif;
   }
 
-  /* ── Page header ──────────────────────────────── */
+  /* ── Page Header ────────────────────────────── */
   .page-header {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 55%, #312e81 100%);
+    border-radius: var(--radius-lg);
+    padding: 1.4rem 1.75rem;
+    margin-bottom: 1.25rem;
     display: flex;
     align-items: center;
-    gap: .85rem;
-    margin-bottom: 1.25rem;
+    gap: 1rem;
   }
-  .page-header-icon {
-    width: 46px; height: 46px;
-    border-radius: 14px;
-    background: var(--primary-light);
-    color: var(--primary);
+  .page-header::before {
+    content: '';
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse at 15% 50%, rgba(99,102,241,.35) 0%, transparent 55%),
+      radial-gradient(ellipse at 85% 10%, rgba(79,70,229,.2) 0%, transparent 50%);
+    pointer-events: none;
+  }
+  .ph-deco {
+    position: absolute; right: 1.5rem; top: 50%;
+    transform: translateY(-50%);
+    display: flex; gap: .55rem; opacity: .1;
+    pointer-events: none;
+  }
+  .ph-ball {
+    width: 38px; height: 38px; border-radius: 50%;
+    border: 3px solid #fff;
     display: flex; align-items: center; justify-content: center;
-    font-size: 1.25rem;
-    flex-shrink: 0;
+    font-size: .68rem; font-weight: 800; color: #fff;
+    font-family: 'DM Mono', monospace;
   }
-  .page-header h1 { font-size: 1.35rem; font-weight: 700; color: #1f2937; margin: 0; }
-  .page-header .subtitle { font-size: .82rem; color: var(--muted); margin-top: .1rem; }
+  .ph-icon {
+    position: relative;
+    width: 50px; height: 50px; border-radius: var(--radius-md);
+    background: rgba(255,255,255,.1);
+    border: 1px solid rgba(255,255,255,.18);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.35rem; color: #fff; flex-shrink: 0;
+  }
+  .ph-text { position: relative; }
+  .ph-text h1 {
+    font-size: 1.45rem; font-weight: 800;
+    color: #fff; margin: 0; letter-spacing: -.02em;
+  }
+  .ph-text .subtitle { font-size: .8rem; color: rgba(255,255,255,.55); margin-top: .18rem; }
+  .ph-badge {
+    position: relative; margin-left: auto;
+    display: inline-flex; align-items: center; gap: .4rem;
+    background: rgba(255,255,255,.1);
+    border: 1px solid rgba(255,255,255,.18);
+    border-radius: 999px; padding: .32rem .8rem;
+    font-size: .73rem; font-weight: 600;
+    color: rgba(255,255,255,.8); white-space: nowrap;
+  }
 
-  /* ── Toast messages ───────────────────────────── */
-  .toast-stack {
-    display: flex;
-    flex-direction: column;
-    gap: .5rem;
-    margin-bottom: 1.25rem;
-  }
+  /* ── Toasts ─────────────────────────────────── */
+  .toast-stack { display: flex; flex-direction: column; gap: .5rem; margin-bottom: 1.25rem; }
   .toast-msg {
-    display: flex;
-    align-items: center;
-    gap: .75rem;
-    padding: .75rem 1rem;
-    border-radius: var(--card-radius);
-    font-size: .88rem;
-    font-weight: 500;
-    border: 1px solid;
-    animation: slideDown .25s ease;
+    display: flex; align-items: center; gap: .75rem;
+    padding: .78rem 1rem; border-radius: var(--radius-md);
+    font-size: .875rem; font-weight: 500; border: 1px solid;
+    animation: toastIn .28s cubic-bezier(.34,1.56,.64,1);
+    box-shadow: var(--shadow-sm);
   }
-  @keyframes slideDown {
-    from { opacity: 0; transform: translateY(-8px); }
-    to   { opacity: 1; transform: translateY(0); }
+  @keyframes toastIn {
+    from { opacity: 0; transform: translateY(-8px) scale(.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
   }
   .toast-msg.success { background: var(--success-light); color: #065f46; border-color: #6ee7b7; }
   .toast-msg.error   { background: var(--danger-light);  color: #991b1b; border-color: #fca5a5; }
   .toast-msg.warning { background: var(--warning-light); color: #92400e; border-color: #fcd34d; }
   .toast-msg.info    { background: var(--primary-light); color: #3730a3; border-color: #c7d2fe; }
-  .toast-msg .toast-icon { font-size: 1rem; flex-shrink: 0; }
-  .toast-msg .toast-close {
-    margin-left: auto;
-    background: none;
-    border: none;
-    cursor: pointer;
-    color: inherit;
-    opacity: .6;
-    padding: 0;
-    line-height: 1;
-    font-size: .85rem;
+  .toast-icon { font-size: 1rem; flex-shrink: 0; }
+  .toast-close {
+    margin-left: auto; background: none; border: none; cursor: pointer;
+    color: inherit; opacity: .5; padding: 0; line-height: 1; font-size: .85rem;
+    transition: opacity .15s;
   }
-  .toast-msg .toast-close:hover { opacity: 1; }
+  .toast-close:hover { opacity: 1; }
 
-  /* ── Filter card ──────────────────────────────── */
-  .filter-card {
-    background: #fff;
-    border-radius: var(--card-radius);
-    box-shadow: var(--shadow);
-    padding: 1rem 1.25rem;
+  /* ── Filter Panel ────────────────────────────── */
+  .filter-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
     margin-bottom: 1.25rem;
-    border: 1px solid var(--border);
-  }
-  .filter-label {
-    font-size: .75rem;
-    font-weight: 600;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: .05em;
-    margin-bottom: .4rem;
-    display: block;
-  }
-  .filter-card .form-control,
-  .filter-card .form-select {
-    border: 1.5px solid var(--border);
-    border-radius: 10px;
-    font-size: .9rem;
-    padding: .5rem .85rem;
-    background: #fafafa;
-    min-height: 44px;
-    transition: border-color .2s, background .2s;
-  }
-  .filter-card .form-control:focus,
-  .filter-card .form-select:focus {
-    border-color: var(--primary);
-    box-shadow: none;
-    background: #fff;
-  }
-  .btn-limpiar {
-    display: inline-flex;
-    align-items: center;
-    gap: .35rem;
-    padding: .5rem 1rem;
-    border-radius: 10px;
-    font-size: .85rem;
-    font-weight: 600;
-    color: var(--muted);
-    background: #f3f4f6;
-    border: 1.5px solid var(--border);
-    text-decoration: none;
-    min-height: 44px;
-    white-space: nowrap;
-    transition: background .15s, color .15s;
-  }
-  .btn-limpiar:hover { background: var(--danger-light); color: var(--danger); border-color: #fca5a5; }
-
-  /* ── Stat card ────────────────────────────────── */
-  .stat-row { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; margin-bottom: 1.25rem; }
-  .stat-card {
-    background: #fff;
-    border: 1px solid var(--border);
-    border-radius: var(--card-radius);
-    box-shadow: var(--shadow);
-    padding: .9rem 1rem;
-    display: flex; flex-direction: column; gap: .1rem;
-  }
-  .stat-icon {
-    width: 34px; height: 34px; border-radius: 10px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 1rem; margin-bottom: .4rem;
-  }
-  .stat-green .stat-icon { background: var(--success-light); color: var(--success); }
-  .stat-amber .stat-icon { background: var(--amber-light);   color: var(--amber);   }
-  .stat-lbl {
-    font-size: .7rem; font-weight: 600; color: var(--muted);
-    text-transform: uppercase; letter-spacing: .04em;
-  }
-  .stat-val {
-    font-size: 1.15rem; font-weight: 800; line-height: 1.15;
-    font-variant-numeric: tabular-nums;
-  }
-  .stat-green .stat-val { color: var(--success); }
-  .stat-amber .stat-val { color: var(--amber);   }
-
-  /* ── Section cards (Registro + Masiva) ───────── */
-  .section-card {
-    background: #fff;
-    border: 1px solid var(--border);
-    border-radius: var(--card-radius);
-    box-shadow: var(--shadow);
     overflow: hidden;
-    height: 100%;
   }
-  .section-card-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: .75rem;
-    padding: .85rem 1.25rem;
+  .filter-panel-title {
+    display: flex; align-items: center; gap: .45rem;
+    padding: .65rem 1.25rem;
+    background: var(--surface-dim);
     border-bottom: 1px solid var(--border);
-    background: #fafafa;
-    flex-wrap: wrap;
+    font-size: .68rem; font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: .08em;
   }
-  .section-card-header .hdr-left { display: flex; align-items: center; gap: .55rem; }
-  .section-card-header .hdr-icon {
-    width: 30px; height: 30px; border-radius: 8px;
+  .filter-panel-body { padding: .85rem 1.25rem; }
+  .field-label {
+    display: block; font-size: .7rem; font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase; letter-spacing: .05em;
+    margin-bottom: .32rem;
+  }
+  .filter-panel .form-control,
+  .filter-panel .form-select {
+    border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+    font-size: .875rem; padding: .48rem .85rem;
+    background: var(--surface-dim); min-height: 42px;
+    color: var(--text-primary); font-family: 'DM Sans', sans-serif;
+    transition: border-color .15s, box-shadow .15s, background .15s;
+  }
+  .filter-panel .form-control:focus,
+  .filter-panel .form-select:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-glow);
+    background: var(--surface); outline: none;
+  }
+  .btn-reset {
+    display: inline-flex; align-items: center; gap: .4rem;
+    padding: .48rem 1rem; border-radius: var(--radius-sm);
+    font-size: .82rem; font-weight: 600; color: var(--text-secondary);
+    background: var(--surface-dim); border: 1.5px solid var(--border);
+    text-decoration: none; min-height: 42px; white-space: nowrap;
+    transition: all .15s;
+  }
+  .btn-reset:hover { background: var(--danger-light); color: var(--danger); border-color: #fca5a5; }
+
+  /* ── Stats ──────────────────────────────────── */
+  .stats-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: .85rem; margin-bottom: 1.25rem;
+  }
+  @media (max-width: 575.98px) {
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .stats-grid .stat-card:last-child { grid-column: 1 / -1; }
+  }
+  .stat-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); box-shadow: var(--shadow-sm);
+    padding: 1.1rem 1.2rem; position: relative; overflow: hidden;
+    transition: box-shadow .2s, transform .2s;
+  }
+  .stat-card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
+  .stat-card::before {
+    content: ''; position: absolute;
+    top: 0; left: 0; right: 0; height: 3px;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  }
+  .s-green::before  { background: linear-gradient(90deg, #10b981, #34d399); }
+  .s-amber::before  { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+  .s-indigo::before { background: linear-gradient(90deg, #4f46e5, #818cf8); }
+  .stat-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: .6rem; }
+  .stat-icon-wrap {
+    width: 36px; height: 36px; border-radius: var(--radius-sm);
+    display: flex; align-items: center; justify-content: center; font-size: .95rem;
+  }
+  .s-green  .stat-icon-wrap { background: var(--success-light); color: var(--success); }
+  .s-amber  .stat-icon-wrap { background: var(--warning-light); color: var(--warning); }
+  .s-indigo .stat-icon-wrap { background: var(--primary-light); color: var(--primary); }
+  .stat-trend {
+    font-size: .65rem; font-weight: 700;
+    display: inline-flex; align-items: center; gap: .15rem;
+    padding: .12rem .38rem; border-radius: 999px;
+  }
+  .trend-up  { background: var(--success-light); color: var(--success-dark); }
+  .trend-neu { background: #f3f4f6; color: var(--text-muted); }
+  .stat-value {
+    font-size: 1.45rem; font-weight: 800; line-height: 1;
+    font-variant-numeric: tabular-nums;
+    font-family: 'DM Mono', monospace; letter-spacing: -.02em; margin-bottom: .2rem;
+  }
+  .s-green  .stat-value { color: var(--success); }
+  .s-amber  .stat-value { color: var(--warning); }
+  .s-indigo .stat-value { color: var(--primary); }
+  .stat-label {
+    font-size: .68rem; font-weight: 700; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: .06em;
+  }
+
+  /* ── Context Bar ─────────────────────────────── */
+  .context-bar {
+    background: linear-gradient(135deg, var(--primary-light) 0%, #f0f4ff 100%);
+    border: 1.5px solid #c7d2fe;
+    border-radius: var(--radius-lg);
+    padding: .9rem 1.25rem; margin-bottom: 1rem;
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: .75rem; align-items: end;
+  }
+  .context-bar-title {
+    grid-column: 1 / -1;
+    font-size: .68rem; font-weight: 700; color: var(--primary);
+    text-transform: uppercase; letter-spacing: .08em;
+    display: flex; align-items: center; gap: .4rem;
+    margin-bottom: -.25rem;
+  }
+  .context-bar .form-control,
+  .context-bar .form-select {
+    border: 1.5px solid #c7d2fe; border-radius: var(--radius-sm);
+    font-size: .875rem; padding: .48rem .85rem;
+    background: #fff; min-height: 42px;
+    font-family: 'DM Sans', sans-serif; color: var(--text-primary);
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .context-bar .form-control:focus,
+  .context-bar .form-select:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-glow); outline: none;
+  }
+  .context-bar .form-select.is-invalid {
+    border-color: var(--danger);
+    box-shadow: 0 0 0 3px rgba(239,68,68,.15);
+    animation: shake .3s ease;
+  }
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    25% { transform: translateX(-4px); }
+    75% { transform: translateX(4px); }
+  }
+
+  /* ── Forms Grid ─────────────────────────────── */
+  .forms-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 1rem; margin-bottom: 1.25rem;
+  }
+  @media (max-width: 1199.98px) { .forms-grid { grid-template-columns: 1fr; } }
+
+  /* ── Section Card ────────────────────────────── */
+  .section-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); box-shadow: var(--shadow-sm);
+    overflow: hidden; display: flex; flex-direction: column;
+    transition: box-shadow .2s;
+  }
+  .section-card:hover { box-shadow: var(--shadow-md); }
+  .section-card-header {
+    display: flex; align-items: center; gap: .6rem;
+    padding: .8rem 1.25rem; border-bottom: 1px solid var(--border);
+    background: var(--surface-dim); flex-wrap: wrap;
+  }
+  .hdr-icon {
+    width: 32px; height: 32px; border-radius: var(--radius-sm);
     display: flex; align-items: center; justify-content: center;
     font-size: .9rem; flex-shrink: 0;
   }
-  .hdr-icon.green { background: var(--success-light); color: var(--success); }
-  .hdr-icon.blue  { background: var(--primary-light); color: var(--primary); }
-  .section-card-header h2 { font-size: .92rem; font-weight: 700; color: #1f2937; margin: 0; }
-  .section-card-header .hdr-sub { font-size: .75rem; color: var(--muted); margin: .1rem 0 0; }
-  .section-card-body { padding: 1.1rem 1.25rem; }
-
-  /* Form inputs dentro de section cards */
+  .hdr-icon.green  { background: var(--success-light); color: var(--success); }
+  .hdr-icon.indigo { background: var(--primary-light); color: var(--primary); }
+  .section-card-header h2 { font-size: .88rem; font-weight: 700; color: var(--text-primary); margin: 0; }
+  .section-card-header .hdr-sub { font-size: .7rem; color: var(--text-muted); margin-top: .1rem; }
+  .section-card-body { padding: 1rem 1.25rem; flex: 1; }
   .section-card .form-control,
   .section-card .form-select {
-    border: 1.5px solid var(--border);
-    border-radius: 10px;
-    font-size: .9rem;
-    padding: .5rem .85rem;
-    background: #fafafa;
-    min-height: 42px;
-    transition: border-color .2s, background .2s;
+    border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+    font-size: .875rem; padding: .48rem .85rem;
+    background: var(--surface-dim); min-height: 42px;
+    font-family: 'DM Sans', sans-serif; color: var(--text-primary);
+    transition: border-color .15s, box-shadow .15s, background .15s;
   }
   .section-card .form-control:focus,
   .section-card .form-select:focus {
     border-color: var(--primary);
-    box-shadow: none;
-    background: #fff;
+    box-shadow: 0 0 0 3px var(--primary-glow);
+    background: var(--surface); outline: none;
   }
   .section-card .form-label {
-    font-size: .78rem; font-weight: 600; color: var(--muted);
-    text-transform: uppercase; letter-spacing: .04em;
-    margin-bottom: .3rem;
+    font-size: .68rem; font-weight: 700; color: var(--text-secondary);
+    text-transform: uppercase; letter-spacing: .05em; margin-bottom: .3rem;
   }
-  .btn-guardar {
-    display: inline-flex; align-items: center; gap: .4rem;
-    padding: .55rem 1.25rem; border-radius: 10px;
-    font-size: .88rem; font-weight: 700;
-    background: linear-gradient(135deg, var(--success) 0%, #059669 100%);
-    color: #fff; border: none; cursor: pointer; min-height: 44px;
-    transition: opacity .15s, transform .1s;
+  .input-numero {
+    font-family: 'DM Mono', monospace !important;
+    font-weight: 500; font-size: 1rem !important; letter-spacing: .06em;
   }
-  .btn-guardar:hover  { opacity: .9; }
-  .btn-guardar:active { transform: scale(.97); }
 
-  /* Hint ejemplo */
+  /* ── Buttons ─────────────────────────────────── */
+  .btn-guardar {
+    display: inline-flex; align-items: center; justify-content: center; gap: .4rem;
+    padding: .58rem 1.25rem; border-radius: var(--radius-sm);
+    font-size: .875rem; font-weight: 700;
+    background: linear-gradient(135deg, var(--success) 0%, var(--success-dark) 100%);
+    color: #fff; border: none; cursor: pointer; min-height: 44px; width: 100%;
+    font-family: 'DM Sans', sans-serif;
+    box-shadow: 0 2px 8px rgba(16,185,129,.28);
+    transition: opacity .15s, transform .1s, box-shadow .15s;
+  }
+  .btn-guardar:hover  { opacity: .9; box-shadow: 0 4px 16px rgba(16,185,129,.38); }
+  .btn-guardar:active { transform: scale(.97); }
+  .btn-clear-bulk {
+    display: inline-flex; align-items: center; gap: .35rem;
+    padding: .58rem .9rem; border-radius: var(--radius-sm);
+    font-size: .85rem; font-weight: 600; color: var(--text-secondary);
+    background: var(--surface-dim); border: 1.5px solid var(--border);
+    cursor: pointer; min-height: 44px; flex-shrink: 0;
+    font-family: 'DM Sans', sans-serif;
+    transition: all .15s;
+  }
+  .btn-clear-bulk:hover { background: var(--danger-light); color: var(--danger); border-color: #fca5a5; }
+
+  /* ── Hint Box ────────────────────────────────── */
   .hint-box {
     display: flex; flex-wrap: wrap; align-items: center; gap: .5rem;
-    background: var(--warning-light);
-    border: 1px dashed #fcd34d;
-    border-radius: 10px;
-    padding: .6rem .85rem;
-    font-size: .8rem;
+    background: var(--warning-light); border: 1px dashed #fcd34d;
+    border-radius: var(--radius-sm); padding: .5rem .85rem; font-size: .78rem;
+    margin-bottom: .6rem;
   }
   .hint-box code {
-    background: rgba(0,0,0,.06); border-radius: 4px;
-    padding: .1rem .35rem; font-size: .78rem;
+    background: rgba(0,0,0,.07); border-radius: 4px;
+    padding: .1rem .32rem; font-size: .73rem;
+    font-family: 'DM Mono', monospace;
   }
 
-  /* Textarea jugadas */
+  /* ── Textarea jugadas ────────────────────────── */
   .jugadas-wrap { position: relative; }
+  .jugadas-wrap textarea {
+    resize: vertical; min-height: 148px;
+    font-family: 'DM Mono', monospace !important;
+    font-size: .85rem;
+    transition: border-color .2s, box-shadow .2s, background .2s;
+  }
+  .jugadas-wrap textarea.has-content {
+    border-color: var(--primary) !important;
+    background: #fefeff !important;
+  }
   .jugadas-counter {
-    position: absolute; bottom: .5rem; right: .75rem;
-    font-size: .72rem; font-weight: 600;
-    color: var(--muted); pointer-events: none;
+    position: absolute; bottom: .55rem; right: .7rem;
+    font-size: .68rem; font-weight: 700; color: var(--text-muted);
+    font-family: 'DM Mono', monospace; pointer-events: none;
+    background: rgba(255,255,255,.88); padding: .1rem .35rem; border-radius: 4px;
+    transition: color .15s;
   }
   .jugadas-counter.near-limit { color: var(--warning); }
-  .jugadas-counter.at-limit   { color: var(--danger);  }
-  textarea.form-control { resize: vertical; }
+  .jugadas-counter.at-limit   { color: var(--danger); }
 
-  /* Bulk errors */
+  /* ── Bulk Errors ─────────────────────────────── */
   .bulk-errors {
-    background: var(--danger-light);
-    border: 1px solid #fca5a5;
-    border-radius: 10px;
-    padding: .75rem 1rem;
-    margin-bottom: .85rem;
+    background: var(--danger-light); border: 1px solid #fca5a5;
+    border-radius: var(--radius-sm); padding: .7rem 1rem; margin-bottom: .85rem;
   }
   .bulk-errors .err-title {
-    font-size: .82rem; font-weight: 700; color: #991b1b;
-    margin-bottom: .4rem; display: flex; align-items: center; gap: .4rem;
+    font-size: .8rem; font-weight: 700; color: #991b1b;
+    margin-bottom: .35rem; display: flex; align-items: center; gap: .4rem;
   }
   .bulk-errors ul { margin: 0; padding-left: 1.1rem; }
-  .bulk-errors li { font-size: .8rem; color: #991b1b; }
+  .bulk-errors li { font-size: .78rem; color: #991b1b; }
 
-  /* No loterías warning */
+  /* ── No loterías ─────────────────────────────── */
   .no-lot-warn {
-    display: flex; align-items: center; gap: .6rem;
-    background: var(--warning-light);
-    border: 1px solid #fcd34d;
-    border-radius: 10px;
-    padding: .65rem .9rem;
-    font-size: .82rem; color: #92400e;
-    margin-top: .75rem;
+    display: flex; align-items: center; gap: .5rem;
+    background: var(--warning-light); border: 1px solid #fcd34d;
+    border-radius: var(--radius-sm); padding: .58rem .9rem;
+    font-size: .8rem; color: #92400e; margin-top: .75rem;
   }
 
-  /* ── Tabla desktop ventas ─────────────────────── */
+  /* ── Ventas Wrap ─────────────────────────────── */
   .ventas-wrap {
-    background: #fff;
-    border: 1px solid var(--border);
-    border-radius: var(--card-radius);
-    box-shadow: var(--shadow);
-    overflow: hidden;
-    margin-top: 1.25rem;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); overflow: hidden;
   }
   .ventas-wrap-header {
     display: flex; align-items: center; justify-content: space-between;
-    flex-wrap: wrap; gap: .6rem;
-    padding: .85rem 1.25rem;
-    border-bottom: 1px solid var(--border);
-    background: #fafafa;
+    flex-wrap: wrap; gap: .5rem; padding: .8rem 1.25rem;
+    border-bottom: 1px solid var(--border); background: var(--surface-dim);
   }
   .ventas-wrap-header h2 {
-    font-size: .92rem; font-weight: 700; color: #1f2937; margin: 0;
+    font-size: .9rem; font-weight: 700; color: var(--text-primary); margin: 0;
     display: flex; align-items: center; gap: .5rem;
   }
   .count-badge {
     display: inline-flex; align-items: center; gap: .3rem;
     background: var(--primary-light); color: var(--primary);
-    border: 1px solid #c7d2fe;
-    border-radius: 999px; padding: .2rem .65rem;
-    font-size: .75rem; font-weight: 700;
+    border: 1px solid #c7d2fe; border-radius: 999px; padding: .18rem .68rem;
+    font-size: .7rem; font-weight: 700; font-family: 'DM Mono', monospace;
   }
 
+  /* ── Table ───────────────────────────────────── */
   .ventas-table { width: 100%; border-collapse: collapse; }
+  .ventas-table colgroup col:nth-child(1) { width: 110px; }
+  .ventas-table colgroup col:nth-child(2) { min-width: 140px; }
+  .ventas-table colgroup col:nth-child(3) { width: 130px; }
+  .ventas-table colgroup col:nth-child(4) { width: 90px; }
+  .ventas-table colgroup col:nth-child(5) { width: 115px; }
+  .ventas-table colgroup col:nth-child(6) { min-width: 110px; }
   .ventas-table thead tr {
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    background: linear-gradient(135deg, var(--primary) 0%, #4338ca 100%);
   }
   .ventas-table thead th {
-    color: #fff; font-size: .75rem; font-weight: 600;
-    text-transform: uppercase; letter-spacing: .05em;
+    color: #fff; font-size: .67rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .07em;
     padding: .8rem 1rem; border: none; white-space: nowrap;
   }
-  .ventas-table tbody tr { border-bottom: 1px solid var(--border); transition: background .12s; }
+  .ventas-table tbody tr { border-bottom: 1px solid #f1f3f7; transition: background .1s; }
+  .ventas-table tbody tr:nth-child(even) { background: #fafbff; }
+  .ventas-table tbody tr:hover { background: var(--primary-light); }
   .ventas-table tbody tr:last-child { border-bottom: none; }
-  .ventas-table tbody tr:hover { background: #f9fafb; }
-  .ventas-table tbody td { padding: .65rem 1rem; font-size: .87rem; color: #374151; border: none; vertical-align: middle; }
-  .ventas-table .td-monto { text-align: right; font-weight: 800; color: var(--success); font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .chip-num {
-    display: inline-block; padding: .18rem .55rem; border-radius: 999px;
-    background: var(--primary-light); color: var(--primary);
-    border: 1px solid #c7d2fe; font-size: .78rem; font-weight: 700;
-    font-family: monospace; letter-spacing: .02em;
+  .ventas-table tbody td { padding: .62rem 1rem; font-size: .85rem; color: var(--text-secondary); border: none; vertical-align: middle; }
+  .td-fecha { color: var(--text-muted) !important; font-size: .78rem !important; white-space: nowrap; font-family: 'DM Mono', monospace; }
+  .td-name  { font-weight: 700; color: var(--text-primary) !important; }
+  .td-monto { text-align: right !important; font-weight: 800; color: var(--success) !important; font-variant-numeric: tabular-nums; white-space: nowrap; font-family: 'DM Mono', monospace; }
+  .td-reg   { color: var(--text-muted) !important; font-size: .8rem !important; }
+  .chip {
+    display: inline-block; padding: .16rem .58rem;
+    border-radius: 999px; font-size: .72rem; font-weight: 700;
   }
-  .chip-lot {
-    display: inline-block; padding: .18rem .55rem; border-radius: 999px;
-    background: #f3f4f6; color: #374151;
-    border: 1px solid var(--border); font-size: .75rem; font-weight: 500;
-  }
+  .chip-num { background: var(--primary-light); color: var(--primary); border: 1px solid #c7d2fe; font-family: 'DM Mono', monospace; }
+  .chip-lot { background: #f3f4f6; color: #374151; border: 1px solid var(--border); font-weight: 500; }
 
-  /* ── Mobile cards ventas ──────────────────────── */
-  .venta-cards { display: flex; flex-direction: column; gap: .65rem; padding: .85rem 1rem; }
+  /* ── Mobile Cards ────────────────────────────── */
+  .venta-cards { display: flex; flex-direction: column; gap: .6rem; padding: .85rem 1rem; }
   .venta-c {
-    background: #fff;
-    border: 1px solid var(--border); border-left: 4px solid var(--primary);
-    border-radius: var(--card-radius); box-shadow: var(--shadow);
-    padding: .75rem .9rem;
-    display: grid; grid-template-rows: auto auto; gap: .45rem;
+    background: var(--surface);
+    border: 1px solid var(--border); border-left: 4px solid;
+    border-radius: var(--radius-md); box-shadow: var(--shadow-sm);
+    padding: .72rem .9rem;
+    display: grid; grid-template-rows: auto auto; gap: .4rem;
+    transition: box-shadow .15s;
   }
-  .venta-c-top { display: flex; justify-content: space-between; align-items: flex-start; gap: .5rem; }
-  .venta-c-name  { font-size: .9rem; font-weight: 700; color: #1f2937; }
-  .venta-c-sub   { font-size: .75rem; color: var(--muted); margin-top: .1rem; }
-  .venta-c-monto { font-size: 1.05rem; font-weight: 800; color: var(--success); font-variant-numeric: tabular-nums; text-align: right; }
-  .venta-c-date  { font-size: .7rem; color: var(--muted); text-align: right; margin-top: .05rem; }
+  .venta-c:hover { box-shadow: var(--shadow-md); }
+  .venta-c.tier-high { border-left-color: var(--success); }
+  .venta-c.tier-mid  { border-left-color: var(--primary); }
+  .venta-c.tier-low  { border-left-color: var(--text-muted); }
+  .venta-c-top    { display: flex; justify-content: space-between; align-items: flex-start; gap: .5rem; }
+  .venta-c-name   { font-size: .88rem; font-weight: 700; color: var(--text-primary); }
+  .venta-c-sub    { font-size: .7rem; color: var(--text-muted); margin-top: .08rem; }
+  .venta-c-monto  { font-size: 1rem; font-weight: 800; color: var(--success); font-variant-numeric: tabular-nums; text-align: right; font-family: 'DM Mono', monospace; }
+  .venta-c-date   { font-size: .67rem; color: var(--text-muted); text-align: right; margin-top: .05rem; }
   .venta-c-bottom { display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; }
 
-  /* ── Paginación ───────────────────────────────── */
+  /* ── Pagination ──────────────────────────────── */
   .pagination-wrap {
-    padding: .85rem 1.25rem;
-    border-top: 1px solid var(--border);
+    padding: .85rem 1.25rem; border-top: 1px solid var(--border);
     display: flex; align-items: center; justify-content: space-between;
-    gap: .75rem; flex-wrap: wrap;
+    gap: .75rem; flex-wrap: wrap; background: var(--surface-dim);
   }
-  .page-info { font-size: .82rem; color: var(--muted); font-weight: 500; white-space: nowrap; }
-  .page-info strong { color: #1f2937; }
+  .page-info { font-size: .78rem; color: var(--text-muted); font-weight: 500; white-space: nowrap; }
+  .page-info strong { color: var(--text-primary); font-weight: 700; }
+  .pagination-nav { display: flex; align-items: center; gap: .28rem; }
   .page-btn {
     display: inline-flex; align-items: center; gap: .35rem;
-    padding: .42rem .95rem; border-radius: 10px; font-size: .85rem; font-weight: 600;
-    color: var(--primary); background: var(--primary-light);
-    border: 1.5px solid #c7d2fe; text-decoration: none;
-    transition: background .15s; white-space: nowrap;
+    padding: .4rem .9rem; border-radius: var(--radius-sm);
+    font-size: .82rem; font-weight: 600; color: var(--primary);
+    background: var(--primary-light); border: 1.5px solid #c7d2fe;
+    text-decoration: none; white-space: nowrap; font-family: 'DM Sans', sans-serif;
+    transition: all .15s;
   }
-  .page-btn:hover { background: #e0e7ff; color: var(--primary); }
-  .page-btn.disabled { pointer-events: none; opacity: .4; color: var(--muted); background: #f3f4f6; border-color: var(--border); }
-  .page-numbers { display: none; align-items: center; gap: .3rem; }
+  .page-btn:hover { background: #e0e7ff; color: var(--primary-dark); border-color: var(--primary); }
+  .page-btn.disabled { pointer-events: none; opacity: .35; color: var(--text-muted); background: #f3f4f6; border-color: var(--border); }
+  .page-numbers { display: none; align-items: center; gap: .28rem; }
   @media (min-width: 576px) { .page-numbers { display: flex; } }
   .page-num {
     display: inline-flex; align-items: center; justify-content: center;
-    width: 34px; height: 34px; border-radius: 9px; font-size: .82rem; font-weight: 600;
-    color: #374151; text-decoration: none;
-    border: 1.5px solid var(--border); background: #fff;
-    transition: background .12s, border-color .12s, color .12s;
+    width: 33px; height: 33px; border-radius: var(--radius-sm);
+    font-size: .8rem; font-weight: 600; font-family: 'DM Mono', monospace;
+    color: var(--text-secondary); text-decoration: none;
+    border: 1.5px solid var(--border); background: var(--surface);
+    transition: all .12s;
   }
   .page-num:hover  { background: var(--primary-light); border-color: #c7d2fe; color: var(--primary); }
-  .page-num.active { background: var(--primary); border-color: var(--primary); color: #fff; }
-
-  /* ── Empty state ──────────────────────────────── */
-  .empty-state {
-    padding: 3rem 1.5rem; text-align: center;
+  .page-num.active { background: var(--primary); border-color: var(--primary); color: #fff; box-shadow: 0 2px 8px var(--primary-glow); }
+  .page-ellipsis {
+    width: 33px; height: 33px; display: inline-flex; align-items: center; justify-content: center;
+    color: var(--text-muted); font-size: .8rem;
   }
+
+  /* ── Empty State ─────────────────────────────── */
+  .empty-state { padding: 3.5rem 1.5rem; text-align: center; }
   .empty-icon {
-    width: 60px; height: 60px; background: var(--primary-light); border-radius: 18px;
+    width: 62px; height: 62px; background: var(--primary-light);
+    border-radius: var(--radius-lg); margin-bottom: 1rem;
     display: inline-flex; align-items: center; justify-content: center;
-    font-size: 1.6rem; color: var(--primary); margin-bottom: .9rem;
+    font-size: 1.65rem; color: var(--primary);
+    box-shadow: 0 4px 16px var(--primary-glow);
   }
-  .empty-state h3 { font-size: .95rem; font-weight: 700; color: #1f2937; margin-bottom: .3rem; }
-  .empty-state p  { font-size: .82rem; color: var(--muted); margin: 0; }
+  .empty-state h3 { font-size: .93rem; font-weight: 700; color: var(--text-primary); margin-bottom: .28rem; }
+  .empty-state p  { font-size: .82rem; color: var(--text-muted); margin: 0; }
 
-  /* ── Responsive helpers ───────────────────────── */
+  /* ── Responsive ──────────────────────────────── */
   @media (max-width: 575.98px) { .desktop-only { display: none !important; } }
   @media (min-width: 576px)    { .mobile-only  { display: none !important; } }
-  @media (max-width: 767.98px) { .d-md-none-force { display: none !important; } }
 </style>
 
-<!-- ══════════════════════════════════════════════
+<!-- ══════════════════════════════════════
      HEADER
-══════════════════════════════════════════════ -->
+══════════════════════════════════════ -->
 <div class="page-header">
-  <div class="page-header-icon">
-    <i class="bi bi-arrow-down-circle-fill"></i>
+  <div class="ph-deco">
+    <div class="ph-ball">16</div>
+    <div class="ph-ball">32</div>
+    <div class="ph-ball">07</div>
   </div>
-  <div>
+  <div class="ph-icon"><i class="bi bi-arrow-down-circle-fill"></i></div>
+  <div class="ph-text">
     <h1>Descargues</h1>
-    <div class="subtitle">Registra ventas para usuarios del perfil descargue.</div>
+    <div class="subtitle">Registra ventas para usuarios del perfil descargue</div>
   </div>
+  {% if ventas_descargue %}
+    <div class="ph-badge d-none d-sm-inline-flex">
+      <i class="bi bi-calendar3"></i> {{ fecha_filtro|date:'d/m/Y' }}
+    </div>
+  {% endif %}
 </div>
 
-<!-- ══════════════════════════════════════════════
+<!-- ══════════════════════════════════════
      MENSAJES
-══════════════════════════════════════════════ -->
+══════════════════════════════════════ -->
 {% if messages %}
 <div class="toast-stack" id="toast-stack">
   {% for message in messages %}
@@ -443,254 +572,233 @@
 </div>
 {% endif %}
 
-<!-- ══════════════════════════════════════════════
+<!-- ══════════════════════════════════════
      FILTROS
-══════════════════════════════════════════════ -->
-<div class="filter-card">
-  <form method="get" id="filter-form">
-    <span class="filter-label"><i class="bi bi-sliders me-1"></i>Filtrar descargues</span>
-    <div class="row g-2 align-items-end">
-
-      <div class="col-12 col-md-4">
-        <label class="filter-label" for="fecha">Fecha</label>
-        <input type="date" id="fecha-filtro" name="fecha" class="form-control"
-          value="{{ fecha_filtro|date:'Y-m-d' }}" max="{% now 'Y-m-d' %}">
-      </div>
-
-      <div class="col-12 col-md-4">
-        <label class="filter-label" for="descargue">Usuario descargue</label>
-        <select id="descargue" name="descargue" class="form-select">
-          <option value="">Todos</option>
-          {% for usuario in usuarios_descargue %}
-            <option value="{{ usuario.id }}" {% if descargue_id == usuario.id|stringformat:'s' %}selected{% endif %}>
-              {{ usuario.get_full_name|default:usuario.username|title }}
-            </option>
-          {% endfor %}
-        </select>
-      </div>
-
-      <div class="col-12 col-md-4">
-        <label class="filter-label" for="loteria">Lotería</label>
-        <div class="d-flex gap-2">
-          <select id="loteria" name="loteria" class="form-select">
-            <option value="">Todas</option>
-            {% for loteria in loterias_disponibles %}
-              <option value="{{ loteria.id }}" {% if loteria_id == loteria.id|stringformat:'s' %}selected{% endif %}>
-                {{ loteria.nombre }}
+══════════════════════════════════════ -->
+<div class="filter-panel">
+  <div class="filter-panel-title">
+    <i class="bi bi-funnel-fill"></i> Filtrar descargues
+  </div>
+  <div class="filter-panel-body">
+    <form method="get" id="filter-form">
+      <div class="row g-2 align-items-end">
+        <div class="col-12 col-md-4">
+          <label class="field-label" for="fecha-filtro">Fecha</label>
+          <input type="date" id="fecha-filtro" name="fecha" class="form-control"
+            value="{{ fecha_filtro|date:'Y-m-d' }}" max="{% now 'Y-m-d' %}">
+        </div>
+        <div class="col-12 col-md-4">
+          <label class="field-label" for="fil-descargue">Usuario descargue</label>
+          <select id="fil-descargue" name="descargue" class="form-select">
+            <option value="">Todos</option>
+            {% for usuario in usuarios_descargue %}
+              <option value="{{ usuario.id }}" {% if descargue_id == usuario.id|stringformat:'s' %}selected{% endif %}>
+                {{ usuario.get_full_name|default:usuario.username|title }}
               </option>
             {% endfor %}
           </select>
-          <a href="{% url 'descargues' %}" class="btn-limpiar" title="Limpiar filtros">
-            <i class="bi bi-arrow-counterclockwise"></i>
-          </a>
+        </div>
+        <div class="col-12 col-md-4">
+          <label class="field-label" for="fil-loteria">Lotería</label>
+          <div class="d-flex gap-2">
+            <select id="fil-loteria" name="loteria" class="form-select">
+              <option value="">Todas</option>
+              {% for loteria in loterias_disponibles %}
+                <option value="{{ loteria.id }}" {% if loteria_id == loteria.id|stringformat:'s' %}selected{% endif %}>
+                  {{ loteria.nombre }}
+                </option>
+              {% endfor %}
+            </select>
+            <a href="{% url 'descargues' %}" class="btn-reset" title="Limpiar filtros">
+              <i class="bi bi-arrow-counterclockwise"></i>
+            </a>
+          </div>
         </div>
       </div>
-
-    </div>
-  </form>
+    </form>
+  </div>
 </div>
 
-<!-- ══════════════════════════════════════════════
+<!-- ══════════════════════════════════════
      STATS
-══════════════════════════════════════════════ -->
+══════════════════════════════════════ -->
 {% if ventas_descargue %}
-<div class="stat-row">
-  <div class="stat-card stat-green">
-    <div class="stat-icon"><i class="bi bi-cash-stack"></i></div>
-    <div class="stat-lbl">Total descargues</div>
-    <div class="stat-val">${{ total_monto|format_colombian }}</div>
+<div class="stats-grid">
+  <div class="stat-card s-green">
+    <div class="stat-header">
+      <div class="stat-icon-wrap"><i class="bi bi-cash-stack"></i></div>
+      <span class="stat-trend trend-up"><i class="bi bi-arrow-up"></i> hoy</span>
+    </div>
+    <div class="stat-value">${{ total_monto|format_colombian }}</div>
+    <div class="stat-label">Total descargues</div>
   </div>
-  <div class="stat-card stat-amber">
-    <div class="stat-icon"><i class="bi bi-receipt"></i></div>
-    <div class="stat-lbl">Registros</div>
-    <div class="stat-val">{{ ventas_descargue.paginator.count }}</div>
+  <div class="stat-card s-amber">
+    <div class="stat-header">
+      <div class="stat-icon-wrap"><i class="bi bi-receipt"></i></div>
+      <span class="stat-trend trend-neu"><i class="bi bi-list-ul"></i></span>
+    </div>
+    <div class="stat-value">{{ ventas_descargue.paginator.count }}</div>
+    <div class="stat-label">Registros</div>
+  </div>
+  <div class="stat-card s-indigo">
+    <div class="stat-header">
+      <div class="stat-icon-wrap"><i class="bi bi-graph-up"></i></div>
+    </div>
+    <div class="stat-value">
+      {% if ventas_descargue.paginator.count > 0 %}
+        ${% widthratio total_monto ventas_descargue.paginator.count 1 %}
+      {% else %}
+        $0
+      {% endif %}
+    </div>
+    <div class="stat-label">Promedio / jugada</div>
   </div>
 </div>
 {% endif %}
 
-<!-- ══════════════════════════════════════════════
-     REGISTRAR VENTA + CARGA MASIVA
-══════════════════════════════════════════════ -->
-<div class="row g-3 mb-0" style="margin-bottom:1.25rem!important;">
+<!-- ══════════════════════════════════════
+     CONTEXTO COMPARTIDO
+══════════════════════════════════════ -->
+<div class="context-bar">
+  <div class="context-bar-title">
+    <i class="bi bi-person-check-fill"></i> Contexto de registro — aplica a ambos formularios
+  </div>
+  <div>
+    <label class="field-label" for="shared-descargue">Usuario descargue</label>
+    <select id="shared-descargue" class="form-select">
+      <option value="">Selecciona un usuario</option>
+      {% for usuario in usuarios_descargue %}
+        <option value="{{ usuario.id }}" {% if descargue_id == usuario.id|stringformat:'s' %}selected{% endif %}>
+          {{ usuario.get_full_name|default:usuario.username|title }}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <label class="field-label" for="shared-loteria">Lotería</label>
+    <select id="shared-loteria" class="form-select">
+      <option value="">Selecciona lotería</option>
+      {% for loteria in loterias_disponibles %}
+        <option value="{{ loteria.id }}" {% if loteria_id == loteria.id|stringformat:'s' %}selected{% endif %}>
+          {{ loteria.nombre }}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+</div>
 
-  <!-- Registrar venta manual -->
-  <div class="col-12 col-xl-6">
-    <div class="section-card">
-      <div class="section-card-header">
-        <div class="hdr-left">
-          <div class="hdr-icon green"><i class="bi bi-plus-lg"></i></div>
-          <div>
-            <h2>Registrar venta</h2>
-          </div>
+<!-- ══════════════════════════════════════
+     FORMULARIOS
+══════════════════════════════════════ -->
+<div class="forms-grid">
+
+  <!-- Registro manual -->
+  <div class="section-card">
+    <div class="section-card-header">
+      <div class="hdr-icon green"><i class="bi bi-plus-lg"></i></div>
+      <div><h2>Registrar venta</h2></div>
+    </div>
+    <div class="section-card-body">
+      <form method="post" class="row g-2" id="form-manual">
+        {% csrf_token %}
+        <input type="hidden" name="accion"       value="manual">
+        <input type="hidden" name="fecha_filtro" value="{{ fecha_filtro|date:'Y-m-d' }}">
+        <input type="hidden" id="manual-descargue" name="descargue">
+        <input type="hidden" id="manual-loteria"   name="loteria">
+
+        <div class="col-6">
+          <label class="form-label" for="numero">Número</label>
+          <input type="text" id="numero" name="numero"
+            class="form-control input-numero"
+            inputmode="numeric" placeholder="ej. 1016" required>
         </div>
-      </div>
-      <div class="section-card-body">
-        <form method="post" class="row g-2" id="form-manual">
-          {% csrf_token %}
-          <input type="hidden" name="accion" value="manual">
-          <input type="hidden" name="fecha_filtro" value="{{ fecha_filtro|date:'Y-m-d' }}">
-
-          <div class="col-12 col-sm-6">
-            <label class="form-label" for="descargue_post">Usuario descargue</label>
-            <select id="descargue_post" name="descargue" class="form-select" required>
-              <option value="">Selecciona un usuario</option>
-              {% for usuario in usuarios_descargue %}
-                <option value="{{ usuario.id }}" {% if descargue_id == usuario.id|stringformat:'s' %}selected{% endif %}>
-                  {{ usuario.get_full_name|default:usuario.username|title }}
-                </option>
-              {% endfor %}
-            </select>
-          </div>
-
-          <div class="col-12 col-sm-6">
-            <label class="form-label" for="loteria_post">Lotería</label>
-            <select id="loteria_post" name="loteria" class="form-select" required>
-              <option value="">Selecciona lotería</option>
-              {% for loteria in loterias_disponibles %}
-                <option value="{{ loteria.id }}" {% if loteria_id == loteria.id|stringformat:'s' %}selected{% endif %}>
-                  {{ loteria.nombre }}
-                </option>
-              {% endfor %}
-            </select>
-          </div>
-
-          <div class="col-6">
-            <label class="form-label" for="numero">Número</label>
-            <input type="text" id="numero" name="numero"
-              class="form-control" style="font-family:monospace; font-weight:700;"
-              inputmode="numeric" placeholder="ej. 1016" required>
-          </div>
-
-          <div class="col-6">
-            <label class="form-label" for="monto">Valor</label>
-            <input type="number" id="monto" name="monto"
-              class="form-control" min="1" step="1" placeholder="ej. 1500" required>
-          </div>
-
-          <div class="col-12 mt-1">
-            <button type="submit" class="btn-guardar w-100">
-              <i class="bi bi-floppy"></i> Guardar venta
-            </button>
-          </div>
-        </form>
-
-        {% if not loterias_disponibles %}
-          <div class="no-lot-warn mt-2">
-            <i class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
-            No hay loterías disponibles en este momento.
-          </div>
-        {% endif %}
-      </div>
+        <div class="col-6">
+          <label class="form-label" for="monto">Valor</label>
+          <input type="number" id="monto" name="monto"
+            class="form-control" min="1" step="1" placeholder="ej. 1500" required>
+        </div>
+        <div class="col-12 mt-1">
+          <button type="submit" class="btn-guardar">
+            <i class="bi bi-floppy"></i> Guardar venta
+          </button>
+        </div>
+      </form>
+      {% if not loterias_disponibles %}
+        <div class="no-lot-warn">
+          <i class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
+          No hay loterías disponibles en este momento.
+        </div>
+      {% endif %}
     </div>
   </div>
 
   <!-- Carga masiva -->
-  <div class="col-12 col-xl-6">
-    <div class="section-card">
-      <div class="section-card-header">
-        <div class="hdr-left">
-          <div class="hdr-icon blue"><i class="bi bi-upload"></i></div>
-          <div>
-            <h2>Carga masiva</h2>
-            <div class="hdr-sub">Pega una jugada por línea: <code style="font-size:.73rem;">numero - monto</code></div>
+  <div class="section-card">
+    <div class="section-card-header">
+      <div class="hdr-icon indigo"><i class="bi bi-upload"></i></div>
+      <div>
+        <h2>Carga masiva</h2>
+        <div class="hdr-sub">Una jugada por línea: <code style="font-family:'DM Mono',monospace;font-size:.68rem;">numero - monto</code></div>
+      </div>
+      <span style="margin-left:auto;font-size:.67rem;font-weight:700;color:var(--text-muted);background:#f3f4f6;border:1px solid var(--border);border-radius:999px;padding:.18rem .62rem;white-space:nowrap;">
+        Máx. 500 líneas
+      </span>
+    </div>
+    <div class="section-card-body">
+      {% if bulk_errors %}
+        <div class="bulk-errors">
+          <div class="err-title"><i class="bi bi-x-octagon-fill"></i> Errores en la carga</div>
+          <ul>{% for error in bulk_errors %}<li>{{ error }}</li>{% endfor %}</ul>
+        </div>
+      {% endif %}
+
+      <form method="post" class="row g-2" id="form-masiva">
+        {% csrf_token %}
+        <input type="hidden" name="accion"       value="masiva">
+        <input type="hidden" name="fecha_filtro" value="{{ fecha_filtro|date:'Y-m-d' }}">
+        <input type="hidden" id="masiva-descargue" name="descargue">
+        <input type="hidden" id="masiva-loteria"   name="loteria">
+
+        <div class="col-12">
+          <div class="hint-box">
+            <i class="bi bi-lightbulb-fill" style="color:var(--warning);flex-shrink:0;"></i>
+            <span style="color:var(--text-muted);">Ejemplos:</span>
+            <code>1016 - 1500</code> <span style="color:var(--text-muted);">/</span>
+            <code>016 - 3500</code>  <span style="color:var(--text-muted);">/</span>
+            <code>0914 - 1500</code>
           </div>
         </div>
-        <span style="font-size:.72rem; font-weight:600; color:var(--muted); background:#f3f4f6; border:1px solid var(--border); border-radius:999px; padding:.2rem .65rem;">
-          Máx. 500 líneas
-        </span>
-      </div>
-      <div class="section-card-body">
-
-        {% if bulk_errors %}
-          <div class="bulk-errors">
-            <div class="err-title">
-              <i class="bi bi-x-octagon-fill"></i> Errores en la carga
-            </div>
-            <ul>
-              {% for error in bulk_errors %}
-                <li>{{ error }}</li>
-              {% endfor %}
-            </ul>
+        <div class="col-12">
+          <div class="d-flex align-items-center justify-content-between mb-1">
+            <label class="form-label mb-0" for="jugadas_masivas">Jugadas</label>
+            <span class="jugadas-counter" id="jugadas-counter">0 / 500</span>
           </div>
-        {% endif %}
-
-        <form method="post" class="row g-2" id="form-masiva">
-          {% csrf_token %}
-          <input type="hidden" name="accion" value="masiva">
-          <input type="hidden" name="fecha_filtro" value="{{ fecha_filtro|date:'Y-m-d' }}">
-
-          <div class="col-12 col-sm-6">
-            <label class="form-label" for="descargue_bulk">Usuario descargue</label>
-            <select id="descargue_bulk" name="descargue" class="form-select" required>
-              <option value="">Selecciona un usuario</option>
-              {% for usuario in usuarios_descargue %}
-                <option value="{{ usuario.id }}" {% if descargue_id == usuario.id|stringformat:'s' %}selected{% endif %}>
-                  {{ usuario.get_full_name|default:usuario.username|title }}
-                </option>
-              {% endfor %}
-            </select>
+          <div class="jugadas-wrap">
+            <textarea id="jugadas_masivas" name="jugadas_masivas"
+              class="form-control" rows="7" spellcheck="false" required>{{ bulk_jugadas_raw }}</textarea>
           </div>
-
-          <div class="col-12 col-sm-6">
-            <label class="form-label" for="loteria_bulk">Lotería</label>
-            <select id="loteria_bulk" name="loteria" class="form-select" required>
-              <option value="">Selecciona lotería</option>
-              {% for loteria in loterias_disponibles %}
-                <option value="{{ loteria.id }}" {% if loteria_id == loteria.id|stringformat:'s' %}selected{% endif %}>
-                  {{ loteria.nombre }}
-                </option>
-              {% endfor %}
-            </select>
-          </div>
-
-          <div class="col-12">
-            <div class="hint-box mb-2">
-              <i class="bi bi-lightbulb-fill" style="color:var(--warning); flex-shrink:0;"></i>
-              <span style="color:var(--muted);">Ejemplos:</span>
-              <code>1016 - 1500</code>
-              <span style="color:var(--muted);">/</span>
-              <code>016 - 3500</code>
-              <span style="color:var(--muted);">/</span>
-              <code>0914 - 1500</code>
-            </div>
-          </div>
-
-          <div class="col-12">
-            <div class="d-flex align-items-center justify-content-between mb-1">
-              <label class="form-label mb-0" for="jugadas_masivas">Jugadas</label>
-              <span class="jugadas-counter" id="jugadas-counter">0 / 500</span>
-            </div>
-            <div class="jugadas-wrap">
-              <textarea id="jugadas_masivas" name="jugadas_masivas"
-                class="form-control" style="font-family:monospace; font-size:.85rem; min-height:148px;"
-                rows="7" spellcheck="false" required>{{ bulk_jugadas_raw }}</textarea>
-            </div>
-          </div>
-
-          <div class="col-12 d-flex gap-2 mt-1">
-            <button type="submit" class="btn-guardar flex-grow-1">
-              <i class="bi bi-upload"></i> Cargar jugadas
-            </button>
-            <button type="button" id="btn-limpiar-masiva"
-              style="display:inline-flex;align-items:center;gap:.35rem;padding:.55rem .9rem;border-radius:10px;font-size:.85rem;font-weight:600;color:var(--muted);background:#f3f4f6;border:1.5px solid var(--border);cursor:pointer;min-height:44px;transition:background .15s;"
-              onmouseover="this.style.background='var(--danger-light)';this.style.color='var(--danger)';"
-              onmouseout="this.style.background='#f3f4f6';this.style.color='var(--muted)';">
-              <i class="bi bi-x-lg"></i>
-            </button>
-          </div>
-        </form>
-      </div>
+        </div>
+        <div class="col-12 d-flex gap-2 mt-1">
+          <button type="submit" class="btn-guardar flex-grow-1">
+            <i class="bi bi-upload"></i> Cargar jugadas
+          </button>
+          <button type="button" id="btn-limpiar-masiva" class="btn-clear-bulk">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
+      </form>
     </div>
   </div>
+
 </div>
 
-<!-- ══════════════════════════════════════════════
+<!-- ══════════════════════════════════════
      VENTAS REGISTRADAS
-══════════════════════════════════════════════ -->
+══════════════════════════════════════ -->
 <div class="ventas-wrap">
   <div class="ventas-wrap-header">
     <h2>
-      <i class="bi bi-table" style="color:var(--muted);"></i>
+      <i class="bi bi-table" style="color:var(--text-muted);"></i>
       Ventas registradas
     </h2>
     {% if ventas_descargue %}
@@ -706,7 +814,7 @@
     <!-- Vista móvil -->
     <div class="venta-cards mobile-only">
       {% for venta in ventas_descargue %}
-        <div class="venta-c">
+        <div class="venta-c {% if venta.monto >= 5000 %}tier-high{% elif venta.monto >= 1500 %}tier-mid{% else %}tier-low{% endif %}">
           <div class="venta-c-top">
             <div>
               <div class="venta-c-name">{{ venta.descargue.get_full_name|default:venta.descargue.username|title }}</div>
@@ -718,8 +826,8 @@
             </div>
           </div>
           <div class="venta-c-bottom">
-            <span class="chip-num">{{ venta.numero }}</span>
-            <span class="chip-lot" style="background:var(--success-light);color:#065f46;border-color:#6ee7b7;">
+            <span class="chip chip-num">{{ venta.numero }}</span>
+            <span class="chip chip-lot" style="background:var(--success-light);color:#065f46;border-color:#6ee7b7;">
               {{ venta.registrado_por.username|capfirst }}
             </span>
           </div>
@@ -730,6 +838,7 @@
     <!-- Vista desktop -->
     <div class="desktop-only">
       <table class="ventas-table">
+        <colgroup><col><col><col><col><col><col></colgroup>
         <thead>
           <tr>
             <th>Fecha</th>
@@ -743,12 +852,12 @@
         <tbody>
           {% for venta in ventas_descargue %}
             <tr>
-              <td style="color:var(--muted); font-size:.82rem; white-space:nowrap;">{{ venta.fecha_venta }}</td>
-              <td style="font-weight:600; color:#1f2937;">{{ venta.descargue.get_full_name|default:venta.descargue.username|title }}</td>
-              <td><span class="chip-lot">{{ venta.loteria.nombre }}</span></td>
-              <td><span class="chip-num">{{ venta.numero }}</span></td>
+              <td class="td-fecha">{{ venta.fecha_venta }}</td>
+              <td class="td-name">{{ venta.descargue.get_full_name|default:venta.descargue.username|title }}</td>
+              <td><span class="chip chip-lot">{{ venta.loteria.nombre }}</span></td>
+              <td><span class="chip chip-num">{{ venta.numero }}</span></td>
               <td class="td-monto">${{ venta.monto|format_colombian }}</td>
-              <td style="color:var(--muted); font-size:.82rem;">{{ venta.registrado_por.username|capfirst }}</td>
+              <td class="td-reg">{{ venta.registrado_por.username|capfirst }}</td>
             </tr>
           {% endfor %}
         </tbody>
@@ -771,14 +880,14 @@
         Pág. <strong>{{ ventas_descargue.number }}</strong> de <strong>{{ ventas_descargue.paginator.num_pages }}</strong>
       </span>
 
-      <div class="page-numbers">
+      <div class="pagination-nav page-numbers">
         {% for num in ventas_descargue.paginator.page_range %}
           {% if ventas_descargue.number == num %}
             <span class="page-num active">{{ num }}</span>
           {% elif num == 1 or num == ventas_descargue.paginator.num_pages or num >= ventas_descargue.number|add:"-2" and num <= ventas_descargue.number|add:"2" %}
             <a class="page-num" href="?page={{ num }}&fecha={{ fecha_filtro|date:'Y-m-d' }}&descargue={{ descargue_id }}&loteria={{ loteria_id }}">{{ num }}</a>
           {% elif num == ventas_descargue.number|add:"-3" or num == ventas_descargue.number|add:"3" %}
-            <span class="page-num" style="border:none;background:none;color:var(--muted);">…</span>
+            <span class="page-ellipsis">…</span>
           {% endif %}
         {% endfor %}
       </div>
@@ -804,29 +913,28 @@
 
 </div>
 
-<!-- ══════════════════════════════════════════════
+<!-- ══════════════════════════════════════
      JAVASCRIPT
-══════════════════════════════════════════════ -->
+══════════════════════════════════════ -->
 <script>
 (() => {
   const filterForm = document.getElementById('filter-form');
 
-  // ── Auto-submit filtros ───────────────────────
+  // ── Auto-submit filtros
   document.getElementById('fecha-filtro')?.addEventListener('change', () => filterForm.submit());
-  document.getElementById('descargue')?.addEventListener('change', () => filterForm.submit());
-  document.getElementById('loteria')?.addEventListener('change', () => filterForm.submit());
+  document.getElementById('fil-descargue')?.addEventListener('change', () => filterForm.submit());
+  document.getElementById('fil-loteria')?.addEventListener('change', () => filterForm.submit());
 
-  // ── Cerrar mensajes toast ─────────────────────
+  // ── Toasts
   document.querySelectorAll('.toast-close').forEach(btn => {
     btn.addEventListener('click', () => {
       const msg = btn.closest('.toast-msg');
-      msg.style.transition = 'opacity .2s';
+      msg.style.transition = 'opacity .2s, transform .2s';
       msg.style.opacity = '0';
+      msg.style.transform = 'translateY(-6px)';
       setTimeout(() => msg.remove(), 200);
     });
   });
-
-  // Auto-descartar mensajes de éxito a los 4s
   document.querySelectorAll('.toast-msg.success').forEach(msg => {
     setTimeout(() => {
       msg.style.transition = 'opacity .4s';
@@ -835,7 +943,42 @@
     }, 4000);
   });
 
-  // ── Contador de líneas en textarea ───────────
+  // ── Contexto compartido → sincronizar hidden inputs de cada formulario
+  const sharedDesc = document.getElementById('shared-descargue');
+  const sharedLot  = document.getElementById('shared-loteria');
+
+  function syncContext() {
+    document.getElementById('manual-descargue').value = sharedDesc?.value || '';
+    document.getElementById('manual-loteria').value   = sharedLot?.value  || '';
+    document.getElementById('masiva-descargue').value = sharedDesc?.value || '';
+    document.getElementById('masiva-loteria').value   = sharedLot?.value  || '';
+  }
+
+  sharedDesc?.addEventListener('change', syncContext);
+  sharedLot?.addEventListener('change', syncContext);
+  syncContext();
+
+  // Validar contexto antes de enviar
+  function validateContext(e) {
+    if (!sharedDesc?.value) {
+      e.preventDefault();
+      sharedDesc.classList.add('is-invalid');
+      sharedDesc.closest('.context-bar').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(() => sharedDesc.classList.remove('is-invalid'), 2000);
+      return;
+    }
+    if (!sharedLot?.value) {
+      e.preventDefault();
+      sharedLot.classList.add('is-invalid');
+      setTimeout(() => sharedLot.classList.remove('is-invalid'), 2000);
+      return;
+    }
+    syncContext();
+  }
+  document.getElementById('form-manual')?.addEventListener('submit', validateContext);
+  document.getElementById('form-masiva')?.addEventListener('submit', validateContext);
+
+  // ── Contador textarea
   const textarea = document.getElementById('jugadas_masivas');
   const counter  = document.getElementById('jugadas-counter');
   const MAX      = 500;
@@ -845,21 +988,20 @@
     counter.textContent = lines + ' / ' + MAX;
     counter.classList.toggle('near-limit', lines >= MAX * .8 && lines < MAX);
     counter.classList.toggle('at-limit',   lines >= MAX);
+    textarea.classList.toggle('has-content', textarea.value.trim().length > 0);
     if (lines >= MAX) {
-      // truncar al máximo
       const arr = textarea.value.split('\n');
       if (arr.length > MAX) textarea.value = arr.slice(0, MAX).join('\n');
     }
   }
 
   textarea?.addEventListener('input', updateCounter);
-  updateCounter(); // estado inicial
+  updateCounter();
 
-  // ── Limpiar carga masiva ──────────────────────
+  // ── Limpiar carga masiva
   document.getElementById('btn-limpiar-masiva')?.addEventListener('click', () => {
     if (textarea) { textarea.value = ''; textarea.focus(); updateCounter(); }
   });
-
 })();
 </script>
 

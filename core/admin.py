@@ -15,6 +15,8 @@ from .models import (
     Abonado,
     JugadaAbonado,
     AbonadoApuesta,
+    PersonaDescargue,
+    ReglaDescargue,
 )
 
 User = get_user_model()
@@ -350,3 +352,37 @@ class AbonadoApuestaAdmin(admin.ModelAdmin):
     search_fields = ("abonado__nombre", "registrado_por__username")
     list_select_related = ("abonado", "registrado_por")
     readonly_fields = ("creada_en",)
+
+
+# --- Configuracion de descargues ---
+class ReglaDescargueInline(admin.TabularInline):
+    model = ReglaDescargue
+    extra = 1
+    fields = ("cifras", "monto_maximo")
+
+
+@admin.register(PersonaDescargue)
+class PersonaDescargueAdmin(admin.ModelAdmin):
+    list_display = ("orden", "nombre", "telefono", "recibe_restante", "activo", "reglas_resumen")
+    list_filter = ("activo", "recibe_restante")
+    search_fields = ("nombre",)
+    ordering = ("orden",)
+    inlines = [ReglaDescargueInline]
+    fields = ("orden", "nombre", "telefono", "recibe_restante", "activo")
+
+    @admin.display(description="Reglas")
+    def reglas_resumen(self, obj):
+        partes = [
+            f"{r.cifras}c → ${r.monto_maximo:,}".replace(",", ".")
+            for r in obj.reglas.all()
+        ]
+        return " | ".join(partes) if partes else "—"
+
+    def has_add_permission(self, request):
+        return request.user.is_staff
+
+    def has_change_permission(self, request, obj=None):
+        return request.user.is_staff
+
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_superuser
