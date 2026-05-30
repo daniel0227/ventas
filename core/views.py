@@ -1692,6 +1692,7 @@ def descargues_por_persona(request):
         fecha = hoy
 
     loteria_id = (request.GET.get('loteria') or '').strip()
+    persona_id_filtro = (request.GET.get('persona') or '').strip()
 
     # ── Personas activas en orden ─────────────────
     personas = list(
@@ -1706,8 +1707,13 @@ def descargues_por_persona(request):
         for p in personas
     }
 
-    # ── Filtros laterales ─────────────────────────
-    loterias_disponibles = Loteria.objects.order_by('nombre')
+    # ── Loterias disponibles segun el dia de la fecha ────
+    dia_nombre = _DIAS_SEMANA_CONFIG[fecha.weekday()]['nombre']
+    dia_obj = Dia.objects.filter(nombre=dia_nombre).first()
+    if dia_obj:
+        loterias_disponibles = Loteria.objects.filter(dias_juego=dia_obj).order_by('nombre')
+    else:
+        loterias_disponibles = Loteria.objects.none()
 
     # ── Datos del dia (mismo query que reporte_descargas) ──
     base = (
@@ -1779,11 +1785,22 @@ def descargues_por_persona(request):
 
     total_global = sum(r['total'] for r in resultado_personas)
 
+    # ── Aplicar filtro por persona (solo afecta la vista, no el calculo) ──
+    if persona_id_filtro:
+        resultado_personas_vista = [
+            r for r in resultado_personas
+            if str(r['persona'].id) == persona_id_filtro
+        ]
+    else:
+        resultado_personas_vista = resultado_personas
+
     return render(request, 'core/descargues_por_persona.html', {
         'fecha': fecha,
         'loteria_id': loteria_id,
+        'persona_id_filtro': persona_id_filtro,
         'loterias_disponibles': loterias_disponibles,
-        'personas_resultado': resultado_personas,
+        'personas_filtro': personas,
+        'personas_resultado': resultado_personas_vista,
         'total_global': total_global,
         'hay_personas': bool(personas),
     })

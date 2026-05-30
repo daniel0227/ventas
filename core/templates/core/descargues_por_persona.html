@@ -297,12 +297,12 @@
   <div class="filter-panel-body">
     <form method="get" id="filter-form">
       <div class="row g-2 align-items-end">
-        <div class="col-12 col-md-5">
+        <div class="col-12 col-md-3">
           <label class="field-label" for="fecha">Fecha</label>
           <input type="date" id="fecha" name="fecha" class="form-control"
             value="{{ fecha|date:'Y-m-d' }}" max="{% now 'Y-m-d' %}">
         </div>
-        <div class="col-12 col-md-5">
+        <div class="col-12 col-md-3">
           <label class="field-label" for="loteria">Lotería</label>
           <select id="loteria" name="loteria" class="form-select">
             <option value="">Todas</option>
@@ -313,7 +313,18 @@
             {% endfor %}
           </select>
         </div>
-        <div class="col-12 col-md-2">
+        <div class="col-12 col-md-3">
+          <label class="field-label" for="persona">Persona</label>
+          <select id="persona" name="persona" class="form-select">
+            <option value="">Todas</option>
+            {% for p in personas_filtro %}
+              <option value="{{ p.id }}" {% if persona_id_filtro == p.id|stringformat:'s' %}selected{% endif %}>
+                {{ p.orden }}. {{ p.nombre }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-12 col-md-3">
           <a href="{% url 'descargues_por_persona' %}" class="btn-reset w-100 justify-content-center">
             <i class="bi bi-arrow-counterclockwise"></i> Limpiar
           </a>
@@ -342,7 +353,7 @@
       <div class="value">${{ total_global|format_colombian }}</div>
     </div>
     <div style="font-size:.78rem;color:var(--text-secondary);">
-      {{ personas_resultado|length }} persona{{ personas_resultado|length|pluralize:"s" }} activa{{ personas_resultado|length|pluralize:"s" }}
+      {% if persona_id_filtro %}Filtrado por persona{% else %}{{ personas_resultado|length }} persona{{ personas_resultado|length|pluralize:"s" }}{% endif %}
     </div>
   </div>
 
@@ -359,7 +370,7 @@
             {% endif %}
             <span class="sub">
               {% for r in item.persona.reglas.all %}
-                {{ r.cifras }}c → {{ r.monto_maximo }}{% if not forloop.last %} · {% endif %}
+                {{ r.cifras }}c → {{ r.monto_maximo|format_colombian }}{% if not forloop.last %} · {% endif %}
               {% empty %}
                 sin reglas
               {% endfor %}
@@ -373,7 +384,7 @@
           </button>
           <div class="persona-total">
             <span class="label">Total</span>
-            {{ item.total }}
+            ${{ item.total|format_colombian }}
           </div>
         </div>
 
@@ -389,7 +400,7 @@
                 </ul>
                 <div class="bloque-subtotal">
                   <span>Subtotal</span>
-                  <span>{{ bloque.subtotal }}</span>
+                  <span>${{ bloque.subtotal|format_colombian }}</span>
                 </div>
               </div>
             {% endfor %}
@@ -411,6 +422,7 @@
   // Auto-submit de filtros
   document.getElementById('fecha')?.addEventListener('change', () => document.getElementById('filter-form').submit());
   document.getElementById('loteria')?.addEventListener('change', () => document.getElementById('filter-form').submit());
+  document.getElementById('persona')?.addEventListener('change', () => document.getElementById('filter-form').submit());
 
   // Botón copiar (al lado del nombre)
   document.querySelectorAll('.btn-copy-inline').forEach(btn => {
