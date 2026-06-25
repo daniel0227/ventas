@@ -58,6 +58,7 @@
 }
 
 .menu-icon {
+  display: block;
   width: 36px;
   height: 36px;
   flex: 0 0 auto;
@@ -71,16 +72,18 @@
   color: #1f2937;
 }
 
-.menu-card-sales        { background-color: #ffe8d6; }
-.menu-card-lotteries    { background-color: #ffdce5; }
-.menu-card-sales-report { background-color: #deebff; }
-.menu-card-prizes       { background-color: #e8e7ff; }
-.menu-card-prizes-report{ background-color: #ede9fe; }
-.menu-card-results      { background-color: #dcfce7; }
-.menu-card-register     { background-color: #fef3c7; }
-.menu-card-downloads    { background-color: #e0f2fe; }
-.menu-card-management   { background-color: #dbeafe; }
-.menu-card-reports-group{ background-color: #e8f1ff; overflow: hidden; }
+.menu-card-sales          { background-color: #ffe8d6; } /* durazno */
+.menu-card-sales-report   { background-color: #fff0cf; } /* ambar */
+.menu-card-lotteries      { background-color: #ffdce5; } /* rosa */
+.menu-card-abonados       { background-color: #e9e3ff; } /* lavanda */
+.menu-card-prizes         { background-color: #ddd2fb; } /* violeta */
+.menu-card-prizes-report  { background-color: #ddd2fb; } /* violeta (sin uso en la vista) */
+.menu-card-results        { background-color: #d6f5e0; } /* verde */
+.menu-card-register       { background-color: #fdeeb8; } /* amarillo */
+.menu-card-management      { background-color: #d2e7ff; } /* azul cielo */
+.menu-card-downloads      { background-color: #cfeef0; } /* teal */
+.menu-card-downloads-person { background-color: #dde1fb; } /* periwinkle */
+.menu-card-reports-group  { background-color: #e4e8f1; overflow: hidden; } /* slate */
 
 .menu-collapse-toggle {
   width: 100%;
