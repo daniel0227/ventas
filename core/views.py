@@ -1659,21 +1659,18 @@ def _calcular_descargue_persona(personas, reglas_por_persona, monto_total, cifra
 
 def _construir_mensaje_whatsapp(persona, bloques_loteria, fecha):
     """Arma el texto plano que se copia para WhatsApp."""
-    fecha_str = fecha.strftime("%d/%m/%Y")
-    lineas = [f"*Descargue {fecha_str} — {persona.nombre}*", ""]
+    lineas = []
     total_general = 0
 
-    for nombre_loteria, items in bloques_loteria:
+    for idx, (nombre_loteria, items) in enumerate(bloques_loteria):
+        if idx > 0:
+            lineas.append("")
         lineas.append(nombre_loteria.upper())
-        subtotal = 0
+        lineas.append("")
         for numero, monto in items:
             lineas.append(f"{numero} - {monto}")
-            subtotal += monto
-        lineas.append(f"Subtotal: {subtotal}")
-        lineas.append("")
-        total_general += subtotal
+            total_general += monto
 
-    lineas.append(f"*Total: {total_general}*")
     return "\n".join(lineas), total_general
 
 
