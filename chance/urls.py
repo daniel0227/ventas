@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.urls import path
 from core import views
+from core import views_2fa
 from core.views import CustomLoginView, importar_resultados_api, reportes
 
 from django.contrib.auth.views import LogoutView
@@ -46,6 +47,10 @@ urlpatterns = [
     path("api/importar_resultados/", views.importar_resultados_api, name="importar_resultados_api"),
     path("api/notificaciones/count/", views.notificaciones_count_api, name="notificaciones_count"),
     path("api/notificaciones/", views.notificaciones_list, name="notificaciones_list"),
+
+    # 2FA (verificacion en dos pasos) — cuentas staff/superuser
+    path("2fa/setup/", views_2fa.dos_factor_setup, name="dos_factor_setup"),
+    path("2fa/verify/", views_2fa.dos_factor_verify, name="dos_factor_verify"),
 
     # Abonados
     path('abonados/', views.abonados_list, name='abonados_list'),

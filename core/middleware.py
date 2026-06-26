@@ -104,3 +104,57 @@ class ContentSecurityPolicyMiddleware:
         if "text/html" in content_type:
             response["Content-Security-Policy"] = _CSP_DIRECTIVES
         return response
+
+
+# ---------------------------------------------------------------------------
+# Enforcement de 2FA para cuentas staff/superuser
+# ---------------------------------------------------------------------------
+from django.conf import settings as _settings
+from django.shortcuts import redirect
+
+
+class TwoFactorEnforceMiddleware:
+    """
+    Exige segundo factor (TOTP) verificado a usuarios staff/superuser cuando
+    settings.OTP_ENFORCE es True.
+
+    - Los vendedores normales (no staff) NUNCA se ven afectados.
+    - Si el staff aun no tiene dispositivo -> lo manda a enrolarse (/2fa/setup/).
+    - Si lo tiene pero la sesion no esta verificada -> a /2fa/verify/.
+    Depende de django_otp.middleware.OTPMiddleware (debe ir antes en MIDDLEWARE),
+    que provee request.user.is_verified().
+    """
+
+    # Prefijos accesibles sin estar verificado (enrolar/verificar/salir/estaticos)
+    _EXEMPT_PREFIXES = (
+        "/2fa/",
+        "/login/",
+        "/logout/",
+        "/static/",
+        "/media/",
+    )
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if self._needs_2fa(request):
+            from django_otp import user_has_device
+            if user_has_device(request.user):
+                return redirect("dos_factor_verify")
+            return redirect("dos_factor_setup")
+        return self.get_response(request)
+
+    @staticmethod
+    def _needs_2fa(request) -> bool:
+        if not getattr(_settings, "OTP_ENFORCE", False):
+            return False
+        user = getattr(request, "user", None)
+        if user is None or not user.is_authenticated:
+            return False
+        if not user.is_staff:           # vendedores normales: jamas
+            return False
+        # is_verified() lo agrega OTPMiddleware; si falta, asumimos no verificado
+        if hasattr(user, "is_verified") and user.is_verified():
+            return False
+        return not any(request.path.startswith(p) for p in self._EXEMPT_PREFIXES)

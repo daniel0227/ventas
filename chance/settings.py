@@ -55,6 +55,12 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+
+    # 2FA (django-otp) — segundo factor para cuentas staff/superuser
+    'django_otp',
+    'django_otp.plugins.otp_totp',
+    'django_otp.plugins.otp_static',
+
     'core',
 ]
 
@@ -65,10 +71,12 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django_otp.middleware.OTPMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'core.middleware.ActivityLogMiddleware',
     'core.middleware.ContentSecurityPolicyMiddleware',
+    'core.middleware.TwoFactorEnforceMiddleware',
 ]
 
 ROOT_URLCONF = 'chance.urls'
@@ -154,6 +162,17 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = 'home'
 LOGOUT_REDIRECT_URL = 'login'
+
+
+# ---------------------------------------------------------------------------
+# Autenticacion de dos factores (2FA / TOTP) — solo cuentas staff/superuser
+# ---------------------------------------------------------------------------
+# Interruptor de despliegue: con False el 2FA NO se exige (los staff pueden
+# enrolarse sin presion). Cambiar a True cuando todos los admins esten
+# enrolados. Permite desactivar al instante sin redeploy si algo falla.
+OTP_ENFORCE = os.environ.get("OTP_ENFORCE", "False") == "True"
+# Nombre que aparece en la app de autenticacion (Google Authenticator, etc.)
+OTP_TOTP_ISSUER = os.environ.get("OTP_TOTP_ISSUER", "Lottia")
 
 
 # ---------------------------------------------------------------------------

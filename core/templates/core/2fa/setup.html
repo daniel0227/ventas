@@ -1,0 +1,40 @@
+{% extends "core/base.html" %}
+
+{% block content %}
+<section class="container py-4" style="max-width: 560px;">
+  <h2 class="mb-2">Activar verificación en dos pasos</h2>
+  <p class="text-muted">
+    Tu cuenta tiene permisos administrativos. Protégela con un segundo factor:
+    aunque alguien conozca tu contraseña, no podrá entrar sin tu teléfono.
+  </p>
+
+  {% if messages %}
+    {% for m in messages %}
+      <div class="alert {% if m.tags == 'error' %}alert-danger{% else %}alert-{{ m.tags }}{% endif %}">{{ m }}</div>
+    {% endfor %}
+  {% endif %}
+
+  <ol class="mb-3">
+    <li>Instala una app de autenticación: <strong>Google Authenticator</strong>, <strong>Authy</strong> o <strong>Microsoft Authenticator</strong>.</li>
+    <li>Escanea este código QR desde la app:</li>
+  </ol>
+
+  <div class="text-center mb-3">
+    <img src="{{ qr_data_uri }}" alt="Código QR para 2FA" style="width:200px;height:200px;">
+  </div>
+
+  <p class="small text-muted">
+    ¿No puedes escanear? Ingresa esta clave manualmente en la app:<br>
+    <code style="font-size:1rem;">{{ secret }}</code>
+  </p>
+
+  <form method="post" class="mt-3">
+    {% csrf_token %}
+    <label class="form-label" for="token">Ingresa el código de 6 dígitos que muestra la app</label>
+    <input type="text" id="token" name="token" inputmode="numeric"
+           autocomplete="one-time-code" maxlength="6"
+           class="form-control mb-3" required autofocus>
+    <button type="submit" class="btn btn-primary w-100">Activar 2FA</button>
+  </form>
+</section>
+{% endblock %}

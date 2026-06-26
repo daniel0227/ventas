@@ -1,0 +1,22 @@
+{% extends "core/base.html" %}
+
+{% block content %}
+<section class="container py-4" style="max-width: 560px;">
+  <div class="alert alert-success">✅ Verificación en dos pasos activada correctamente.</div>
+
+  <h3 class="mb-2">Guarda tus códigos de respaldo</h3>
+  <p class="text-muted">
+    Úsalos para entrar si pierdes acceso a tu teléfono. Cada código sirve
+    <strong>una sola vez</strong>. Guárdalos en un lugar seguro:
+    <strong>no se volverán a mostrar</strong>.
+  </p>
+
+  <ul class="list-group mb-3">
+    {% for code in backup_codes %}
+      <li class="list-group-item text-center"><code style="font-size:1rem;">{{ code }}</code></li>
+    {% endfor %}
+  </ul>
+
+  <a href="{% url 'home' %}" class="btn btn-primary w-100">Entendido, continuar</a>
+</section>
+{% endblock %}
