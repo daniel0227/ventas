@@ -13,8 +13,9 @@ import os, mimetypes, logging
 logger = logging.getLogger(__name__)
 
 def _serve_media(request, path):
-    full = os.path.normpath(os.path.join(str(settings.MEDIA_ROOT), path))
-    if not full.startswith(str(settings.MEDIA_ROOT)):
+    media_root = os.path.normpath(str(settings.MEDIA_ROOT))
+    full = os.path.normpath(os.path.join(media_root, path))
+    if full != media_root and not full.startswith(media_root + os.sep):
         raise Http404()
     logger.warning("MEDIA SERVE: path=%s exists=%s", full, os.path.exists(full))
     if not os.path.exists(full):

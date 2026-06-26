@@ -862,7 +862,7 @@ def crear_venta(request):
                 message="Error de integridad al crear venta.",
                 payload={"error": str(exc)}
             )
-            return JsonResponse({'success': False, 'error': f'Error BD: {exc}'}, status=400)
+            return JsonResponse({'success': False, 'error': 'No fue posible registrar la venta. Intenta de nuevo.'}, status=400)
 
         except ValidationError as exc:
             _audit_sale_event(
@@ -1822,8 +1822,13 @@ def importar_resultados_api(request):
     if request.method != "POST":
         return JsonResponse({"error": "Método no permitido"}, status=405)
 
+    import_token = os.environ.get("IMPORT_TOKEN", "")
+    if not import_token:
+        # Sin token configurado el endpoint debe fallar cerrado, nunca abierto.
+        return JsonResponse({"error": "No autorizado"}, status=401)
+
     token_recibido = request.headers.get("Authorization", "")
-    token_esperado = f"Token {os.environ.get('IMPORT_TOKEN', '')}"
+    token_esperado = f"Token {import_token}"
 
     # Comparacion segura en tiempo constante (evita timing attacks)
     if not hmac.compare_digest(token_recibido, token_esperado):
@@ -1849,32 +1854,6 @@ def importar_resultados_api(request):
     resultado = importar_resultados(fecha_objetivo, user=user)
     return JsonResponse({"resultado": resultado, "fecha": fecha_objetivo.isoformat()}, status=200)
 
-
-def importar_resultados_via_get(request):
-    """
-    Endpoint GET de compatibilidad — mantiene la validacion correcta con env var.
-    Preferir el endpoint POST para nuevas integraciones.
-    """
-    import hmac
-
-    token_recibido = request.GET.get("token", "")
-    token_esperado = os.environ.get("IMPORT_TOKEN", "")
-
-    if not token_esperado or not hmac.compare_digest(token_recibido, token_esperado):
-        return JsonResponse({"error": "No autorizado"}, status=401)
-
-    fecha = localtime(now()).date() - timedelta(days=1)
-
-    from django.conf import settings as django_settings
-    import_user = getattr(django_settings, "IMPORT_RESULT_USER", "daniel")
-    User = get_user_model()
-    try:
-        user = User.objects.get(username=import_user)
-    except User.DoesNotExist:
-        return JsonResponse({"error": f"Usuario '{import_user}' no encontrado"}, status=500)
-
-    resultado = importar_resultados(fecha, user=user)
-    return JsonResponse({"resultado": resultado})
 
 RETENCION_PCT = Decimal('0.10')   # 10%
 COMISION_PCT  = Decimal('0.35')   # 35%
@@ -2767,7 +2746,14 @@ def abonado_apostar(request, pk):
             )
             return JsonResponse({"success": False, "error": exc.mensaje}, status=exc.status)
         except IntegrityError as exc:
-            return JsonResponse({"success": False, "error": f"Error BD: {exc}"}, status=400)
+            _audit_sale_event(
+                request,
+                VentaAuditLog.EVENT_CREATE_REJECTED,
+                VentaAuditLog.STATUS_ERROR,
+                message="Error de integridad al registrar apuesta de abonado.",
+                payload={"abonado_id": abonado.id, "error": str(exc)},
+            )
+            return JsonResponse({"success": False, "error": "No fue posible registrar la apuesta. Intenta de nuevo."}, status=400)
         except ValidationError as exc:
             return JsonResponse({"success": False, "error": str(exc)}, status=400)
         except Exception:
