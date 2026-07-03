@@ -232,6 +232,20 @@ def _validar_y_registrar_ventas(*, vendedor, jugadas, loterias_ids, request=None
                             raise RegistroVentaError(error_msg)
                         acumulado_nuevo[key] += monto_jugada
 
+        # --- Límite diario por vendedor (cuenta monto × nº de loterías) ---
+        limite_diario_vendedor = _obtener_limite_vendedor(vendedor.id)
+        if limite_diario_vendedor > 0:
+            total_hoy = _total_vendido_hoy(vendedor, ahora_tx.date())
+            nuevo_total_venta = sum(j["monto"] for j in jugadas_normalizadas) * len(loterias_seleccionadas)
+            if total_hoy + nuevo_total_venta > limite_diario_vendedor:
+                disponible = max(limite_diario_vendedor - total_hoy, 0)
+                error_msg = (
+                    f"Límite diario de ventas alcanzado (${limite_diario_vendedor:,} COP). "
+                    f"Llevas ${total_hoy:,} vendidos hoy y esta venta suma ${nuevo_total_venta:,}. "
+                    f"Disponible: ${disponible:,} COP."
+                ).replace(",", ".")
+                raise RegistroVentaError(error_msg)
+
         ventas_creadas = []
         for jugada in jugadas_normalizadas:
             venta = Venta.objects.create(
@@ -285,6 +299,20 @@ def _obtener_limite_vendedor(user_id) -> int:
             return 0
         cache.set(cache_key, valor, _LIMITE_VENDEDOR_CACHE_TTL)
     return valor
+
+
+def _total_vendido_hoy(vendedor, fecha) -> int:
+    """
+    Total vendido por el vendedor en la fecha, contando monto x nº de loterías
+    (consistente con el reporte de ventas). Incluye tanto ventas directas como
+    apuestas de abonados, pues ambas crean Venta a nombre del vendedor.
+    """
+    return int(
+        Venta.objects
+        .filter(vendedor=vendedor, fecha_venta__date=fecha)
+        .annotate(n_lot=Count("loterias"))
+        .aggregate(total=Sum(F("monto") * F("n_lot")))["total"] or 0
+    )
 
 
 def _es_descargue(user):
@@ -812,11 +840,7 @@ def crear_venta(request):
                 # --- Validación de límite diario por vendedor ---
                 limite_diario_vendedor = _obtener_limite_vendedor(request.user.id)
                 if limite_diario_vendedor > 0:
-                    total_hoy = int(
-                        Venta.objects
-                        .filter(vendedor=request.user, fecha_venta__date=ahora_tx.date())
-                        .aggregate(total=Sum("monto"))["total"] or 0
-                    )
+                    total_hoy = _total_vendido_hoy(request.user, ahora_tx.date())
                     nuevo_total_venta = sum(j["monto"] for j in jugadas_validadas) * loterias_count
                     if total_hoy + nuevo_total_venta > limite_diario_vendedor:
                         disponible = max(limite_diario_vendedor - total_hoy, 0)
