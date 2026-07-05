@@ -398,17 +398,42 @@
       <div class="stat-value sm">${{ total_premios|default:0|format_colombian }}</div>
     </div>
   </div>
+  {% if total_descargues %}
+  <div class="stat-card fade-up">
+    <div class="stat-icon green"><i class="bi bi-people-fill"></i></div>
+    <div>
+      <div class="stat-label">Cubren descargues</div>
+      <div class="stat-value sm" style="color:#0d9488;">&minus;${{ total_descargues|default:0|format_colombian }}</div>
+      <div style="font-size:.72rem; color:var(--muted); margin-top:.15rem;">
+        {% for d in descargue_rows %}{{ d.descargue }}: &minus;${{ d.total|format_colombian }}{% if not forloop.last %} &middot; {% endif %}{% endfor %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
   <div class="stat-card fade-up {% if total_diferencia < 0 %}danger-border{% else %}success-border{% endif %}">
     <div class="stat-icon {% if total_diferencia < 0 %}red{% else %}green{% endif %}">
       <i class="bi bi-{% if total_diferencia < 0 %}arrow-down-circle{% else %}arrow-up-circle{% endif %}-fill"></i>
     </div>
     <div>
-      <div class="stat-label">Diferencia</div>
+      <div class="stat-label">Diferencia{% if total_descargues %} (vendedores){% endif %}</div>
       <div class="stat-value sm {% if total_diferencia < 0 %}neg{% else %}pos{% endif %}">
         ${{ total_diferencia|default:0|format_colombian }}
       </div>
     </div>
   </div>
+  {% if total_descargues %}
+  <div class="stat-card fade-up {% if total_diferencia_neta < 0 %}danger-border{% else %}success-border{% endif %}">
+    <div class="stat-icon {% if total_diferencia_neta < 0 %}red{% else %}green{% endif %}">
+      <i class="bi bi-wallet2"></i>
+    </div>
+    <div>
+      <div class="stat-label">Diferencia neta (casa)</div>
+      <div class="stat-value sm {% if total_diferencia_neta < 0 %}neg{% else %}pos{% endif %}">
+        ${{ total_diferencia_neta|default:0|format_colombian }}
+      </div>
+    </div>
+  </div>
+  {% endif %}
 </div>
 
 {% if rows %}

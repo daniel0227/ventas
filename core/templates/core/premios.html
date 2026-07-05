@@ -131,6 +131,28 @@
   }
   .stat-card.stat-green .stat-value { color: var(--success); }
   .stat-card.stat-amber .stat-value  { color: var(--amber); }
+  .stat-card.stat-teal .stat-icon    { background: #f0fdfa; color: #0d9488; }
+  .stat-card.stat-teal .stat-value   { color: #0d9488; }
+  .stat-card.stat-primary .stat-icon { background: var(--primary-light); color: var(--primary); }
+  .stat-card.stat-primary .stat-value{ color: var(--primary); }
+
+  /* Insignia y valor para premios de descargue (los cubre el descargue) */
+  .badge-desc {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    padding: 0.1rem 0.45rem;
+    border-radius: 999px;
+    background: #f0fdfa;
+    color: #0d9488;
+    border: 1px solid #99f6e4;
+    font-size: 0.68rem;
+    font-weight: 700;
+    white-space: nowrap;
+    letter-spacing: 0.02em;
+  }
+  .premio-valor.descargue,
+  .td-valor.descargue { color: #0d9488 !important; }
 
   /* ── Cards móvil ─────────────────────────────── */
   .premio-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.7rem; }
@@ -442,11 +464,31 @@
 
   <!-- Stat cards -->
   <div class="stat-row">
-    <div class="stat-card stat-green">
-      <div class="stat-icon"><i class="bi bi-trophy-fill"></i></div>
-      <div class="stat-label">Total premios</div>
-      <div class="stat-value">${{ total_premios|default:0|format_colombian }}</div>
-    </div>
+    {% if es_descargue_user %}
+      <div class="stat-card stat-teal">
+        <div class="stat-icon"><i class="bi bi-cash-coin"></i></div>
+        <div class="stat-label">Total a pagar</div>
+        <div class="stat-value">${{ total_descargues|default:0|format_colombian }}</div>
+      </div>
+    {% else %}
+      <div class="stat-card stat-green">
+        <div class="stat-icon"><i class="bi bi-trophy-fill"></i></div>
+        <div class="stat-label">{% if es_admin %}Premios a pagar{% else %}Total premios{% endif %}</div>
+        <div class="stat-value">${{ total_premios|default:0|format_colombian }}</div>
+      </div>
+      {% if es_admin and descargues_count %}
+        <div class="stat-card stat-teal">
+          <div class="stat-icon"><i class="bi bi-people-fill"></i></div>
+          <div class="stat-label">Cubren descargues</div>
+          <div class="stat-value">&minus;${{ total_descargues|default:0|format_colombian }}</div>
+        </div>
+        <div class="stat-card stat-primary">
+          <div class="stat-icon"><i class="bi bi-wallet2"></i></div>
+          <div class="stat-label">Neto a pagar</div>
+          <div class="stat-value">${{ neto_premios|default:0|format_colombian }}</div>
+        </div>
+      {% endif %}
+    {% endif %}
     <div class="stat-card stat-amber">
       <div class="stat-icon"><i class="bi bi-hash"></i></div>
       <div class="stat-label">Cantidad</div>
@@ -479,6 +521,9 @@
               {% if premio.es_combinado %}
                 <span class="badge-combi"><i class="bi bi-shuffle"></i> combinado</span>
               {% endif %}
+              {% if es_admin and premio.es_descargue %}
+                <span class="badge-desc"><i class="bi bi-people-fill"></i> descargue</span>
+              {% endif %}
               {% if es_admin %}
                 <span class="chip-vendedor">
                   <strong>{{ premio.vendedor.get_full_name|default:premio.vendedor.username|title }}</strong>
@@ -488,12 +533,12 @@
           </div>
 
           <div class="premio-right">
-            <div class="premio-valor">${{ premio.valor|format_colombian }}</div>
+            <div class="premio-valor{% if es_admin and premio.es_descargue %} descargue{% endif %}">{% if es_admin and premio.es_descargue %}&minus;{% endif %}${{ premio.valor|format_colombian }}</div>
             <button type="button"
               class="btn-wa"
               aria-label="Compartir por WhatsApp"
               title="Compartir por WhatsApp"
-              data-share-text="🎉 *Premio confirmado*&#10;&#10;🏆 *{{ premio.nombre }}*&#10;🔢 Número ganador: *{% if premio.es_combinado %}({{ premio.numero_ganador }}){% else %}{{ premio.numero_ganador }}{% endif %}*{% if premio.es_combinado %} ✨ combinado{% endif %}&#10;💰 Valor: *${{ premio.valor|format_colombian }} COP*&#10;📅 {{ fecha }}{% if es_admin %}&#10;👤 Vendedor: {{ premio.vendedor.get_full_name|default:premio.vendedor.username|title }}{% endif %}">
+              data-share-text="{% if premio.es_descargue %}🤝 *Descargue — valor a pagar*{% else %}🎉 *Premio confirmado*{% endif %}&#10;&#10;🏆 *{{ premio.nombre }}*&#10;🔢 Número ganador: *{% if premio.es_combinado %}({{ premio.numero_ganador }}){% else %}{{ premio.numero_ganador }}{% endif %}*{% if premio.es_combinado %} ✨ combinado{% endif %}&#10;💰 Valor{% if premio.es_descargue %} a pagar{% endif %}: *${{ premio.valor|format_colombian }} COP*&#10;📅 {{ fecha }}{% if es_admin %}&#10;👤 {% if premio.es_descargue %}Descargue{% else %}Vendedor{% endif %}: {{ premio.vendedor.get_full_name|default:premio.vendedor.username|title }}{% endif %}">
               <!-- WhatsApp icon -->
               <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false">
                 <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
@@ -540,17 +585,20 @@
                 {% if premio.es_combinado %}
                   <span class="badge-combi ms-1"><i class="bi bi-shuffle"></i> combinado</span>
                 {% endif %}
+                {% if es_admin and premio.es_descargue %}
+                  <span class="badge-desc ms-1"><i class="bi bi-people-fill"></i> descargue</span>
+                {% endif %}
               </td>
               {% if es_admin %}
                 <td>{{ premio.vendedor.get_full_name|default:premio.vendedor.username|title }}</td>
               {% endif %}
-              <td class="td-valor">${{ premio.valor|format_colombian }}</td>
+              <td class="td-valor{% if es_admin and premio.es_descargue %} descargue{% endif %}">{% if es_admin and premio.es_descargue %}&minus;{% endif %}${{ premio.valor|format_colombian }}</td>
               <td style="text-align:center;">
                 <button type="button"
                   class="btn-wa"
                   aria-label="Compartir por WhatsApp"
                   title="Compartir por WhatsApp"
-                  data-share-text="🎉 *Premio confirmado*&#10;&#10;🏆 *{{ premio.nombre }}*&#10;🔢 Número ganador: *{% if premio.es_combinado %}({{ premio.numero_ganador }}){% else %}{{ premio.numero_ganador }}{% endif %}*{% if premio.es_combinado %} ✨ combinado{% endif %}&#10;💰 Valor: *${{ premio.valor|format_colombian }} COP*&#10;📅 {{ fecha }}{% if es_admin %}&#10;👤 Vendedor: {{ premio.vendedor.get_full_name|default:premio.vendedor.username|title }}{% endif %}">
+                  data-share-text="{% if premio.es_descargue %}🤝 *Descargue — valor a pagar*{% else %}🎉 *Premio confirmado*{% endif %}&#10;&#10;🏆 *{{ premio.nombre }}*&#10;🔢 Número ganador: *{% if premio.es_combinado %}({{ premio.numero_ganador }}){% else %}{{ premio.numero_ganador }}{% endif %}*{% if premio.es_combinado %} ✨ combinado{% endif %}&#10;💰 Valor{% if premio.es_descargue %} a pagar{% endif %}: *${{ premio.valor|format_colombian }} COP*&#10;📅 {{ fecha }}{% if es_admin %}&#10;👤 {% if premio.es_descargue %}Descargue{% else %}Vendedor{% endif %}: {{ premio.vendedor.get_full_name|default:premio.vendedor.username|title }}{% endif %}">
                   <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false">
                     <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
                   </svg>
@@ -560,11 +608,29 @@
           {% endfor %}
         </tbody>
         <tfoot>
-          <tr>
-            <td colspan="{% if es_admin %}4{% else %}3{% endif %}" class="td-total-label">Total premios</td>
-            <td class="td-total-value">${{ total_premios|default:0|format_colombian }}</td>
-            <td></td>
-          </tr>
+          {% if es_admin and descargues_count %}
+            <tr>
+              <td colspan="4" class="td-total-label">Premios a pagar</td>
+              <td class="td-total-value">${{ total_premios|default:0|format_colombian }}</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td colspan="4" class="td-total-label">Cubren descargues</td>
+              <td class="td-total-value" style="color:#0d9488;">&minus;${{ total_descargues|default:0|format_colombian }}</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td colspan="4" class="td-total-label">Neto a pagar</td>
+              <td class="td-total-value">${{ neto_premios|default:0|format_colombian }}</td>
+              <td></td>
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="{% if es_admin %}4{% else %}3{% endif %}" class="td-total-label">{% if es_descargue_user %}Total a pagar{% else %}Total premios{% endif %}</td>
+              <td class="td-total-value">{% if es_descargue_user %}${{ total_descargues|default:0|format_colombian }}{% else %}${{ total_premios|default:0|format_colombian }}{% endif %}</td>
+              <td></td>
+            </tr>
+          {% endif %}
         </tfoot>
       </table>
     </div>

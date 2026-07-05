@@ -1381,8 +1381,13 @@ def premios(request):
     premios_qs = premios_qs.order_by('-actualizado_en', '-id')
 
     # -------- Totales y conteo --------
-    total_premios = premios_qs.aggregate(total=Sum('premio'))['total'] or 0
+    # Los premios de descargue no son plata que paga la casa: son la parte del
+    # premio que el usuario descargue cubre. Se separan para mostrar el neto.
+    total_premios_reales = premios_qs.filter(venta_descargue__isnull=True).aggregate(total=Sum('premio'))['total'] or 0
+    total_descargues = premios_qs.filter(venta_descargue__isnull=False).aggregate(total=Sum('premio'))['total'] or 0
+    neto_premios = total_premios_reales - total_descargues
     premios_count = premios_qs.count()
+    descargues_count = premios_qs.filter(venta_descargue__isnull=False).count()
 
     # -------- Shape para el template (alineado con tu HTML) --------
     premios_list = [
@@ -1397,21 +1402,22 @@ def premios(request):
             'cifras': p.cifras,
             'valor_apostado': p.valor,    # monto apostado
             'es_combinado': p.es_combinado,
+            'es_descargue': p.venta_descargue_id is not None,
         }
         for p in premios_qs
     ]
-    # ... después de construir premios_qs
-    total_premios = premios_qs.aggregate(total=Sum('premio'))['total'] or 0
-    premios_count = premios_qs.count()
-
 
     context = {
     'premios_list': premios_list,
-    'total_premios': total_premios,      # 👈 importante
-    'premios_count': premios_count,      # 👈 opcional para mostrar cantidad
+    'total_premios': total_premios_reales,   # premios reales a pagar (sin descargues)
+    'total_descargues': total_descargues,     # lo que cubren los descargues
+    'neto_premios': neto_premios,             # neto a cargo de la casa
+    'premios_count': premios_count,
+    'descargues_count': descargues_count,
     'fecha': fecha,
     'fecha_actual': timezone.localdate(),# 👈 para el input date
     'es_admin': request.user.is_staff,
+    'es_descargue_user': _es_descargue(request.user),
     'usuarios_premios': usuarios_premios_qs,
     'vendedor_id': vendedor_id,
 }
@@ -1906,6 +1912,36 @@ def _round_cop(n) -> int:
         n = Decimal(n)
     return int(n.quantize(Decimal('1'), rounding=ROUND_HALF_UP))
 
+
+def _resumen_descargues(fecha_inicio, fecha_fin):
+    """
+    Premios cubiertos por usuarios descargue en el rango: lista por descargue
+    (nombre, cantidad, total) y total general. Este dinero lo pagan los
+    descargues a la casa, por eso se resta de los premios y no se suma.
+    """
+    qs = (
+        Premio.objects
+        .filter(fecha__range=(fecha_inicio, fecha_fin), venta_descargue__isnull=False)
+        .values('vendedor_id', 'vendedor__username', 'vendedor__first_name', 'vendedor__last_name')
+        .annotate(
+            total_descargue=Coalesce(Sum('premio'), 0, output_field=IntegerField()),
+            cantidad=Count('id'),
+        )
+        .order_by('-total_descargue')
+    )
+    rows = []
+    total = 0
+    for d in qs:
+        nombre = f"{(d.get('vendedor__first_name') or '').strip()} {(d.get('vendedor__last_name') or '').strip()}".strip()
+        rows.append({
+            'descargue': nombre or d.get('vendedor__username') or f"Descargue {d.get('vendedor_id')}",
+            'username': d.get('vendedor__username') or '',
+            'cantidad': int(d.get('cantidad') or 0),
+            'total': int(d.get('total_descargue') or 0),
+        })
+        total += int(d.get('total_descargue') or 0)
+    return rows, total
+
 @user_passes_test(lambda u: u.is_superuser)
 def reportes(request):
     # --- fechas robustas ---
@@ -2109,10 +2145,10 @@ def reporte_ventas_vs_premios(request):
         })
         item['venta_bruta'] += int(v.get('total_bruta') or 0)
 
-    # --- Premios por vendedor (mismo rango) ---
+    # --- Premios por vendedor (mismo rango; solo premios reales, sin descargues) ---
     premios_qs = (
         Premio.objects
-        .filter(fecha__range=(start, end))
+        .filter(fecha__range=(start, end), venta_descargue__isnull=True)
         .values(
             'vendedor_id',
             'vendedor__username',
@@ -2124,6 +2160,9 @@ def reporte_ventas_vs_premios(request):
             cantidad_premios=Count('id'),
         )
     )
+
+    # --- Cubierto por descargues (mismo rango) ---
+    descargue_rows, total_descargues = _resumen_descargues(start, end)
 
     premios_por_vendedor = {}
     for p in premios_qs:
@@ -2184,6 +2223,10 @@ def reporte_ventas_vs_premios(request):
 
     rows.sort(key=lambda r: max(r['liquidacion'], r['premios']), reverse=True)
 
+    # Neto contando lo que cubren los descargues (a favor de la casa)
+    total_premios_neto = total_premios - total_descargues
+    total_diferencia_neta = total_diferencia + total_descargues
+
     chart_labels = [r['vendedor'] for r in rows]
     chart_liquidaciones = [r['liquidacion'] for r in rows]
     chart_premios = [r['premios'] for r in rows]
@@ -2200,6 +2243,12 @@ def reporte_ventas_vs_premios(request):
             writer.writerow([r['vendedor'], r['username'], r['venta_neta'], r['liquidacion'], r['premios'], r['cantidad_premios'], r['diferencia']])
         writer.writerow([])
         writer.writerow(['TOTALES', '', total_neta, total_liquidacion, total_premios, '', total_diferencia])
+        if descargue_rows:
+            writer.writerow([])
+            for d in descargue_rows:
+                writer.writerow([f"Descargue: {d['descargue']}", d['username'], '', '', -d['total'], d['cantidad'], ''])
+            writer.writerow(['CUBIERTO POR DESCARGUES', '', '', '', -total_descargues, '', ''])
+            writer.writerow(['PREMIOS NETOS / DIFERENCIA NETA', '', '', '', total_premios_neto, '', total_diferencia_neta])
         return response
 
     # --- Exportar Excel ---
@@ -2218,6 +2267,12 @@ def reporte_ventas_vs_premios(request):
             ws.append([r['vendedor'], r['username'], r['venta_neta'], r['liquidacion'], r['premios'], r['cantidad_premios'], r['diferencia']])
         ws.append([])
         ws.append(['TOTALES', '', total_neta, total_liquidacion, total_premios, '', total_diferencia])
+        if descargue_rows:
+            ws.append([])
+            for d in descargue_rows:
+                ws.append([f"Descargue: {d['descargue']}", d['username'], '', '', -d['total'], d['cantidad'], ''])
+            ws.append(['CUBIERTO POR DESCARGUES', '', '', '', -total_descargues, '', ''])
+            ws.append(['PREMIOS NETOS / DIFERENCIA NETA', '', '', '', total_premios_neto, '', total_diferencia_neta])
         for col in ws.columns:
             ws.column_dimensions[col[0].column_letter].width = max(len(str(col[0].value or '')), 12) + 2
         resp = _excel_response(f"ventas_vs_premios_{start}_{end}.xlsx")
@@ -2237,6 +2292,10 @@ def reporte_ventas_vs_premios(request):
         'total_liquidacion': total_liquidacion,
         'total_premios': total_premios,
         'total_diferencia': total_diferencia,
+        'descargue_rows': descargue_rows,
+        'total_descargues': total_descargues,
+        'total_premios_neto': total_premios_neto,
+        'total_diferencia_neta': total_diferencia_neta,
     })
 
 
@@ -2333,16 +2392,19 @@ def reporte_conciliacion(request):
         })
         item['venta_bruta'] += int(v.get('total_bruta') or 0)
 
-    # ── Premios por vendedor ───────────────────────────────────────────────
+    # ── Premios por vendedor (solo premios reales, sin descargues) ─────────
     premios_qs = (
         Premio.objects
-        .filter(fecha__range=(fecha_inicio, fecha_fin))
+        .filter(fecha__range=(fecha_inicio, fecha_fin), venta_descargue__isnull=True)
         .values('vendedor_id', 'vendedor__username', 'vendedor__first_name', 'vendedor__last_name')
         .annotate(
             total_premios=Coalesce(Sum('premio'), 0, output_field=IntegerField()),
             cantidad_premios=Count('id'),
         )
     )
+
+    # ── Cubierto por descargues (mismo mes) ────────────────────────────────
+    descargue_rows, total_descargues = _resumen_descargues(fecha_inicio, fecha_fin)
 
     premios_por_vendedor = {}
     for p in premios_qs:
@@ -2400,6 +2462,10 @@ def reporte_conciliacion(request):
     # Ordenar: mayor pérdida primero (diferencia más negativa primero)
     rows.sort(key=lambda r: r['diferencia'])
 
+    # Neto contando lo que cubren los descargues (a favor de la casa)
+    total_premios_neto = total_premios_g - total_descargues
+    total_diferencia_neta = total_diferencia + total_descargues
+
     # Calcular % para barras CSS y datos para gráfica
     max_abs = max((abs(r['diferencia']) for r in rows), default=1) or 1
     for r in rows:
@@ -2418,6 +2484,12 @@ def reporte_conciliacion(request):
             writer.writerow([r['vendedor'], r['username'], r['venta_neta'], r['liquidacion'], r['premios'], r['cantidad_premios'], r['diferencia']])
         writer.writerow([])
         writer.writerow(['TOTALES', '', total_neta, total_liquidacion, total_premios_g, '', total_diferencia])
+        if descargue_rows:
+            writer.writerow([])
+            for d in descargue_rows:
+                writer.writerow([f"Descargue: {d['descargue']}", d['username'], '', '', -d['total'], d['cantidad'], ''])
+            writer.writerow(['CUBIERTO POR DESCARGUES', '', '', '', -total_descargues, '', ''])
+            writer.writerow(['PREMIOS NETOS / DIFERENCIA NETA', '', '', '', total_premios_neto, '', total_diferencia_neta])
         return resp
 
     # ── Exportar Excel ─────────────────────────────────────────────────────
@@ -2436,6 +2508,12 @@ def reporte_conciliacion(request):
             ws.append([r['vendedor'], r['username'], r['venta_neta'], r['liquidacion'], r['premios'], r['cantidad_premios'], r['diferencia']])
         ws.append([])
         ws.append(['TOTALES', '', total_neta, total_liquidacion, total_premios_g, '', total_diferencia])
+        if descargue_rows:
+            ws.append([])
+            for d in descargue_rows:
+                ws.append([f"Descargue: {d['descargue']}", d['username'], '', '', -d['total'], d['cantidad'], ''])
+            ws.append(['CUBIERTO POR DESCARGUES', '', '', '', -total_descargues, '', ''])
+            ws.append(['PREMIOS NETOS / DIFERENCIA NETA', '', '', '', total_premios_neto, '', total_diferencia_neta])
         for col in ws.columns:
             ws.column_dimensions[col[0].column_letter].width = max(len(str(col[0].value or '')), 12) + 2
         resp = _excel_response(f"conciliacion_{mes_str}.xlsx")
@@ -2452,6 +2530,10 @@ def reporte_conciliacion(request):
         'total_liquidacion': total_liquidacion,
         'total_premios': total_premios_g,
         'total_diferencia': total_diferencia,
+        'descargue_rows': descargue_rows,
+        'total_descargues': total_descargues,
+        'total_premios_neto': total_premios_neto,
+        'total_diferencia_neta': total_diferencia_neta,
     })
 
 
