@@ -1569,86 +1569,6 @@ def resultados(request):
     }
     return render(request, 'core/resultados.html', context)
 
-@user_passes_test(lambda u: u.is_staff)
-@login_required
-def reporte_descargas(request):
-    fecha_param = request.GET.get('fecha')
-    hoy = timezone.localtime(timezone.now()).date()
-    try:
-        fecha = datetime.strptime(fecha_param, '%Y-%m-%d').date() if fecha_param else hoy
-    except ValueError:
-        fecha = hoy
-
-    base = (
-        Venta.objects
-        .filter(fecha_venta__date=fecha)
-        .annotate(numero_clean=Trim('numero'))
-        .exclude(Q(numero_clean__isnull=True) | Q(numero_clean=''))
-        .exclude(loterias__isnull=True)
-    )
-
-    report = list(
-        base.values('loterias__nombre', 'numero_clean')
-            .annotate(
-                veces_apostado=Count('id', distinct=True),
-                total_ventas=Coalesce(Sum('monto'), 0, output_field=IntegerField()),
-            )
-            .order_by('-total_ventas')
-    )
-
-    # ── Exportar CSV ──────────────────────────────
-    if request.GET.get('export') == 'csv':
-        response = HttpResponse(
-            content_type='text/csv; charset=utf-8-sig',  # utf-8-sig → Excel abre sin problemas de tildes
-        )
-        response['Content-Disposition'] = (
-            f'attachment; filename="reporte_descargas_{fecha}.csv"'
-        )
-        writer = csv.writer(response)
-        writer.writerow(['Lotería', 'Número', 'Veces apostado', 'Valor total (COP)'])
-        for row in report:
-            writer.writerow([
-                row['loterias__nombre'],
-                row['numero_clean'],
-                row['veces_apostado'],
-                row['total_ventas'],
-            ])
-        return response
-
-    # ── Exportar Excel ─────────────────────────────
-    if request.GET.get('export') == 'excel':
-        from openpyxl import Workbook
-        wb = Workbook()
-        ws = wb.active
-        ws.title = "Descargas"
-        fill, hfont, halign = _excel_header_style()
-        headers = ['Lotería', 'Número', 'Veces apostado', 'Valor total (COP)']
-        ws.append(headers)
-        for col_idx, _ in enumerate(headers, 1):
-            cell = ws.cell(row=1, column=col_idx)
-            cell.fill = fill; cell.font = hfont; cell.alignment = halign
-        for row in report:
-            ws.append([row['loterias__nombre'], row['numero_clean'], row['veces_apostado'], row['total_ventas']])
-        for col in ws.columns:
-            ws.column_dimensions[col[0].column_letter].width = max(len(str(col[0].value or '')), 12) + 2
-        resp = _excel_response(f"reporte_descargas_{fecha}.xlsx")
-        wb.save(resp)
-        return resp
-
-    # ── Totales resumen ───────────────────────────
-    total_general  = sum(r['total_ventas']   for r in report)
-    total_apuestas = sum(r['veces_apostado'] for r in report)
-    loterias_unicas = len({r['loterias__nombre'] for r in report})
-
-    return render(request, 'core/reporte_descargas.html', {
-        'fecha':          fecha,
-        'report':         report,
-        'total_general':  total_general,
-        'total_apuestas': total_apuestas,
-        'loterias_unicas': loterias_unicas,
-    })
-
-
 # ══════════════════════════════════════════════════════════════════════
 # Descargues por persona (reparto en cascada)
 # ══════════════════════════════════════════════════════════════════════
@@ -1742,7 +1662,7 @@ def descargues_por_persona(request):
     else:
         loterias_disponibles = Loteria.objects.none()
 
-    # ── Datos del dia (mismo query que reporte_descargas) ──
+    # ── Datos del dia (ventas agrupadas por loteria y numero) ──
     base = (
         Venta.objects
         .filter(fecha_venta__date=fecha)

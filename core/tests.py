@@ -15,52 +15,6 @@ from core.utils import dia_es, total_monto, validar_rango_fechas
 from core.views import _resolver_datos_premio, _resolver_datos_premio_combinado
 
 
-class ReporteDescargasTests(TestCase):
-    def setUp(self):
-        User = get_user_model()
-        self.staff = User.objects.create_user(
-            username='staff_reportes',
-            password='segura123',
-            is_staff=True,
-        )
-        self.valle = Loteria.objects.create(
-            nombre='Valle',
-            hora_inicio=time(8, 0),
-            hora_fin=time(23, 0),
-        )
-        self.manizales = Loteria.objects.create(
-            nombre='Manizales',
-            hora_inicio=time(8, 0),
-            hora_fin=time(23, 0),
-        )
-
-    def test_reporte_descargas_no_prorratea_monto_multi_loteria(self):
-        venta = Venta.objects.create(
-            vendedor=self.staff,
-            numero='428',
-            monto=1100,
-            es_combinado=False,
-        )
-        venta.loterias.set([self.valle, self.manizales])
-
-        self.client.force_login(self.staff)
-        response = self.client.get(
-            reverse('reporte_descargas'),
-            {'fecha': timezone.localdate().isoformat()},
-        )
-
-        self.assertEqual(response.status_code, 200)
-
-        report_rows = list(response.context['report'])
-        row_valle_428 = next(
-            row for row in report_rows
-            if row['loterias__nombre'] == 'Valle' and row['numero_clean'] == '428'
-        )
-
-        self.assertEqual(row_valle_428['veces_apostado'], 1)
-        self.assertEqual(row_valle_428['total_ventas'], 1100)
-
-
 class LimiteVentaPorNumeroTests(TestCase):
     def setUp(self):
         User = get_user_model()
@@ -931,16 +885,6 @@ class ReportesViewTests(TestCase):
         self.client.force_login(vendedor)
         resp = self.client.get(reverse("reportes"))
         self.assertEqual(resp.status_code, 302)
-
-    def test_reporte_descargas_exporta_excel(self):
-        self._crear_venta()
-        resp = self.client.get(
-            reverse("reporte_descargas"),
-            {"fecha": self.hoy, "export": "excel"},
-        )
-        self.assertEqual(resp.status_code, 200)
-        self.assertIn("spreadsheetml", resp["Content-Type"])
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 5.1 Tests de Notificaciones
