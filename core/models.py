@@ -308,6 +308,12 @@ class Resultado(models.Model):
     registrado_por = models.ForeignKey(User, on_delete=models.CASCADE)
     registrado_en = models.DateTimeField(auto_now_add=True)
 
+    @property
+    def numero_display(self) -> str:
+        """Resultado siempre a 4 cifras ("0188"). El campo entero pierde los
+        ceros a la izquierda; toda visualización debe usar esta propiedad."""
+        return str(self.resultado).zfill(4)
+
     class Meta:
         unique_together = ('loteria', 'fecha')
         verbose_name = "Resultado de Lotería"

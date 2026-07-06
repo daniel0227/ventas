@@ -358,12 +358,15 @@
         </div>
         <div class="lot-nombre">{{ lot.nombre }}</div>
         <input
-          type="number"
+          type="text"
           name="resultado_{{ lot.id }}"
           class="resultado-input {% if val %}filled{% endif %}"
           value="{{ val|default:'' }}"
           placeholder="—"
           inputmode="numeric"
+          maxlength="4"
+          pattern="[0-9]{4}"
+          title="Exactamente 4 dígitos (ej: 0188)"
           data-card="card-{{ lot.id }}"
           autocomplete="off">
       </div>
@@ -416,7 +419,12 @@
     }
   }
 
-  inputs.forEach(inp => inp.addEventListener('input', update));
+  inputs.forEach(inp => inp.addEventListener('input', () => {
+    // Solo dígitos, máximo 4 (permite ceros a la izquierda: 0188)
+    const limpio = inp.value.replace(/\D/g, '').slice(0, 4);
+    if (inp.value !== limpio) inp.value = limpio;
+    update();
+  }));
 
   // Auto-submit al cambiar la fecha
   document.getElementById('fecha')?.addEventListener('change', e => e.target.form.submit());

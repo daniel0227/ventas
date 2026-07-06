@@ -1469,11 +1469,11 @@ def registro_resultados(request):
     # ---------- 4. Loterías del día ----------
     loterias = Loteria.objects.filter(dias_juego=dia_obj).order_by('nombre')
 
-    # ---------- 5. Diccionario de resultados actuales ----------
+    # ---------- 5. Diccionario de resultados actuales (siempre 4 cifras) ----------
     resultados_dict = {}
     for lot in loterias:
         resultado_obj = Resultado.objects.filter(loteria=lot, fecha=fecha_actual).first()
-        resultados_dict[lot.id] = resultado_obj.resultado if resultado_obj else None
+        resultados_dict[lot.id] = resultado_obj.numero_display if resultado_obj else None
 
     # ---------- 6. Registro manual (POST) ----------
     if request.method == 'POST':
@@ -1485,14 +1485,17 @@ def registro_resultados(request):
                 pass
 
         ip_actual = _client_ip(request)
+        rechazados = []
         for lot in loterias:
             key   = f"resultado_{lot.id}"
-            valor = request.POST.get(key)
+            valor = (request.POST.get(key) or '').strip()
             if valor:
-                try:
-                    valor_int = int(valor)
-                except ValueError:
+                # Exactamente 4 dígitos: protege el cálculo de premios de
+                # resultados corruptos (5+ cifras nunca coincidirían).
+                if not (valor.isdigit() and len(valor) == 4):
+                    rechazados.append(f"{lot.nombre} («{valor}»)")
                     continue
+                valor_int = int(valor)
                 obj = Resultado.objects.filter(loteria=lot, fecha=fecha_actual).first()
                 if obj:
                     obj.resultado = valor_int
@@ -1511,6 +1514,11 @@ def registro_resultados(request):
                     obj._audit_source = "admin_manual"
                     obj.delete()
 
+        if rechazados:
+            messages.error(
+                request,
+                "Resultados rechazados (deben ser exactamente 4 dígitos): " + ", ".join(rechazados)
+            )
         messages.success(request, "Resultados guardados correctamente.")   # <<< NUEVO >>>
         return redirect(f"{request.path}?fecha={fecha_actual.isoformat()}") # <<< cambia redirect
 
@@ -1554,18 +1562,37 @@ def resultados(request):
     loterias = Loteria.objects.filter(dias_juego=dia_obj).order_by('nombre')
 
     # Construir la lista de resultados: para cada lotería se consulta el resultado registrado para la fecha filtrada
+    hoy = ahora.date()
     resultados_list = []
+    lineas_share = []
     for lot in loterias:
         resultado_obj = Resultado.objects.filter(loteria=lot, fecha=fecha_actual).first()
+        numero = resultado_obj.numero_display if resultado_obj else None
+        if numero is not None:
+            estado = 'ok'
+            lineas_share.append(f"{lot.nombre}: {numero}")
+        elif fecha_actual < hoy or (fecha_actual == hoy and ahora.time() >= lot.hora_fin):
+            estado = 'falta'   # la lotería ya cerró y no hay resultado registrado
+        else:
+            estado = 'juega'   # aún no cierra (o fecha futura)
         resultados_list.append({
             'loteria': lot,
-            'resultado': resultado_obj.resultado if resultado_obj else None,
+            'resultado': numero,
+            'estado': estado,
         })
+
+    share_text = ""
+    if lineas_share:
+        share_text = (
+            f"🎰 *Resultados {fecha_actual.strftime('%d/%m/%Y')}*\n\n"
+            + "\n".join(lineas_share)
+        )
 
     context = {
          'loterias_resultados': resultados_list,
          'fecha_actual': fecha_actual,
          'dia_actual_nombre': dia_actual_nombre_es,
+         'share_text': share_text,
     }
     return render(request, 'core/resultados.html', context)
 

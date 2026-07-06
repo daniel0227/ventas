@@ -55,9 +55,15 @@ def importar_resultados(fecha: date, user=None) -> dict:
     resumen = {"importados": 0, "omitidos": 0, "errores": 0} 
     for item in data:
         slug   = item.get("slug")
-        numero = item.get("result")
+        numero = str(item.get("result") or "").strip()
 
         if not slug or not numero:
+            resumen["errores"] += 1
+            continue
+
+        # Solo dígitos y máximo 4 cifras: un resultado corrupto (letras,
+        # series, 5+ cifras) dañaría el cálculo de premios.
+        if not numero.isdigit() or len(numero) > 4:
             resumen["errores"] += 1
             continue
 
