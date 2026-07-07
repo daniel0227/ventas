@@ -1570,7 +1570,7 @@ def resultados(request):
         numero = resultado_obj.numero_display if resultado_obj else None
         if numero is not None:
             estado = 'ok'
-            lineas_share.append(f"{lot.nombre}: {numero}")
+            lineas_share.append(f"🔸 {lot.nombre} → *{numero}*")
         elif fecha_actual < hoy or (fecha_actual == hoy and ahora.time() >= lot.hora_fin):
             estado = 'falta'   # la lotería ya cerró y no hay resultado registrado
         else:
@@ -1583,9 +1583,20 @@ def resultados(request):
 
     share_text = ""
     if lineas_share:
+        MESES_ES = ['', 'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+                    'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
+        fecha_larga = (
+            f"{dia_actual_nombre_es}, {fecha_actual.day} de "
+            f"{MESES_ES[fecha_actual.month]} de {fecha_actual.year}"
+        )
+        separador = "━" * 13
         share_text = (
-            f"🎰 *Resultados {fecha_actual.strftime('%d/%m/%Y')}*\n\n"
+            "🎰 *RESULTADOS DEL DÍA*\n"
+            f"🗓️ _{fecha_larga}_\n"
+            f"{separador}\n"
             + "\n".join(lineas_share)
+            + f"\n{separador}\n"
+            "✨ _Lottia_"
         )
 
     context = {
