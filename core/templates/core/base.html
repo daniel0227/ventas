@@ -52,7 +52,7 @@
             <i class="bi bi-house"></i>
             <span class="welcome-btn-text ms-1">Inicio</span>
           </a>
-          <form method="post" action="{% url 'logout' %}" class="d-inline">
+          <form method="post" action="{% url 'logout' %}" class="d-inline" data-no-loading>
             {% csrf_token %}
             <button class="btn btn-outline-danger welcome-btn d-flex align-items-center fw-semibold" type="submit" aria-label="Cerrar sesión">
               <i class="bi bi-box-arrow-right"></i>
@@ -65,6 +65,14 @@
       {% block content %}
 
       {% endblock %}
+
+      <!-- Overlay global de carga -->
+      <div class="lottia-loading" id="lottia-loading" role="status" aria-live="polite" aria-hidden="true">
+        <div class="ll-box">
+          <div class="ll-spinner"></div>
+          <span class="ll-text">Cargando…</span>
+        </div>
+      </div>
     </main>
     
 
@@ -115,6 +123,32 @@
       line-height: 1;
       padding: 0.5rem 0.8rem;
     }
+
+    /* Overlay global de carga (filtros, reportes y exportaciones) */
+    .lottia-loading {
+      position: fixed; inset: 0; z-index: 1080;
+      background: rgba(15, 23, 42, .38);
+      display: none; align-items: center; justify-content: center;
+    }
+    .lottia-loading.show { display: flex; }
+    .lottia-loading .ll-box {
+      display: flex; flex-direction: column; align-items: center; gap: .65rem;
+      background: #fff; border-radius: 14px;
+      padding: 1.15rem 1.6rem;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, .25);
+    }
+    .lottia-loading .ll-spinner {
+      width: 36px; height: 36px; border-radius: 50%;
+      border: 4px solid #e0e7ff; border-top-color: #4f46e5;
+      animation: ll-spin .7s linear infinite;
+    }
+    .lottia-loading .ll-text {
+      font-size: .82rem; font-weight: 700; color: #475569;
+    }
+    @keyframes ll-spin { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) {
+      .lottia-loading .ll-spinner { animation-duration: 1.5s; }
+    }
   </style>
   
     <!-- Core -->
@@ -154,5 +188,65 @@
 
     <!-- Volt JS -->
     <script src="{% static 'core/js/volt.js' %}"></script>
+
+    <!-- Overlay de carga global -->
+    <script>
+    (function () {
+      var overlay = document.getElementById('lottia-loading');
+      if (!overlay) return;
+      var textEl = overlay.querySelector('.ll-text');
+      var timer = null;
+
+      function show(msg, autoHide) {
+        if (textEl) textEl.textContent = msg || 'Cargando…';
+        overlay.classList.add('show');
+        overlay.setAttribute('aria-hidden', 'false');
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(hide, autoHide || 15000);
+      }
+      function hide() {
+        overlay.classList.remove('show');
+        overlay.setAttribute('aria-hidden', 'true');
+        if (timer) { clearTimeout(timer); timer = null; }
+      }
+      window.LottiaLoading = { show: show, hide: hide };
+
+      // 1) Envíos reales (botón Filtrar/Ver/Guardar o Enter). Si un handler de
+      //    la página cancela el envío (validación o AJAX), no mostramos nada.
+      document.addEventListener('submit', function (e) {
+        if (e.defaultPrevented) return;
+        var f = e.target;
+        if (!f || f.tagName !== 'FORM') return;
+        if (f.hasAttribute('data-no-loading') || f.target === '_blank') return;
+        show(f.getAttribute('data-loading-text'));
+      }, false);
+
+      // 2) Envíos por JS: form.submit() no dispara el evento 'submit'.
+      if (window.HTMLFormElement && HTMLFormElement.prototype.submit) {
+        var nativeSubmit = HTMLFormElement.prototype.submit;
+        HTMLFormElement.prototype.submit = function () {
+          if (!this.hasAttribute('data-no-loading') && this.target !== '_blank') {
+            show(this.getAttribute('data-loading-text'));
+          }
+          return nativeSubmit.apply(this, arguments);
+        };
+      }
+
+      // 3) Enlaces de exportación/descarga: la página no navega -> auto-ocultar.
+      document.addEventListener('click', function (e) {
+        var a = e.target.closest ? e.target.closest('a') : null;
+        if (!a) return;
+        var href = a.getAttribute('href') || '';
+        if (a.hasAttribute('download') || /[?&](export|formato)=/.test(href)) {
+          show('Generando archivo…', 3000);
+        } else if (a.hasAttribute('data-loading')) {
+          show(a.getAttribute('data-loading-text'));
+        }
+      }, false);
+
+      // 4) Al volver con el botón atrás (bfcache) nunca dejar el overlay puesto.
+      window.addEventListener('pageshow', hide);
+    })();
+    </script>
 
 </html>

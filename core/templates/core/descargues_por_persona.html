@@ -1,11 +1,15 @@
 {% extends "core/base.html" %}
 {% load format_filters %}
 
+{% block extra_css %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+{% endblock %}
+
 {% block content %}
 
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap');
-
   :root {
     --primary:        #4f46e5;
     --primary-dark:   #3730a3;
@@ -13,6 +17,7 @@
     --primary-glow:   rgba(79,70,229,.15);
     --success:        #10b981;
     --success-dark:   #059669;
+    --success-strong: #047857;
     --success-light:  #ecfdf5;
     --warning:        #f59e0b;
     --warning-light:  #fffbeb;
@@ -104,6 +109,7 @@
     transition: all .15s;
   }
   .btn-reset:hover { background: var(--danger-light); color: var(--danger); border-color: #fca5a5; }
+  .btn-reset:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 
   /* Resumen total */
   .resumen-bar {
@@ -123,7 +129,7 @@
 
   /* Grid de personas */
   .personas-grid {
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr));
     gap: 1rem;
   }
 
@@ -159,17 +165,18 @@
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   .btn-copy-inline {
-    width: 34px; height: 34px;
+    width: 44px; height: 44px;
     display: inline-flex; align-items: center; justify-content: center;
     border-radius: var(--radius-sm);
     background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
     color: #fff; border: none; cursor: pointer; flex-shrink: 0;
     box-shadow: 0 2px 6px var(--primary-glow);
     transition: opacity .15s, transform .1s, box-shadow .15s, background .15s;
-    font-size: 1rem;
+    font-size: 1.05rem;
   }
   .btn-copy-inline:hover { opacity: .92; box-shadow: 0 4px 10px var(--primary-glow); }
   .btn-copy-inline:active { transform: scale(.92); }
+  .btn-copy-inline:focus-visible { outline: 2px solid var(--primary-dark); outline-offset: 2px; }
   .btn-copy-inline.copied {
     background: linear-gradient(135deg, var(--success) 0%, var(--success-dark) 100%);
   }
@@ -178,7 +185,7 @@
   }
   .persona-total {
     text-align: right;
-    font-size: 1.05rem; font-weight: 800; color: var(--success);
+    font-size: 1.05rem; font-weight: 800; color: var(--success-strong);
     font-family: 'DM Mono', monospace; font-variant-numeric: tabular-nums;
     white-space: nowrap;
   }
@@ -205,9 +212,11 @@
     color: var(--text-primary);
   }
   .bloque-lineas li {
+    display: flex; justify-content: space-between; gap: .75rem;
     padding: .14rem 0; font-variant-numeric: tabular-nums;
     letter-spacing: .02em;
   }
+  .bloque-lineas .ln-monto { color: var(--text-secondary); white-space: nowrap; }
   .bloque-subtotal {
     display: flex; justify-content: space-between;
     padding: .35rem .4rem; margin-top: .3rem;
@@ -222,28 +231,6 @@
   }
   .persona-empty-msg i { font-size: 1.4rem; color: var(--text-muted); display: block; margin-bottom: .4rem; }
 
-  .persona-footer {
-    padding: .65rem 1.1rem; border-top: 1px solid var(--border);
-    background: var(--surface-dim);
-    display: flex; gap: .5rem; align-items: center;
-  }
-  .btn-copy {
-    flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: .4rem;
-    padding: .5rem 1rem; border-radius: var(--radius-sm);
-    font-size: .82rem; font-weight: 700; color: #fff;
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-    border: none; cursor: pointer; min-height: 38px;
-    box-shadow: 0 2px 8px var(--primary-glow);
-    transition: opacity .15s, transform .1s, box-shadow .15s;
-  }
-  .btn-copy:hover { opacity: .92; box-shadow: 0 4px 12px var(--primary-glow); }
-  .btn-copy:active { transform: scale(.97); }
-  .btn-copy.copied {
-    background: linear-gradient(135deg, var(--success) 0%, var(--success-dark) 100%);
-  }
-  .btn-copy:disabled {
-    background: #e5e7eb; color: var(--text-muted); cursor: not-allowed; box-shadow: none;
-  }
   .badge-restante {
     display: inline-flex; align-items: center; gap: .25rem;
     background: var(--warning-light); color: #92400e;
@@ -275,6 +262,16 @@
     font-size: .82rem; font-weight: 700;
   }
   .empty-state a.cta:hover { background: var(--primary-dark); }
+  .empty-state a.cta:focus-visible { outline: 2px solid var(--primary-dark); outline-offset: 2px; }
+
+  /* Respeta la preferencia de movimiento reducido */
+  @media (prefers-reduced-motion: reduce) {
+    .persona-card, .btn-copy-inline, .btn-reset, .empty-state a.cta,
+    .filter-panel .form-control, .filter-panel .form-select {
+      transition: none !important;
+    }
+    .btn-copy-inline:active { transform: none; }
+  }
 </style>
 
 <!-- Header -->
@@ -325,7 +322,7 @@
           </select>
         </div>
         <div class="col-12 col-md-3">
-          <a href="{% url 'descargues_por_persona' %}" class="btn-reset w-100 justify-content-center">
+          <a href="{% url 'descargues_por_persona' %}" class="btn-reset w-100 justify-content-center" data-loading>
             <i class="bi bi-arrow-counterclockwise"></i> Limpiar
           </a>
         </div>
@@ -379,8 +376,9 @@
           <button type="button" class="btn-copy-inline"
             data-mensaje="{{ item.mensaje|escape }}"
             title="Copiar mensaje completo"
+            aria-label="Copiar descargue de {{ item.persona.nombre }}"
             {% if not item.mensaje %}disabled{% endif %}>
-            <i class="bi bi-clipboard"></i>
+            <i class="bi bi-clipboard" aria-hidden="true"></i>
           </button>
           <div class="persona-total">
             <span class="label">Total</span>
@@ -395,7 +393,7 @@
                 <div class="bloque-titulo">{{ bloque.loteria }}</div>
                 <ul class="bloque-lineas">
                   {% for numero, monto in bloque.items %}
-                    <li>{{ numero }} - {{ monto }}</li>
+                    <li><span>{{ numero }}</span><span class="ln-monto">${{ monto|format_colombian }}</span></li>
                   {% endfor %}
                 </ul>
                 <div class="bloque-subtotal">
@@ -419,10 +417,11 @@
 
 <script>
 (() => {
-  // Auto-submit de filtros
-  document.getElementById('fecha')?.addEventListener('change', () => document.getElementById('filter-form').submit());
-  document.getElementById('loteria')?.addEventListener('change', () => document.getElementById('filter-form').submit());
-  document.getElementById('persona')?.addEventListener('change', () => document.getElementById('filter-form').submit());
+  // Auto-submit de filtros (el overlay global se activa al llamar form.submit())
+  const enviarFiltros = () => document.getElementById('filter-form').submit();
+  document.getElementById('fecha')?.addEventListener('change', enviarFiltros);
+  document.getElementById('loteria')?.addEventListener('change', enviarFiltros);
+  document.getElementById('persona')?.addEventListener('change', enviarFiltros);
 
   // Botón copiar (al lado del nombre)
   document.querySelectorAll('.btn-copy-inline').forEach(btn => {
@@ -431,11 +430,11 @@
       if (!texto) return;
       const restaurar = () => {
         btn.classList.remove('copied');
-        btn.innerHTML = '<i class="bi bi-clipboard"></i>';
+        btn.innerHTML = '<i class="bi bi-clipboard" aria-hidden="true"></i>';
       };
       const marcarCopiado = () => {
         btn.classList.add('copied');
-        btn.innerHTML = '<i class="bi bi-check2-circle"></i>';
+        btn.innerHTML = '<i class="bi bi-check2-circle" aria-hidden="true"></i>';
         setTimeout(restaurar, 1800);
       };
       try {
