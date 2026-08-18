@@ -305,16 +305,22 @@
 <div class="filter-card">
   <div class="d-flex gap-2 align-items-end flex-wrap">
 
-    <form method="get" style="flex:1; min-width:160px;">
-      <label for="fecha" class="filter-label" style="margin-bottom:.4rem;">
-        <i class="bi bi-calendar3 me-1"></i>Fecha
-      </label>
-      <input
-        type="date"
-        id="fecha"
-        name="fecha"
-        class="form-control"
-        value="{{ fecha_actual }}">
+    <form method="get" class="d-flex gap-2 align-items-end flex-wrap" style="flex:1; min-width:160px;">
+      <div style="flex:1; min-width:140px;">
+        <label for="fecha" class="filter-label" style="margin-bottom:.4rem;">
+          <i class="bi bi-calendar3 me-1"></i>Fecha
+        </label>
+        <input
+          type="date"
+          id="fecha"
+          name="fecha"
+          class="form-control"
+          value="{{ fecha_actual|date:'Y-m-d' }}">
+      </div>
+      <button type="submit" class="btn-import">
+        <i class="bi bi-search"></i>
+        Buscar
+      </button>
     </form>
 
     <form method="get">
@@ -343,7 +349,7 @@
 <!-- ── Formulario principal ───────────────────────────── -->
 <form method="post" id="main-form">
   {% csrf_token %}
-  <input type="hidden" name="fecha" value="{{ fecha_actual }}">
+  <input type="hidden" name="fecha" value="{{ fecha_actual|date:'Y-m-d' }}">
 
   <div class="loterias-grid" id="loterias-grid">
     {% for lot in loterias %}
@@ -425,9 +431,6 @@
     if (inp.value !== limpio) inp.value = limpio;
     update();
   }));
-
-  // Auto-submit al cambiar la fecha
-  document.getElementById('fecha')?.addEventListener('change', e => e.target.form.submit());
 
   // Estado inicial
   update();
