@@ -394,7 +394,7 @@
 <script>
 (() => {
   const inputs   = document.querySelectorAll('.resultado-input');
-  const total    = {{ loterias|length }};
+  const total    = inputs.length;
   const fillBar  = document.getElementById('progress-fill');
   const countEl  = document.getElementById('count-filled');
   const saveCount= document.getElementById('save-count');
