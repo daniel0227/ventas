@@ -1693,12 +1693,32 @@ def descargues_por_persona(request):
     }
 
     # ── Loterias disponibles segun el dia de la fecha ────
+    ahora = timezone.localtime(timezone.now())
     dia_nombre = _DIAS_SEMANA_CONFIG[fecha.weekday()]['nombre']
     dia_obj = Dia.objects.filter(nombre=dia_nombre).first()
     if dia_obj:
-        loterias_disponibles = Loteria.objects.filter(dias_juego=dia_obj).order_by('nombre')
+        loterias_del_dia = list(Loteria.objects.filter(dias_juego=dia_obj).order_by('nombre'))
     else:
-        loterias_disponibles = Loteria.objects.none()
+        loterias_del_dia = []
+
+    if fecha == hoy:
+        # Igual que los demas filtros: solo las abiertas para venta en este momento.
+        loterias_disponibles = [
+            lot for lot in loterias_del_dia
+            if _loteria_esta_abierta_para_venta(lot, ahora)
+        ]
+    else:
+        loterias_disponibles = loterias_del_dia
+
+    # Si la loteria filtrada ya cerro, se mantiene visible para no perder el filtro activo.
+    if loteria_id and not any(str(lot.id) == loteria_id for lot in loterias_disponibles):
+        seleccionada = next((lot for lot in loterias_del_dia if str(lot.id) == loteria_id), None)
+        if seleccionada:
+            loterias_disponibles = sorted(
+                loterias_disponibles + [seleccionada], key=lambda lot: lot.nombre
+            )
+        else:
+            loteria_id = ''
 
     # ── Datos del dia (ventas agrupadas por loteria y numero) ──
     base = (
